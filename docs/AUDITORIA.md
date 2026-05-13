@@ -30,7 +30,7 @@ Scripts disponibles (`package.json`): `dev`, `build`, `lint`, `preview`. No hay 
 - **Grupos por categoría**:
   - `1ª`, `2ª`, `3ª`: 2 grupos de 4 parejas → 12 partidos de fase de grupos cada una.
   - `4ª`: 1 solo grupo de 4 parejas → 6 partidos. Bracket KO reducido a *Final + Final consolación* (sin semifinales).
-- **28 parejas** codificadas `A1..A8, B1..B8, C1..C8, D1..D4` (códigos display) en `src/App.jsx` líneas 6-21, con nombres reales asociados.
+- **28 parejas** codificadas `A1..A8, B1..B8, C1..C8, D1..D4` (códigos display); en el repo 2025 los nombres reales de los jugadores estaban embebidos en `src/App.jsx`. Tras el rebuild, esos datos no permanecen en el árbol activo y solo subsisten en el historial git de los commits anteriores al merge.
 - Cuadro KO de 1ª/2ª/3ª: `SF1 (1ºG1 vs 2ºG2)`, `SF2 (1ºG2 vs 2ºG1)`, `Final entre ganadores`, con cuadro de consolación paralelo entre 3ºs y 4ºs.
 
 ### `public/results.json` — schema implícito
@@ -81,13 +81,13 @@ type Schedules = {
 
 ### Datos reutilizables para la próxima edición
 
-- Lista de 28 parejas con nombres reales en `src/App.jsx` líneas 6-21 — reutilizable como **histórico** para sembrar ranking si se decide arrastrar continuidad inter-edición.
+- Lista de 28 parejas (nombres parciales tipo "jugador1 / jugador2") presente en el `src/App.jsx` del repo 2025 — potencialmente reutilizable como **histórico** para sembrar ranking si se decide arrastrar continuidad inter-edición. Tras la eliminación del código legado, la lista solo persiste en el historial git y debe re-importarse de forma controlada (con consentimiento RGPD) si se opta por la continuidad.
 - Estructura de categorías y formato de cuadro KO — reutilizable como *punto de partida* del modelo, pero **debe ser configurable desde admin**, no codeada.
 - Resultados 2025 completos — archivables como dataset histórico congelado en una tabla `historical_tournaments` (o equivalente) para alimentar ranking inter-edición si procede.
 
 ### Anonimización
 
-Los nombres son alias parciales del estilo *"Vicenç / Victor"* o *"Mariano / Jordi M."*, no datos completos (sin apellidos, sin email, sin teléfono). Aun así, antes de migrar a una base relacional con FK a `players`, conviene tratarlos como dato personal (Art. 4 RGPD) y obtener consentimiento explícito o pseudonimizar. **DECISIÓN PENDIENTE** en la política RGPD.
+Los nombres heredados son alias parciales (estilo *"nombre1 / nombre2"*, normalmente sin apellido completo, sin email, sin teléfono). Aun así, antes de migrar a una base relacional con FK a `players`, conviene tratarlos como dato personal (Art. 4 RGPD) y obtener consentimiento explícito o pseudonimizar. **DECISIÓN PENDIENTE** en la política RGPD.
 
 ## Componentes funcionales
 
@@ -145,7 +145,7 @@ Los nombres son alias parciales del estilo *"Vicenç / Victor"* o *"Mariano / Jo
 
 - **Datos sensibles inminentes**: cuando se abran inscripciones, el sistema manejará nombre, email, teléfono y pago. Hoy no hay base RGPD ni texto legal; debe redactarse antes del primer formulario público.
 - **Stripe**: cualquier integración requiere webhook firmado y conciliación. Salir mal de modo `test` por descuido publicaría un Checkout que cobra de verdad. El paso a `live` queda bloqueado tras aprobación explícita, según §10 del prompt.
-- **Migración de histórico**: las 28 parejas 2025 son texto libre con nombres parciales. Importarlas a `players` requiere desambiguación humana — hay al menos dos jugadores distintos llamados **Hugo** (`B3 Hugo / Fran`, `B6 Guillem / Hugo Beser`, `C8 Hugo / Guillem`) y dos llamados **Jordi** (`A3 Jordi / Ivan`, `B5 Oscar / Jordi G.`, `D1 Mariano / Jordi M.`).
+- **Migración de histórico**: las 28 parejas 2025 son texto libre con nombres parciales. Importarlas a `players` requiere desambiguación humana — se observaron al menos dos casos de **nombres de pila repetidos en parejas distintas y categorías distintas**, lo que impide generar claves únicas de jugador sin intervención manual (no se nombran ejemplos aquí por política de minimización RGPD; el detalle queda en el historial git pre-rebuild).
 - **Adversarial editing histórico**: el repo actual permite a cualquier persona con push reescribir resultados. Sin `audit_log`, no hay forma de probar la integridad histórica. Mitigado al migrar a DB con triggers.
 - **Tiempos**: el prompt enumera 6 sprints + hardening + despliegue. Sin un calendario concreto (a definir en `PROPUESTA_EDICION_<AÑO>`) el alcance puede deslizarse.
 
