@@ -168,33 +168,81 @@ de Sporttia. Ventajas: cero dependencia API externa, cero riesgo de doble
 reserva. Inconveniente: si Sporttia cambia un slot, el admin del torneo tiene
 que reflejarlo manualmente en el panel.
 
-**Pendiente del organizador** (ver bloque final, ítems 5-9, 11-12):
-- Fecha apertura inscripciones
-- Fecha cierre inscripciones
-- Fecha sorteo
-- Fecha primer partido
-- Fecha final
-- Persona y teléfono de contacto operativo
+**Calendario cerrado** (algunas fechas son **provisionales — PENDIENTES DE TU OK**
+porque indicaste rangos como "principios de julio"):
+
+| Hito | Fecha | Estado |
+|---|---|---|
+| Apertura de inscripciones | **1 jun 2026** | cerrado |
+| Cierre estándar de inscripciones | **30 jun 2026** | provisional (encaja con tramos 1-10 / 11-20 / 21-30 de §13) |
+| Cierre con recargo / fuera de plazo | **discrecional del organizador**, sólo si quedan plazas en alguna categoría | cerrado |
+| Sorteo de cuadros | **1 jul 2026** | cerrado (= cierre + 1 día) |
+| Primer partido | **6 jul 2026** (lunes) | provisional |
+| Final | **9 ago 2026** (sábado) | provisional |
+| Ventana de juego | 6 jul - 9 ago 2026 (5 semanas) | derivado |
+
+> Capacidad estimada: con holgura amplia frente a los ~100 partidos previstos
+> (14 partidos/día entre semana + 27 partidos/día finde × 5 semanas = ~620
+> slots disponibles, ocupación esperada ~16 %).
+
+**Contacto operativo cerrado:**
+- **Nombre**: Jonatan García
+- **Teléfono**: 620 033 053
+- **Publicación en web**: a confirmar si se publica directamente o sólo como
+  enlace `tel:` clicable detrás de un botón "Contactar organización".
 
 ---
 
 ## §13. Cuota de inscripción
 
-**RESPUESTA:** **Tarifa única por pareja**, sin descuentos por socio/federado
-(modelo (a) del borrador). Importe **pendiente** del presupuesto del organizador
-(ver bloque final, ítem 13). Una sola transacción Bizum/transferencia por pareja.
+**RESPUESTA:** **Cuota escalonada por persona** (no por pareja), sin descuentos
+por socio/federado. La fecha de inscripción determina el tramo aplicado al
+inscrito individual (no a la pareja: si los dos miembros se inscriben en
+fechas distintas, cada uno paga según su tramo).
 
-> Implicación. Sin descuento por socio del club, no hay verificación cruzada
-> de condición de miembro. Coherente con §31 (sin verificación formal de
-> residencia/vinculación).
+> Implicación operativa. **Una inscripción de pareja = 2 transacciones Bizum
+> independientes**, una por cada jugador. La pareja queda en estado
+> `confirmada` cuando ambos jugadores aparecen como `pagado`. Cada Bizum lleva
+> un **concepto único por jugador** (p.ej. `2026-J0042-OSCAR-LOPEZ`),
+> conciliable por el admin. *PENDIENTE DE TU OK*: si prefieres 1 solo Bizum
+> por pareja con la suma total, el modelo cambia pero es más simple
+> operativamente; el coste es perder la justicia individual si un miembro se
+> cae después de pagar.
+
+> Implicación RGPD-Hacienda. Si la suma anual de ingresos supera los umbrales
+> del IRPF aplicable a una asociación sin ánimo de lucro, hay que dar de alta
+> el ingreso. ~32 parejas × 2 personas × ~22.5 €/persona media ≈ **1.440 €**
+> previstos por edición → muy por debajo de cualquier umbral, sin
+> implicaciones fiscales para asociación deportiva amateur.
 
 ---
 
-## §14. Descuentos por inscripción anticipada (*early bird*)
+## §14. Estructura de tarifas (escalonado en 3 tramos + recargo)
 
-**RESPUESTA:** (a) **Early bird: -5 € o -10 %** sobre la tarifa estándar
-hasta una **fecha X pendiente** (ver bloque final, ítem 10). Después de X,
-tarifa completa hasta el cierre.
+> *La opción inicial de early bird simple del borrador queda sustituida tras
+> la respuesta del organizador por una estructura escalonada de 3 tramos +
+> recargo fuera de plazo (≡ opción (c) descartada en la tanda 9).*
+
+**RESPUESTA:** Tarifa **escalonada por persona** según la fecha en la que el
+inscrito completa su pago (no la fecha de envío del formulario):
+
+| Tramo | Ventana de pago | Tarifa por persona | Pareja completa (×2) |
+|---|---|---|---|
+| Tramo 1 (super early) | **1-10 jun 2026** | **15 €** | 30 € |
+| Tramo 2 (early) | **11-20 jun 2026** | **20 €** | 40 € |
+| Tramo 3 (estándar) | **21-30 jun 2026** | **25 €** | 50 € |
+| **Recargo fuera de plazo** | **1 jul 2026 → mientras queden plazas (discrecional)** | **30 €** | 60 € |
+
+Reglas operativas:
+- El tramo se cierra a las **23:59 del último día**, hora local Europe/Madrid.
+- Si una pareja se inscribe en T1 pero un miembro paga el día 12 (T2), ese
+  miembro paga 20 € (no 15 €). La pareja queda `confirmada` cuando los 2 han pagado.
+- El recargo "fuera de plazo" es **decisión discrecional del comité**: sólo se
+  abre si después del cierre estándar quedan plazas vacantes en alguna categoría.
+  Si no hay plazas, no se admite inscripción aunque la pareja esté dispuesta
+  a pagar 60 €.
+- El sistema **NO** ofrece reembolso retroactivo si bajan las tarifas
+  posteriores (no aplica aquí porque van subiendo, pero se documenta).
 
 ---
 
@@ -212,19 +260,23 @@ de vuelta desde su cuenta, sube comprobante al panel.
 ## §16. Pasarela de pago
 
 **RESPUESTA:** (d) **Bizum y/o transferencia bancaria**, cero comisión, con
-**conciliación manual**. Flujo:
-1. La pareja completa el formulario público → inscripción queda en estado
-   `pendiente_pago`.
-2. El sistema le muestra un número Bizum / IBAN del club + un **concepto único**
-   (p.ej. `2026-CAT2-P017`).
+**conciliación manual**. Flujo (actualizado para coherencia con §13 = pago por persona):
+1. La pareja completa el formulario público → se crean **dos** registros de
+   `pending_payment`, uno por cada jugador. Estado de la pareja:
+   `pending_payment` global.
+2. El sistema muestra a cada jugador un número Bizum / IBAN del club + un
+   **concepto único por jugador** (formato `2026-J<id>-<APELLIDO>`, p.ej.
+   `2026-J0042-LOPEZ`).
 3. El admin del torneo concilia con el extracto bancario (revisa los pagos
-   entrantes con concepto coincidente).
-4. El admin marca como `pagada` desde el panel → se dispara email de
-   confirmación a la pareja.
+   entrantes y los empareja por concepto).
+4. El admin marca cada `payment` individual como `paid` desde el panel. Cuando
+   los **dos** jugadores de la pareja están `paid`, un trigger PL/pgSQL marca
+   la pareja como `confirmed` y dispara el email + WhatsApp de confirmación a
+   ambos.
 
-**Trade-off asumido:** ~5-10 min de admin por inscripción × ~32 inscripciones
-= **3-5 h totales de gestión por edición**. Stripe se descarta por preferencia
-del organizador.
+**Trade-off asumido:** ~5 min de admin por **pago individual** × ~64 pagos
+(32 parejas × 2) = **5-6 h totales de gestión por edición**. Stripe se
+descarta por preferencia del organizador.
 
 ---
 
@@ -300,8 +352,8 @@ la landing pública (logos + enlace + mención). Detalle de patrocinadores
 
 | # | Decisión | Respuesta |
 |---|---|---|
-| 21.1 | Responsable del tratamiento | **Club de pádel de les Coves de Vinromà**, entidad registrada con CIF. Nombre legal, CIF, dirección y email contacto **pendientes** (ver bloque final, ítems 1-4). |
-| 21.2 | Email de contacto del responsable | Pendiente (ver bloque final, ítem 4). En la política de privacidad figurará como `privacidad@<dominio-futuro>` con redirección al email del club. |
+| 21.1 | Responsable del tratamiento | **Club Padel les Coves**, entidad registrada con CIF. CIF y dirección postal **pendientes** (organizador los aporta antes del live — ver bloque final). |
+| 21.2 | Email de contacto del responsable | ⚠️ **CRÍTICO**: el organizador inicialmente propuso *grupo de WhatsApp* como único canal, pero un grupo de WhatsApp **NO es válido como canal RGPD** (un inscrito no debe verse obligado a unirse a un grupo para ejercer un derecho ARSULIPO). Workaround mínimo viable: crear un email gratuito tipo `clubpadellescoves@gmail.com` que sirva como `from address` de Resend, contacto Sentry y canal formal RGPD. El grupo de WhatsApp queda como canal operativo principal. Email **pendiente** de crear/aportar antes del live. |
 | 21.3 | Designar DPO | **No designar.** No obligatorio para torneo local. |
 | 21.4 | Bases legales | **Estándar AEPD.** Inscripción + pago: art. 6.1.b (contrato). Publicación de resultados / clasificaciones: art. 6.1.f (interés legítimo). Datos de menores: art. 6.1.a (consentimiento del titular de la patria potestad). |
 | 21.5 | Tiempo de retención | **Indefinido con anonimización** ejecutada **30 días después de la final** del torneo. Job automático (cron Supabase Edge Function) sobrescribe nombre, email, teléfono, foto de perfil con NULL; conserva ID interno + resultados deportivos. |
@@ -399,16 +451,19 @@ Diseño técnico complementario:
 
 **RESPUESTA:** **Sin dominio propio**. Se usa subdominio gratuito de Vercel.
 
-Propuesta de nombre exacto (a confirmar por el organizador, ver bloque final,
-ítem 15):
-- `torneig-padel-coves-2026.vercel.app` (largo pero descriptivo).
-- `padelcoves2026.vercel.app` (más corto y memorable).
+Subdominio asignado: **`torneig-padel-coves-2026.vercel.app`**.
+
+> *PENDIENTE DE TU OK*: confirmaste con un "lo veo bien" referido al primer
+> nombre propuesto; si en realidad prefieres la versión corta
+> `padelcoves2026.vercel.app`, cambio fácil (sólo afecta a config Vercel y
+> a textos de cartelería; los redirects los gestiona Vercel automáticamente).
 
 Implicaciones:
-- Email `privacidad@<dominio>` no aplica; usaremos el email del club como
-  contacto RGPD directamente.
+- Email `privacidad@<dominio>` no aplica (no hay dominio propio); usaremos
+  el email del club como contacto RGPD directamente (ver §21.2).
 - Stripe success/cancel URLs no aplica (§16=Bizum).
-- Branding en cartelería: la URL larga es subóptima; valorar QR.
+- Branding en cartelería: la URL es larga; **QR obligatorio** en cartel,
+  flyers y pantallas durante el torneo.
 
 ---
 
@@ -510,34 +565,56 @@ Salvaguardas para menores de edad (<18):
 
 ## Campos pendientes del organizador
 
-> Estos 15 ítems son datos concretos que el organizador debe completar para
-> cerrar la Fase 1. Mientras tanto, aparecen como `__________` en sus secciones
-> correspondientes del documento.
+> Tras la respuesta del organizador del 13-may-2026, **11 de los 15 ítems
+> originales quedan resueltos** y se han integrado en las secciones
+> correspondientes. Quedan **4 ítems realmente pendientes** + **3 decisiones
+> provisionales que esperan tu OK** para fijarse como definitivas.
 
-**Bloque legal del club** (§21.1, §21.2):
-1. Nombre legal exacto del club: `__________`
-2. CIF: `__________`
-3. Dirección postal completa: `__________`
-4. Email de contacto: `__________`
+### A. Datos críticos pendientes de aportar
 
-**Calendario detallado** (§12, §14):
-5. Fecha apertura de inscripciones: `__________`
-6. Fecha cierre de inscripciones: `__________`
-7. Fecha del sorteo de cuadros: `__________`
-8. Fecha del primer partido: `__________`
-9. Fecha de la final: `__________`
-10. Fecha límite del early bird (§14): `__________`
+> Estos 4 ítems **bloquean** la entrada en producción (live), pero **no
+> bloquean Sprint 1 ni Sprint 2**. Plazo orientativo: antes del cierre del
+> Sprint 5.
 
-**Operativa** (§12, §13):
-11. Persona de contacto operativo (nombre): `__________`
-12. Teléfono de contacto operativo: `__________`
-13. Cuota propuesta por pareja (€): `__________`
+1. **CIF del club**: `__________` (el organizador desconoce el dato en este
+   momento; consultarlo en la documentación interna del Club Padel les Coves).
+2. **Dirección postal completa** del club: `__________` (calle, nº, CP,
+   municipio).
+3. **Email institucional del club** ⚠️ **CRÍTICO** (ver §21.2): el grupo de
+   WhatsApp no es suficiente como canal RGPD. Crear un Gmail mínimo viable
+   tipo `clubpadellescoves@gmail.com` (~5 min) o aportar un email existente
+   del club. Bloqueante para Resend, Sentry y política de privacidad.
+4. **Lista de patrocinadores** (§20): nombres + logos + contrapartida + persona
+   de contacto de cada uno. El organizador indicó que son "los que ya
+   patrocinan al club" pero no los recuerda todos. **No bloquea Sprint 1**;
+   el módulo de sponsors se construye con datos placeholder y se rellena
+   antes de Sprint 5.
 
-**Sponsors** (§20):
-14. Listado de patrocinadores confirmados (nombre + contrapartida + contacto): `__________`
+### B. Decisiones provisionales esperando tu OK
 
-**Subdominio Vercel** (§27):
-15. Subdominio preferido (`torneig-padel-coves-2026` / `padelcoves2026` / otro): `__________`
+> Tomadas como propuestas por defecto en este documento para no bloquear el
+> desarrollo. Si nada en contra, se aplican tal cual. Si quieres ajustar,
+> dilo y se cambia en commit posterior.
+
+5. **Fechas exactas** del calendario (§12):
+   - Cierre estándar: **30 jun 2026** (el organizador dijo "principios de julio"; encaja con tramos de §13 cerrados al día 30).
+   - Primer partido: **6 jul 2026** (lunes, da margen post-sorteo del 1 jul).
+   - Final: **9 ago 2026** (sábado, final espectacular en finde).
+6. **Modelo de pago** (§13): asumido **2 Bizum por pareja** (uno por jugador).
+   Alternativa más simple: 1 Bizum por pareja con la suma total.
+7. **Subdominio Vercel** (§27): asumido `torneig-padel-coves-2026.vercel.app`.
+   Alternativa más corta: `padelcoves2026.vercel.app`.
+
+### C. Ítems ya resueltos (referencia)
+
+Todas las RESPUESTAS están integradas en las secciones correspondientes del
+documento (no hay que volver a leerlas aquí). Los valores cerrados son:
+
+- (§21.1) Nombre legal: **Club Padel les Coves**.
+- (§12) Apertura inscripciones: **1 jun 2026**. Sorteo: **1 jul 2026**.
+- (§12) Persona contacto operativo: **Jonatan García** (tel **620 033 053**).
+- (§13) Cuota escalonada por persona en 3 tramos + recargo (15 / 20 / 25 / 30 €).
+- (§14) Estructura de tarifas escalonada (sustituye al early bird simple).
 
 ---
 
