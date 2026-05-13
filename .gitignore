@@ -49,4 +49,5 @@ supabase/.temp
 supabase/.env
 
 # Generated types
-types/supabase.ts
+# types/supabase.ts is checked in as a hand-maintained placeholder until
+# `pnpm db:types` is run against a real Supabase project.

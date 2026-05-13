@@ -1,0 +1,200 @@
+// PLACEHOLDER — regenerar con `pnpm db:types` una vez conectado a Supabase.
+// Mantenido a mano hasta entonces para que el typecheck funcione.
+
+export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
+
+type TournamentRow = {
+  id: string;
+  edition: number;
+  year: number;
+  slug: string;
+  name_ca: string;
+  name_es: string;
+  registration_opens_at: string;
+  registration_closes_at: string;
+  draw_at: string;
+  first_match_at: string;
+  final_at: string;
+  is_published: boolean;
+  fee_mode_default: 'per_pair' | 'per_player';
+  created_at: string;
+  updated_at: string;
+};
+
+type TournamentFeeRow = {
+  id: string;
+  tournament_id: string;
+  label_ca: string;
+  label_es: string;
+  starts_at: string;
+  ends_at: string;
+  amount_per_player_cents: number;
+  is_default_open: boolean;
+  created_at: string;
+};
+
+type CategoryRow = {
+  id: string;
+  tournament_id: string;
+  level: number;
+  name_ca: string;
+  name_es: string;
+  max_pairs: number;
+};
+
+type PlayerRow = {
+  id: string;
+  auth_user_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  declared_level: number | null;
+  legal_guardian_name: string | null;
+  legal_guardian_dni: string | null;
+  legal_guardian_phone: string | null;
+  legal_guardian_email: string | null;
+  is_minor: boolean;
+  consent_data_processing: boolean;
+  consent_results_publication: boolean;
+  consent_whatsapp: boolean;
+  consent_signed_at: string | null;
+  is_anonymized: boolean;
+  anonymized_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type PairRow = {
+  id: string;
+  tournament_id: string;
+  category_id: string | null;
+  player_a_id: string;
+  player_b_id: string;
+  captain_id: string;
+  status: 'draft' | 'pending_payment' | 'confirmed' | 'withdrawn' | 'disqualified';
+  fee_mode_chosen: 'per_pair' | 'per_player';
+  withdrawn_at: string | null;
+  withdrawal_reason: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type PaymentRow = {
+  id: string;
+  pair_id: string;
+  player_id: string | null;
+  payer_player_id: string;
+  fee_id: string;
+  method: 'bizum' | 'transfer';
+  amount_cents: number;
+  reference_code: string;
+  status: 'pending' | 'paid' | 'refunded' | 'cancelled';
+  reconciled_by: string | null;
+  reconciled_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type MatchRow = {
+  id: string;
+  tournament_id: string;
+  category_id: string;
+  phase: string;
+  group_label: string | null;
+  scheduled_at: string | null;
+  court_label: string | null;
+  pair_a_id: string;
+  pair_b_id: string;
+  status: 'scheduled' | 'pending_validation' | 'validated' | 'disputed' | 'walkover';
+  winner_pair_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type SetRow = {
+  id: string;
+  match_id: string;
+  set_number: number;
+  games_a: number;
+  games_b: number;
+  tb_a: number | null;
+  tb_b: number | null;
+};
+
+type MatchReportRow = {
+  id: string;
+  match_id: string;
+  reporter_player_id: string;
+  reporter_pair_side: 'a' | 'b' | 'admin';
+  score_json: Json;
+  reported_at: string;
+};
+
+type AuditLogRow = {
+  id: number;
+  table_name: string;
+  row_pk: string;
+  operation: 'INSERT' | 'UPDATE' | 'DELETE';
+  old_data: Json | null;
+  new_data: Json | null;
+  actor_id: string | null;
+  occurred_at: string;
+};
+
+type ClubSettingsRow = {
+  id: string;
+  legal_name: string;
+  cif: string | null;
+  address: string | null;
+  email: string;
+  bizum_phone: string | null;
+  iban: string | null;
+  contact_person_name: string | null;
+  contact_person_phone: string | null;
+  is_singleton: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
+
+export type Database = {
+  public: {
+    Tables: {
+      tournaments: Tbl<TournamentRow>;
+      tournament_fees: Tbl<TournamentFeeRow>;
+      categories: Tbl<CategoryRow>;
+      players: Tbl<PlayerRow>;
+      pairs: Tbl<PairRow>;
+      payments: Tbl<PaymentRow>;
+      matches: Tbl<MatchRow>;
+      sets: Tbl<SetRow>;
+      match_reports: Tbl<MatchReportRow>;
+      audit_log: Tbl<AuditLogRow>;
+      club_settings: Tbl<ClubSettingsRow>;
+    };
+    Views: Record<string, never>;
+    Functions: {
+      current_active_fee: {
+        Args: { p_tournament_id: string; p_at?: string };
+        Returns: TournamentFeeRow | null;
+      };
+      generate_payment_reference: {
+        Args: { p_pair_id: string; p_payer_player_id: string; p_mode: 'per_pair' | 'per_player' };
+        Returns: string;
+      };
+    };
+    Enums: {
+      user_role: 'anon' | 'captain' | 'admin';
+      payment_method: 'bizum' | 'transfer';
+      payment_status: 'pending' | 'paid' | 'refunded' | 'cancelled';
+      pair_status: 'draft' | 'pending_payment' | 'confirmed' | 'withdrawn' | 'disqualified';
+      match_status: 'scheduled' | 'pending_validation' | 'validated' | 'disputed' | 'walkover';
+      fee_mode: 'per_pair' | 'per_player';
+    };
+    CompositeTypes: Record<string, never>;
+  };
+};

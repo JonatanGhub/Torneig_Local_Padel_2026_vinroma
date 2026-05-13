@@ -62,6 +62,13 @@ export default async function LandingPage({ params }: Props) {
         <p className="bg-secondary text-secondary-foreground rounded-lg px-4 py-2 text-sm">
           {t('landing.registration_opens')}
         </p>
+
+        <Link
+          href="/inscripcio"
+          className="rounded-md bg-[hsl(var(--primary))] px-6 py-3 text-sm font-medium text-[hsl(var(--primary-foreground))] hover:opacity-90"
+        >
+          {t('landing.registration_open_cta')} →
+        </Link>
       </section>
 
       <footer className="border-border text-muted-foreground border-t px-6 py-4 text-center text-xs">
