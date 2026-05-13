@@ -1,53 +1,31 @@
-# IV Torneig Pàdel Les Coves 2025
+# Torneig Local de Pàdel — Les Coves de Vinromà
 
-Este proyecto es una aplicación web interactiva para visualizar los resultados, clasificaciones y horarios del IV Torneo de Pádel de Les Coves de Vinromà. La aplicación está diseñada para ser clara, rápida y fácil de usar para todos los participantes y aficionados.
+> Repositorio en proceso de reconstrucción. El código y los datos de la **IV edición (2025)** se han retirado del árbol activo tras la auditoría de la Fase 0 y solo permanecen en el historial git pre-rebuild. La próxima edición se desarrolla aquí desde cero, con un stack y una arquitectura nuevos.
 
-## ✨ Características
+## Estado actual
 
-- **Clasificaciones en Tiempo Real:** Tablas de clasificación que se actualizan automáticamente según los resultados introducidos.
-- **Resultados de Partidos:** Visualización clara de los resultados de cada enfrentamiento.
-- **Horarios Centralizados:** Un panel con todos los horarios de los partidos programados.
-- **Fase de Grupos y Fase Final:** Soporte completo para ambas fases del torneo, con un cuadro de fase final que se rellena automáticamente.
-- **Diseño Responsivo:** Adaptado para funcionar y verse bien tanto en ordenadores como en dispositivos móviles.
+- **Fase 0 — Discovery**: ✅ completada. Documento de auditoría en [`docs/AUDITORIA.md`](docs/AUDITORIA.md).
+- **Fase 1 — Decisiones**: en curso. Documento pendiente en `docs/DECISIONES.md`.
+- **Fases 2–5**: pendientes (propuesta ejecutiva, reglamento, arquitectura, implementación, despliegue).
 
-## 🚀 Tecnologías Utilizadas
+El plan completo está descrito en el prompt de bootstrap que originó este rebuild.
 
-- **React:** Biblioteca principal para construir la interfaz de usuario.
-- **Vite:** Herramienta de desarrollo y empaquetado extremadamente rápida.
-- **Tailwind CSS:** Framework de CSS para un diseño moderno y personalizable.
-- **Lucide React:** Paquete de iconos ligero y consistente.
+## Stack objetivo (resumen)
 
-## ⚙️ Cómo Poner en Marcha el Proyecto Localmente
+- **Frontend público + admin**: Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui.
+- **Backend / DB**: Supabase (Postgres + Auth + Realtime + Storage + Edge Functions + RLS).
+- **Pagos**: Stripe Checkout + webhooks → Supabase Edge Function.
+- **Email**: Resend (transaccional) con plantillas en React Email.
+- **Despliegue**: Vercel (frontend) + Supabase Cloud.
+- **Observabilidad**: Sentry + Vercel Analytics.
+- **CI/CD**: GitHub Actions (lint, typecheck, test, build, preview, migraciones en staging).
 
-Si quieres ejecutar este proyecto en tu propio ordenador, sigue estos pasos:
+> Justificación de cada elección y diagrama de arquitectura en `docs/ARQUITECTURA.md` (Fase 3, todavía no escrita).
 
-1.  **Clona el repositorio:**
-    ```bash
-    git clone https://github.com/JonatanGhub/Torneig_Local_Padel_2025_vinroma.git
-    ```
+## Edición 2025 (legado)
 
-2.  **Navega a la carpeta del proyecto:**
-    ```bash
-    cd Torneig_Local_Padel_2025_vinroma
-    ```
+El visor estático React + Vite que servía la IV edición está disponible en el historial git previo al merge de la rama `claude/tournament-discovery-odMYj` a `main`. Si en la Fase 1 se aprueba **continuidad histórica**, los resultados se reimportarán de forma controlada a las nuevas tablas con consentimiento RGPD; en caso contrario, la edición 2025 quedará como dataset histórico congelado.
 
-3.  **Instala las dependencias:**
-    (Necesitas tener [Node.js](https://nodejs.org/) instalado)
-    ```bash
-    npm install
-    ```
+## Cómo contribuir
 
-4.  **Ejecuta la aplicación en modo de desarrollo:**
-    ```bash
-    npm run dev
-    ```
-    Esto iniciará un servidor local. Abre tu navegador y visita `http://localhost:5173` (o la URL que aparezca en tu terminal).
-
-## 📄 Archivos de Datos
-
-Los datos del torneo se gestionan a través de dos archivos JSON ubicados en la carpeta `/public`:
-
--   `results.json`: Contiene los resultados de todos los partidos jugados.
--   `schedules.json`: Contiene los horarios de los partidos programados.
-
-Para actualizar los datos del torneo, simplemente edita estos archivos. La aplicación los leerá y mostrará los cambios automáticamente.
+Aún no hay setup local — la rama `main` no contiene código ejecutable mientras dura la reconstrucción. El primer setup (Sprint 1: Next.js + Supabase + scripts) llegará tras cerrar `docs/DECISIONES.md`.
