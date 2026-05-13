@@ -18,7 +18,7 @@ El repositorio `Torneig_Local_Padel_2025_vinroma` es una **SPA estática React 1
 | Lint | ESLint | 8.57.0 | `--max-warnings 0` (estricto) |
 | Lenguaje | JSX | — | sin TypeScript |
 | Persistencia | JSON estáticos en `public/` servidos por Vite | — | edición manual + commit |
-| Despliegue | No declarado | — | sin workflow, sin `vercel.json`. **DECISIÓN PENDIENTE** |
+| Despliegue | **Netlify** (preview + producción) | — | proyecto `torneig-local-vinroma-2025` conectado a nivel plataforma (cuenta Netlify ↔ repo GitHub). No hay `netlify.toml` ni IaC en el árbol; los previews por PR los genera Netlify automáticamente. **Plan**: migrar a **Vercel** en Sprint 1 (decidido) y descomisionar Netlify una vez la nueva versión esté en `prod`. |
 
 Scripts disponibles (`package.json`): `dev`, `build`, `lint`, `preview`. No hay `test`, no hay `format`, no hay hooks (Husky / lint-staged), no hay `engines`.
 
@@ -174,6 +174,7 @@ Los nombres son alias parciales del estilo *"Vicenç / Victor"* o *"Mariano / Jo
 - **Issues abiertos o cerrados: 0** (consultado vía GitHub MCP).
 - **Pull Requests: 1**, ya cerrado y merged: [#1 *"Visual Improvements and Refactor"*](https://github.com/JonatanGhub/Torneig_Local_Padel_2025_vinroma/pull/1) (jul 2025), del propio `JonatanGhub`.
 - Descripción oficial del repo en GitHub: *"repositorio del codigo web de gestión del torneo local de les Coves de Vinromà 2025"*.
+- **Integraciones externas vivas detectadas en PRs**: Netlify Deploy Previews publica 3 check-runs por PR (`Pages changed`, `Header rules`, `Redirect rules`) y comenta automáticamente con el enlace al preview. Es la única integración CI/CD activa hoy.
 
 ## Configuración sensible y secretos
 
