@@ -1,0 +1,51 @@
+{
+  "common": {
+    "tournament_name": "V Torneig de Pàdel les Coves de Vinromà",
+    "edition_year": "2026",
+    "loading": "Carregant…",
+    "error": "S'ha produït un error",
+    "retry": "Tornar a provar",
+    "save": "Desar",
+    "cancel": "Cancel·lar",
+    "back": "Enrere"
+  },
+  "navigation": {
+    "home": "Inici",
+    "tournament": "Torneig",
+    "groups": "Grups",
+    "knockout": "Eliminatòries",
+    "standings": "Classificació",
+    "calendar": "Calendari",
+    "rules": "Reglament",
+    "sponsors": "Patrocinadors",
+    "login": "Entrar",
+    "logout": "Sortir",
+    "admin": "Admin"
+  },
+  "landing": {
+    "hero_title": "V Torneig de Pàdel les Coves de Vinromà",
+    "hero_subtitle": "Edició 2026",
+    "registration_opens": "Les inscripcions s'obriran l'1 de juny de 2026",
+    "registration_open_cta": "Inscriure'ns",
+    "more_info": "Més informació",
+    "venue": "Club Pàdel les Coves",
+    "courts_count": "3 pistes",
+    "dates": "Del 6 de juliol al 9 d'agost de 2026"
+  },
+  "auth": {
+    "login_title": "Entrar al teu compte de capità",
+    "login_subtitle": "T'enviarem un enllaç màgic per accedir",
+    "email_label": "Correu electrònic",
+    "email_placeholder": "el-teu@correu.com",
+    "send_magic_link": "Enviar enllaç màgic",
+    "magic_link_sent": "Et hem enviat un enllaç. Revisa la teva safata d'entrada.",
+    "logout_success": "Has sortit correctament"
+  },
+  "footer": {
+    "organized_by": "Organitzat per Club Pàdel les Coves",
+    "contact": "Contacte",
+    "privacy": "Política de privacitat",
+    "rules": "Bases del torneig",
+    "edition": "V Edició — 2026"
+  }
+}

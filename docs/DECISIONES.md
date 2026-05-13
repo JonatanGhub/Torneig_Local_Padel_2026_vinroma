@@ -7,6 +7,7 @@
 > aparecen como `__________` en las secciones correspondientes.
 >
 > Convenciones:
+>
 > - **RESPUESTA**: decisión cerrada en la conversación.
 > - **PENDIENTE**: requiere dato concreto del organizador (ver bloque final).
 > - **DESCARTADO**: la decisión queda explícitamente fuera por implicación de otra.
@@ -95,6 +96,7 @@ pistas, ~14 partidos/día entre semana, ~27/día en finde).
 **RESPUESTA:** (a) **Partidos ganados → ΔSets → ΔJuegos → H2H** (idéntico a 2025).
 
 Notas operativas:
+
 - En triple empate, el orden se aplica de forma **global** (no recalcula
   sub-tabla H2H entre los empatados).
 - H2H se aplica como criterio final precisamente porque no es transitivo y
@@ -112,6 +114,7 @@ Notas operativas:
 No hay super tie-break en ningún partido del torneo.
 
 Implicaciones operativas:
+
 - Duración media estimada por partido: **~90-105 min** (vs. ~70-80 min con STB).
 - El planificador de partidos asume 95 min/partido + 10 min de descanso entre
   partidos en la misma pista.
@@ -155,6 +158,7 @@ del rival. **NO se anulan retroactivamente los resultados ya jugados.**
 ## §12. Calendario, sede y pistas
 
 **Cerrado (estructural):**
+
 - **Sede principal**: club de pádel de les Coves de Vinromà.
 - **Pistas**: 3 pistas del club, gestionadas vía la app **Sporttia** (reservas).
 - **Distribución de días**: entre semana + fines de semana.
@@ -170,21 +174,22 @@ que reflejarlo manualmente en el panel.
 
 **Calendario cerrado:**
 
-| Hito | Fecha |
-|---|---|
-| Apertura de inscripciones | **1 jun 2026** |
-| Cierre estándar de inscripciones | **30 jun 2026** |
+| Hito                                | Fecha                                                                       |
+| ----------------------------------- | --------------------------------------------------------------------------- |
+| Apertura de inscripciones           | **1 jun 2026**                                                              |
+| Cierre estándar de inscripciones    | **30 jun 2026**                                                             |
 | Cierre con recargo / fuera de plazo | **discrecional del organizador**, sólo si quedan plazas en alguna categoría |
-| Sorteo de cuadros | **1 jul 2026** |
-| Primer partido | **6 jul 2026** (lunes) |
-| Final | **9 ago 2026** (sábado) |
-| Ventana de juego | 6 jul - 9 ago 2026 (5 semanas) |
+| Sorteo de cuadros                   | **1 jul 2026**                                                              |
+| Primer partido                      | **6 jul 2026** (lunes)                                                      |
+| Final                               | **9 ago 2026** (sábado)                                                     |
+| Ventana de juego                    | 6 jul - 9 ago 2026 (5 semanas)                                              |
 
 > Capacidad estimada: con holgura amplia frente a los ~100 partidos previstos
 > (14 partidos/día entre semana + 27 partidos/día finde × 5 semanas = ~620
 > slots disponibles, ocupación esperada ~16 %).
 
 **Contacto operativo cerrado:**
+
 - **Nombre**: Jonatan García
 - **Teléfono**: 620 033 053
 - **Publicación en web**: a confirmar si se publica directamente o sólo como
@@ -200,10 +205,10 @@ admite, indistintamente, **Bizum o transferencia bancaria** al IBAN del club
 (equivalencia total — el sistema no distingue uno de otro, sólo se fija en
 el concepto y el importe entrante).
 
-| Modo | Descripción | Recomendación UI |
-|---|---|---|
-| **A. Por pareja** *(recomendado)* | Un miembro de la pareja paga la suma total de las dos cuotas con **un solo Bizum o transferencia** al teléfono/IBAN del club. Concepto: `2026-P<pair_id>-<APELLIDO_PAGADOR>`. La pareja queda `confirmed` con un único pago conciliado. | UI marca esta opción por defecto, con tooltip "más simple y rápido". |
-| **B. Por persona** | Cada miembro paga **su propia cuota** con un Bizum o transferencia independiente. Concepto: `2026-J<player_id>-<APELLIDO>`. La pareja queda `confirmed` cuando ambos pagos individuales están conciliados. | UI muestra esta opción como alternativa, con tooltip "si preferís cada uno pagar lo vuestro". |
+| Modo                              | Descripción                                                                                                                                                                                                                             | Recomendación UI                                                                              |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **A. Por pareja** _(recomendado)_ | Un miembro de la pareja paga la suma total de las dos cuotas con **un solo Bizum o transferencia** al teléfono/IBAN del club. Concepto: `2026-P<pair_id>-<APELLIDO_PAGADOR>`. La pareja queda `confirmed` con un único pago conciliado. | UI marca esta opción por defecto, con tooltip "más simple y rápido".                          |
+| **B. Por persona**                | Cada miembro paga **su propia cuota** con un Bizum o transferencia independiente. Concepto: `2026-J<player_id>-<APELLIDO>`. La pareja queda `confirmed` cuando ambos pagos individuales están conciliados.                              | UI muestra esta opción como alternativa, con tooltip "si preferís cada uno pagar lo vuestro". |
 
 > **Bizum y transferencia tienen rango idéntico** en el flujo: la pantalla
 > de pago de cada modo muestra simultáneamente (a) el teléfono Bizum del
@@ -211,6 +216,7 @@ el concepto y el importe entrante).
 > y el concepto único pre-formateado.
 
 **Implicaciones técnicas.**
+
 - Modelo de datos: tabla `payments` con FK opcional a `player_id` y `pair_id`.
   - Pago modo A: `pair_id = X, player_id = NULL, payer_player_id = Y` (el que pagó).
   - Pago modo B: `pair_id = X, player_id = Y` (un registro por jugador).
@@ -241,10 +247,10 @@ código).
 
 ## §14. Estructura de tarifas — EN VOTACIÓN DE CAPITANES
 
-> *El organizador decidió someter la estructura de tarifas a votación junto al
+> _El organizador decidió someter la estructura de tarifas a votación junto al
 > formato deportivo de §3. Las 3 opciones que se votan están detalladas en
 > `docs/PROPUESTA_FORMATOS.md` (Parte 2): (A) tarifa única por pareja,
-> (B) early bird simple, (C) escalonado 3 tramos + recargo.*
+> (B) early bird simple, (C) escalonado 3 tramos + recargo._
 
 **RESPUESTA:** **En votación.** Se aplica el método Borda con la misma
 papeleta que §3 (1 papeleta por capitán, 2 secciones independientes).
@@ -255,14 +261,15 @@ El sistema parametriza la tarifa en una **tabla de configuración**
 (`tournament_fees`) que el admin puede editar tras conocer el ganador del
 voto, sin necesidad de redeploy:
 
-| Tramo | Ventana de pago | Tarifa por persona | Pareja completa (×2) |
-|---|---|---|---|
-| Tramo 1 (super early) | **1-10 jun 2026** | **15 €** | 30 € |
-| Tramo 2 (early) | **11-20 jun 2026** | **20 €** | 40 € |
-| Tramo 3 (estándar) | **21-30 jun 2026** | **25 €** | 50 € |
-| **Recargo fuera de plazo** | **1 jul 2026 → mientras queden plazas (discrecional)** | **30 €** | 60 € |
+| Tramo                      | Ventana de pago                                        | Tarifa por persona | Pareja completa (×2) |
+| -------------------------- | ------------------------------------------------------ | ------------------ | -------------------- |
+| Tramo 1 (super early)      | **1-10 jun 2026**                                      | **15 €**           | 30 €                 |
+| Tramo 2 (early)            | **11-20 jun 2026**                                     | **20 €**           | 40 €                 |
+| Tramo 3 (estándar)         | **21-30 jun 2026**                                     | **25 €**           | 50 €                 |
+| **Recargo fuera de plazo** | **1 jul 2026 → mientras queden plazas (discrecional)** | **30 €**           | 60 €                 |
 
 Reglas operativas:
+
 - El tramo se cierra a las **23:59 del último día**, hora local Europe/Madrid.
 - Si una pareja se inscribe en T1 pero un miembro paga el día 12 (T2), ese
   miembro paga 20 € (no 15 €). La pareja queda `confirmada` cuando los 2 han pagado.
@@ -293,7 +300,7 @@ sin preferencia), cero comisión, con **conciliación manual**. Flujo
 (actualizado para coherencia con §13 = modelo de pago dual):
 
 1. La pareja completa el formulario público y elige modo de pago (§13):
-   - Modo A *(recomendado)*: 1 transacción por pareja.
+   - Modo A _(recomendado)_: 1 transacción por pareja.
    - Modo B: 2 transacciones independientes (1 por jugador).
 2. El sistema crea los registros `pending_payment` correspondientes y muestra
    a cada pagador una **pantalla de pago dual** con:
@@ -308,6 +315,7 @@ sin preferencia), cero comisión, con **conciliación manual**. Flujo
    modo B) y dispara el email + WhatsApp de confirmación a ambos jugadores.
 
 **Datos bancarios del club a publicar** (pendientes — ver bloque final):
+
 - Teléfono Bizum del club.
 - IBAN completo del club.
 
@@ -331,6 +339,7 @@ la recomendación original (iniciar siempre en test).
 **RESPUESTA:** (b) **Rediseño completo**.
 
 Plan operativo:
+
 1. **Paleta y design tokens**: yo propongo 2-3 paletas alternativas con tokens
    Tailwind / shadcn (claro+oscuro), con justificación cromática (asociaciones
    con pádel, terra valenciana, club). Decisión final del organizador.
@@ -352,6 +361,7 @@ desarrollo. La marca definitiva se aplica como token swap antes de Sprint 4.
 (Meta WhatsApp Cloud API)**.
 
 Eventos cubiertos:
+
 - Confirmación de inscripción (tras conciliación de pago).
 - Asignación de categoría y grupo (tras sorteo).
 - Aviso de partido programado (D - 24h y D - 1h).
@@ -362,6 +372,7 @@ Eventos cubiertos:
 
 Bloqueantes no-técnicos (responsabilidad del organizador, fuera del backlog
 de código):
+
 - **Cuenta Meta Business verificada** vinculada al club — proceso de 1-3
   semanas con Meta.
 - **Plantillas de mensaje aprobadas** por Meta (categoría "utility") — 24-48 h
@@ -388,16 +399,16 @@ la landing pública (logos + enlace + mención). Detalle de patrocinadores
 
 ## §21. RGPD / LOPDGDD
 
-| # | Decisión | Respuesta |
-|---|---|---|
-| 21.1 | Responsable del tratamiento | **Club Padel les Coves**, entidad registrada con CIF. CIF y dirección postal **pendientes** (organizador los aporta antes del live — ver bloque final). |
-| 21.2 | Email de contacto del responsable | **`clubpadelvinroma@gmail.com`** (Gmail institucional del club). Sirve como `from address` de Resend, contacto Sentry, canal formal RGPD ARSULIPO y notificaciones internas. Canal operativo principal del día a día sigue siendo el grupo de WhatsApp del torneo. |
-| 21.3 | Designar DPO | **No designar.** No obligatorio para torneo local. |
-| 21.4 | Bases legales | **Estándar AEPD.** Inscripción + pago: art. 6.1.b (contrato). Publicación de resultados / clasificaciones: art. 6.1.f (interés legítimo). Datos de menores: art. 6.1.a (consentimiento del titular de la patria potestad). |
-| 21.5 | Tiempo de retención | **Indefinido con anonimización** ejecutada **30 días después de la final** del torneo. Job automático (cron Supabase Edge Function) sobrescribe nombre, email, teléfono, foto de perfil con NULL; conserva ID interno + resultados deportivos. |
-| 21.6 | Derechos de imagen | **Sin publicación de fotos**. No habrá galería ni fotos identificables de participantes en web ni redes del club. Si se hacen fotos privadas, uso interno del club, no se publican. La landing usa ilustraciones / stock genérico. |
-| 21.7 | Sub-procesadores declarados | **Supabase** (Postgres + Auth + Storage + Edge Functions, región Frankfurt EU), **Vercel** (hosting, Frankfurt/Irlanda EU), **Resend** (email transaccional, Frankfurt EU), **Meta Platforms Ireland Ltd** (WhatsApp Cloud API, Irlanda EU), **Sentry** (observabilidad, Frankfurt EU). Sin Stripe (§16=Bizum). |
-| 21.8 | Texto legal | **Plantilla AEPD adaptada** al caso del torneo amateur deportivo, revisada por el responsable del club. Cero coste de redacción. |
+| #    | Decisión                          | Respuesta                                                                                                                                                                                                                                                                                                       |
+| ---- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 21.1 | Responsable del tratamiento       | **Club Padel les Coves**, entidad registrada con CIF. CIF y dirección postal **pendientes** (organizador los aporta antes del live — ver bloque final).                                                                                                                                                         |
+| 21.2 | Email de contacto del responsable | **`clubpadelvinroma@gmail.com`** (Gmail institucional del club). Sirve como `from address` de Resend, contacto Sentry, canal formal RGPD ARSULIPO y notificaciones internas. Canal operativo principal del día a día sigue siendo el grupo de WhatsApp del torneo.                                              |
+| 21.3 | Designar DPO                      | **No designar.** No obligatorio para torneo local.                                                                                                                                                                                                                                                              |
+| 21.4 | Bases legales                     | **Estándar AEPD.** Inscripción + pago: art. 6.1.b (contrato). Publicación de resultados / clasificaciones: art. 6.1.f (interés legítimo). Datos de menores: art. 6.1.a (consentimiento del titular de la patria potestad).                                                                                      |
+| 21.5 | Tiempo de retención               | **Indefinido con anonimización** ejecutada **30 días después de la final** del torneo. Job automático (cron Supabase Edge Function) sobrescribe nombre, email, teléfono, foto de perfil con NULL; conserva ID interno + resultados deportivos.                                                                  |
+| 21.6 | Derechos de imagen                | **Sin publicación de fotos**. No habrá galería ni fotos identificables de participantes en web ni redes del club. Si se hacen fotos privadas, uso interno del club, no se publican. La landing usa ilustraciones / stock genérico.                                                                              |
+| 21.7 | Sub-procesadores declarados       | **Supabase** (Postgres + Auth + Storage + Edge Functions, región Frankfurt EU), **Vercel** (hosting, Frankfurt/Irlanda EU), **Resend** (email transaccional, Frankfurt EU), **Meta Platforms Ireland Ltd** (WhatsApp Cloud API, Irlanda EU), **Sentry** (observabilidad, Frankfurt EU). Sin Stripe (§16=Bizum). |
+| 21.8 | Texto legal                       | **Plantilla AEPD adaptada** al caso del torneo amateur deportivo, revisada por el responsable del club. Cero coste de redacción.                                                                                                                                                                                |
 
 ---
 
@@ -433,6 +444,7 @@ bajo, coste de operación marginal.
 ## §25. Roles y permisos (RBAC) + flujo de validación cruzada
 
 **RESPUESTA:** (a) **3 roles**:
+
 - `anon`: público con acceso de lectura a partidos y clasificaciones publicados.
 - `captain`: 1 usuario autenticado por pareja, asociado a la pareja. Puede
   reportar resultado de los partidos donde participa SU pareja.
@@ -440,10 +452,11 @@ bajo, coste de operación marginal.
 
 **Flujo de validación cruzada de resultados.** Cuando se juega un partido
 entre la pareja A y la pareja B:
+
 1. El partido se crea con estado `scheduled`.
 2. El capitán de A o B introduce el resultado en su panel → tabla
    `match_reports` recibe un registro: `(match_id, reporter_user_id,
-   score_jsonb, reported_at)`. El partido pasa a estado `pending_validation`.
+score_jsonb, reported_at)`. El partido pasa a estado `pending_validation`.
 3. El sistema dispara automáticamente un **email + WhatsApp** al capitán de la
    pareja contraria, con enlace de validación.
 4. El capitán contrario entra al panel y ve el resultado reportado:
@@ -460,6 +473,7 @@ Estados de `matches.status`: `scheduled` → `pending_validation` →
 por validación cruzada.
 
 Diseño técnico complementario:
+
 - RLS policy: un `captain` sólo puede insertar en `match_reports` para partidos
   donde su pareja es A o B.
 - Trigger PL/pgSQL: al insertar el segundo report, compara scores y actualiza
@@ -476,6 +490,7 @@ Diseño técnico complementario:
 `v0.1.0`, `v0.2.0`, … al cerrar cada sprint.
 
 6 sprints planeados (alineados con la propuesta del bootstrap original):
+
 - Sprint 1: foundation (Next.js + Supabase + auth + schema base).
 - Sprint 2: inscripción pública + pago Bizum + conciliación admin.
 - Sprint 3: sorteo + cuadros + panel admin v1.
@@ -498,6 +513,7 @@ Subdominio asignado: **`torneigpadelvinroma-v-2026.vercel.app`**.
 > destacada para preservar la lectura numérica romana.
 
 Implicaciones:
+
 - Email `privacidad@<dominio>` no aplica (no hay dominio propio); usamos
   `clubpadelvinroma@gmail.com` como contacto RGPD directo (ver §21.2).
 - Stripe success/cancel URLs no aplica (§16=Bizum).
@@ -518,6 +534,7 @@ maps habilitados. Performance monitoring desactivado (ahorra cuota).
 
 **RESPUESTA:** **Supabase Free tier** durante todo el ciclo de vida del
 torneo. Configuración:
+
 - Backup diario nativo de Supabase (retención 7 días).
 - **Red secundaria**: dump SQL semanal manual a Supabase Storage (también
   free tier, hasta 1 GB), con script `scripts/backup.sh` documentado en el
@@ -537,6 +554,7 @@ la ventana julio-agosto y downgrade después.
 **RESPUESTA:** Marca pública del torneo usa la forma oficial valenciana
 **"les Coves de Vinromà"** (artículo "les" en minúscula, acento grave en
 "-romà"). Se aplica a:
+
 - Título del torneo en la web pública y emails.
 - Footer y metadatos.
 - Plantillas de cartel y comunicaciones.
@@ -569,6 +587,7 @@ inscribirse y compiten en las 4 categorías por nivel mezcladas con adultos
 según su nivel real.
 
 Salvaguardas para menores de edad (<18):
+
 - **Consentimiento parental obligatorio** firmado por el titular de la patria
   potestad o tutor legal. Modelo de PDF descargable + subida al formulario.
 - Datos del tutor legal recogidos en el formulario: nombre, DNI/NIE, teléfono,
@@ -588,17 +607,17 @@ Salvaguardas para menores de edad (<18):
 
 ## §C. Decisiones ya cerradas en conversación previa (referencia, sin cambios)
 
-| # | Decisión | Resultado |
-|---|---|---|
-| C1 | Rama de trabajo de Fase 0 | `claude/tournament-discovery-odMYj`, mergeada a `main` |
-| C2 | Stack frontend | Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui |
-| C3 | Backend / DB | Supabase (Postgres + Auth + Realtime + Storage + Edge Functions + RLS) |
-| C4 | Pasarela de pago propuesta | ~~Stripe Checkout~~ → **Bizum / transferencia** (§16) |
-| C5 | Email transaccional | Resend |
-| C6 | Despliegue | Vercel. Netlify se descomisiona en Sprint 1 |
-| C7 | Migración del repo | In-place: borrar visor 2025, reconstruir sobre `main` |
-| C8 | Reglamento | Versionado en `docs/REGLAMENTO_<AÑO>.md`, no embebido en código |
-| C9 | Stop point | Tras Fase 0 (✅), tras Fase 1 (este documento), tras Fase 2, tras Fase 3 |
+| #   | Decisión                   | Resultado                                                                |
+| --- | -------------------------- | ------------------------------------------------------------------------ |
+| C1  | Rama de trabajo de Fase 0  | `claude/tournament-discovery-odMYj`, mergeada a `main`                   |
+| C2  | Stack frontend             | Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui              |
+| C3  | Backend / DB               | Supabase (Postgres + Auth + Realtime + Storage + Edge Functions + RLS)   |
+| C4  | Pasarela de pago propuesta | ~~Stripe Checkout~~ → **Bizum / transferencia** (§16)                    |
+| C5  | Email transaccional        | Resend                                                                   |
+| C6  | Despliegue                 | Vercel. Netlify se descomisiona en Sprint 1                              |
+| C7  | Migración del repo         | In-place: borrar visor 2025, reconstruir sobre `main`                    |
+| C8  | Reglamento                 | Versionado en `docs/REGLAMENTO_<AÑO>.md`, no embebido en código          |
+| C9  | Stop point                 | Tras Fase 0 (✅), tras Fase 1 (este documento), tras Fase 2, tras Fase 3 |
 
 ---
 
