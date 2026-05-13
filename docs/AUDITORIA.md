@@ -4,21 +4,21 @@
 
 ## Resumen ejecutivo
 
-El repositorio `Torneig_Local_Padel_2025_vinroma` es una **SPA estática React 18 + Vite 5 + Tailwind 3** que funciona como visor read-only de la IV edición (2025) del torneo. No tiene backend, base de datos, autenticación, pasarela de pago, tests ni CI. La operativa real (inscripción, sorteo, asignación de pistas, captura de resultados) ocurre fuera del sistema; el repo solo refleja el estado a posteriori mediante dos JSON (`public/results.json`, `public/schedules.json`) editados a mano y commiteados (**23 de 53 commits ≈ 43 %** son literalmente *"Actualizar results.json"*). Toda la lógica de torneo (round-robin, clasificación, desempates, render del bracket) vive en un único `src/App.jsx` de 768 líneas, sin tipos. El motor de clasificación (`getStandings`) y el de resultado (`getMatchResult`) son lógicamente correctos y portables a TypeScript con tests; el bracket de fase final está **hardcoded por posiciones**, no derivado de las clasificaciones. Datos del torneo (parejas, categorías, horarios de fase final) embebidos en código. No existen archivos `.env`, no hay secretos visibles. Estado deseado para la nueva edición: reescribir persistencia y operaciones, conservar UI y algoritmos puros.
+El repositorio `Torneig_Local_Padel_2025_vinroma` es una **SPA estática React 18 + Vite 5 + Tailwind 3** que funciona como visor read-only de la IV edición (2025) del torneo. No tiene backend, base de datos, autenticación, pasarela de pago, tests ni CI. La operativa real (inscripción, sorteo, asignación de pistas, captura de resultados) ocurre fuera del sistema; el repo solo refleja el estado a posteriori mediante dos JSON (`public/results.json`, `public/schedules.json`) editados a mano y commiteados (**23 de 53 commits ≈ 43 %** son literalmente _"Actualizar results.json"_). Toda la lógica de torneo (round-robin, clasificación, desempates, render del bracket) vive en un único `src/App.jsx` de 768 líneas, sin tipos. El motor de clasificación (`getStandings`) y el de resultado (`getMatchResult`) son lógicamente correctos y portables a TypeScript con tests; el bracket de fase final está **hardcoded por posiciones**, no derivado de las clasificaciones. Datos del torneo (parejas, categorías, horarios de fase final) embebidos en código. No existen archivos `.env`, no hay secretos visibles. Estado deseado para la nueva edición: reescribir persistencia y operaciones, conservar UI y algoritmos puros.
 
 ## Stack actual
 
-| Capa | Tecnología | Versión | Notas |
-|---|---|---|---|
-| Runtime | Node | implícito ≥18 | sin `engines` en `package.json`, sin `.nvmrc` |
-| Bundler | Vite | 5.2.0 | `vite.config.js` con el plugin React por defecto |
-| UI | React | 18.2.0 | Solo `react` + `react-dom` |
-| Estilos | Tailwind CSS | 3.4.4 | Paleta y animaciones extendidas en `tailwind.config.js` |
-| Iconos | lucide-react | 0.395.0 | 6 iconos en uso |
-| Lint | ESLint | 8.57.0 | `--max-warnings 0` (estricto) |
-| Lenguaje | JSX | — | sin TypeScript |
-| Persistencia | JSON estáticos en `public/` servidos por Vite | — | edición manual + commit |
-| Despliegue | **Netlify** (preview + producción) | — | proyecto `torneig-local-vinroma-2025` conectado a nivel plataforma (cuenta Netlify ↔ repo GitHub). No hay `netlify.toml` ni IaC en el árbol; los previews por PR los genera Netlify automáticamente. **Plan**: migrar a **Vercel** en Sprint 1 (decidido) y descomisionar Netlify una vez la nueva versión esté en `prod`. |
+| Capa         | Tecnología                                    | Versión       | Notas                                                                                                                                                                                                                                                                                                                      |
+| ------------ | --------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime      | Node                                          | implícito ≥18 | sin `engines` en `package.json`, sin `.nvmrc`                                                                                                                                                                                                                                                                              |
+| Bundler      | Vite                                          | 5.2.0         | `vite.config.js` con el plugin React por defecto                                                                                                                                                                                                                                                                           |
+| UI           | React                                         | 18.2.0        | Solo `react` + `react-dom`                                                                                                                                                                                                                                                                                                 |
+| Estilos      | Tailwind CSS                                  | 3.4.4         | Paleta y animaciones extendidas en `tailwind.config.js`                                                                                                                                                                                                                                                                    |
+| Iconos       | lucide-react                                  | 0.395.0       | 6 iconos en uso                                                                                                                                                                                                                                                                                                            |
+| Lint         | ESLint                                        | 8.57.0        | `--max-warnings 0` (estricto)                                                                                                                                                                                                                                                                                              |
+| Lenguaje     | JSX                                           | —             | sin TypeScript                                                                                                                                                                                                                                                                                                             |
+| Persistencia | JSON estáticos en `public/` servidos por Vite | —             | edición manual + commit                                                                                                                                                                                                                                                                                                    |
+| Despliegue   | **Netlify** (preview + producción)            | —             | proyecto `torneig-local-vinroma-2025` conectado a nivel plataforma (cuenta Netlify ↔ repo GitHub). No hay `netlify.toml` ni IaC en el árbol; los previews por PR los genera Netlify automáticamente. **Plan**: migrar a **Vercel** en Sprint 1 (decidido) y descomisionar Netlify una vez la nueva versión esté en `prod`. |
 
 Scripts disponibles (`package.json`): `dev`, `build`, `lint`, `preview`. No hay `test`, no hay `format`, no hay hooks (Husky / lint-staged), no hay `engines`.
 
@@ -29,7 +29,7 @@ Scripts disponibles (`package.json`): `dev`, `build`, `lint`, `preview`. No hay 
 - **4 categorías**: `1ª`, `2ª`, `3ª`, `4ª`.
 - **Grupos por categoría**:
   - `1ª`, `2ª`, `3ª`: 2 grupos de 4 parejas → 12 partidos de fase de grupos cada una.
-  - `4ª`: 1 solo grupo de 4 parejas → 6 partidos. Bracket KO reducido a *Final + Final consolación* (sin semifinales).
+  - `4ª`: 1 solo grupo de 4 parejas → 6 partidos. Bracket KO reducido a _Final + Final consolación_ (sin semifinales).
 - **28 parejas** codificadas `A1..A8, B1..B8, C1..C8, D1..D4` (códigos display); en el repo 2025 los nombres reales de los jugadores estaban embebidos en `src/App.jsx`. Tras el rebuild, esos datos no permanecen en el árbol activo y solo subsisten en el historial git de los commits anteriores al merge.
 - Cuadro KO de 1ª/2ª/3ª: `SF1 (1ºG1 vs 2ºG2)`, `SF2 (1ºG2 vs 2ºG1)`, `Final entre ganadores`, con cuadro de consolación paralelo entre 3ºs y 4ºs.
 
@@ -38,18 +38,22 @@ Scripts disponibles (`package.json`): `dev`, `build`, `lint`, `preview`. No hay 
 ```ts
 type Results = {
   results: Array<{
-    team1: string;  // código tipo "A1"
+    team1: string; // código tipo "A1"
     team2: string;
-    sets: [Set, Set, Set];  // siempre 3 sets; los no jugados llevan [null, null]
+    sets: [Set, Set, Set]; // siempre 3 sets; los no jugados llevan [null, null]
   }>;
   finalPhaseResults: {
-    [category in "1ª"|"2ª"|"3ª"|"4ª"]: {
-      main:        { semifinal1?: { sets: [Set, Set, Set] };
-                     semifinal2?: { sets: [Set, Set, Set] };
-                     final:        { sets: [Set, Set, Set] } };
-      consolation: { semifinal1?: { sets: [Set, Set, Set] };
-                     semifinal2?: { sets: [Set, Set, Set] };
-                     final:        { sets: [Set, Set, Set] } };
+    [category in '1ª' | '2ª' | '3ª' | '4ª']: {
+      main: {
+        semifinal1?: { sets: [Set, Set, Set] };
+        semifinal2?: { sets: [Set, Set, Set] };
+        final: { sets: [Set, Set, Set] };
+      };
+      consolation: {
+        semifinal1?: { sets: [Set, Set, Set] };
+        semifinal2?: { sets: [Set, Set, Set] };
+        final: { sets: [Set, Set, Set] };
+      };
     };
   };
 };
@@ -82,27 +86,27 @@ type Schedules = {
 ### Datos reutilizables para la próxima edición
 
 - Lista de 28 parejas (nombres parciales tipo "jugador1 / jugador2") presente en el `src/App.jsx` del repo 2025 — potencialmente reutilizable como **histórico** para sembrar ranking si se decide arrastrar continuidad inter-edición. Tras la eliminación del código legado, la lista solo persiste en el historial git y debe re-importarse de forma controlada (con consentimiento RGPD) si se opta por la continuidad.
-- Estructura de categorías y formato de cuadro KO — reutilizable como *punto de partida* del modelo, pero **debe ser configurable desde admin**, no codeada.
+- Estructura de categorías y formato de cuadro KO — reutilizable como _punto de partida_ del modelo, pero **debe ser configurable desde admin**, no codeada.
 - Resultados 2025 completos — archivables como dataset histórico congelado en una tabla `historical_tournaments` (o equivalente) para alimentar ranking inter-edición si procede.
 
 ### Anonimización
 
-Los nombres heredados son alias parciales (estilo *"nombre1 / nombre2"*, normalmente sin apellido completo, sin email, sin teléfono). Aun así, antes de migrar a una base relacional con FK a `players`, conviene tratarlos como dato personal (Art. 4 RGPD) y obtener consentimiento explícito o pseudonimizar. **DECISIÓN PENDIENTE** en la política RGPD.
+Los nombres heredados son alias parciales (estilo _"nombre1 / nombre2"_, normalmente sin apellido completo, sin email, sin teléfono). Aun así, antes de migrar a una base relacional con FK a `players`, conviene tratarlos como dato personal (Art. 4 RGPD) y obtener consentimiento explícito o pseudonimizar. **DECISIÓN PENDIENTE** en la política RGPD.
 
 ## Componentes funcionales
 
-| Bloque | Ubicación | Función | Veredicto migración |
-|---|---|---|---|
-| `initialTournamentData` | `App.jsx` 5-21 | Hardcode de categorías, grupos, parejas | **Reescribir** → tablas `pairs` + `categories` + `group_members` |
-| `generateMatches(teams)` | `App.jsx` 23-40 | Round-robin: combinatoria O(N²) sin orden de jornada | **Portable a TS** + test (función pura) |
-| `getStandings(teams, matches)` | `App.jsx` 44-115 | Calcula stats P/PJ/SG/SP/JG/JP y ordena por P → diff sets → diff juegos → head-to-head | **Portable a TS** + test (función pura) |
-| `getMatchResult(match)` | `App.jsx` 154-167 | Cuenta sets, decide ganador, formatea marcador | **Portable a TS** + test |
-| `FINAL_SCHEDULES` | `App.jsx` 215-252 | Horarios de fase final hardcoded por categoría/ronda | **Reescribir** → columnas `matches.scheduled_at` y `matches.court` |
-| `FinalsBracket` + `Bracket` | `App.jsx` 254-400 | Render del cuadro con cruces hardcoded `1ºG1 vs 2ºG2`, `1ºG2 vs 2ºG1` y caso especial para 4ª | UI **portable a Next.js**; derivación de bracket → función `generate_knockout_bracket` (SQL o TS) |
-| `useEffect` de carga | `App.jsx` 443-479 | `fetch` paralelo de los dos JSON + deep-clone + matching por IDs + inversión de sets si el orden viene invertido | **Sustituir** por Supabase client + suscripción Realtime |
-| `useMemo` standings / finalStandings | `App.jsx` 481-510 | Derivación de stats por grupo y filtrado de categorías con todos los partidos jugados | Mantener cliente, alimentado por queries / Realtime |
-| `ClassificationTable`, `MatchCard`, `Group`, `NormativaPanel`, `MainNavButton` | `App.jsx` 117-213, 402-423, 512 | UI pura | **Portable a Next.js** (RSC + Tailwind + shadcn/ui) |
-| Reglamento | `App.jsx` `NormativaPanel` (402-423) | Texto inline en JSX | **Migrar** a `docs/REGLAMENTO_<AÑO>.md` versionado |
+| Bloque                                                                         | Ubicación                            | Función                                                                                                          | Veredicto migración                                                                               |
+| ------------------------------------------------------------------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `initialTournamentData`                                                        | `App.jsx` 5-21                       | Hardcode de categorías, grupos, parejas                                                                          | **Reescribir** → tablas `pairs` + `categories` + `group_members`                                  |
+| `generateMatches(teams)`                                                       | `App.jsx` 23-40                      | Round-robin: combinatoria O(N²) sin orden de jornada                                                             | **Portable a TS** + test (función pura)                                                           |
+| `getStandings(teams, matches)`                                                 | `App.jsx` 44-115                     | Calcula stats P/PJ/SG/SP/JG/JP y ordena por P → diff sets → diff juegos → head-to-head                           | **Portable a TS** + test (función pura)                                                           |
+| `getMatchResult(match)`                                                        | `App.jsx` 154-167                    | Cuenta sets, decide ganador, formatea marcador                                                                   | **Portable a TS** + test                                                                          |
+| `FINAL_SCHEDULES`                                                              | `App.jsx` 215-252                    | Horarios de fase final hardcoded por categoría/ronda                                                             | **Reescribir** → columnas `matches.scheduled_at` y `matches.court`                                |
+| `FinalsBracket` + `Bracket`                                                    | `App.jsx` 254-400                    | Render del cuadro con cruces hardcoded `1ºG1 vs 2ºG2`, `1ºG2 vs 2ºG1` y caso especial para 4ª                    | UI **portable a Next.js**; derivación de bracket → función `generate_knockout_bracket` (SQL o TS) |
+| `useEffect` de carga                                                           | `App.jsx` 443-479                    | `fetch` paralelo de los dos JSON + deep-clone + matching por IDs + inversión de sets si el orden viene invertido | **Sustituir** por Supabase client + suscripción Realtime                                          |
+| `useMemo` standings / finalStandings                                           | `App.jsx` 481-510                    | Derivación de stats por grupo y filtrado de categorías con todos los partidos jugados                            | Mantener cliente, alimentado por queries / Realtime                                               |
+| `ClassificationTable`, `MatchCard`, `Group`, `NormativaPanel`, `MainNavButton` | `App.jsx` 117-213, 402-423, 512      | UI pura                                                                                                          | **Portable a Next.js** (RSC + Tailwind + shadcn/ui)                                               |
+| Reglamento                                                                     | `App.jsx` `NormativaPanel` (402-423) | Texto inline en JSX                                                                                              | **Migrar** a `docs/REGLAMENTO_<AÑO>.md` versionado                                                |
 
 ### Algoritmos: cobertura y huecos
 
@@ -130,7 +134,7 @@ Los nombres heredados son alias parciales (estilo *"nombre1 / nombre2"*, normalm
 - **Reglamento embebido** en `NormativaPanel`; debe ser doc versionado en `docs/`.
 - **Sin CI/CD**: ni lint ni typecheck automáticos. Workflow GitHub Actions inexistente.
 - **Sin `engines`** en `package.json` ni `.nvmrc`. Riesgo de drift de versión Node entre devs.
-- **Cómputo de juegos**: `getStandings` solo suma juegos de los **dos primeros sets** (`App.jsx:62 → if (index < 2)`). Esto deja el super tie-break fuera del cómputo de *diferencia de juegos*, lo cual es defendible (no es un set de 6 juegos), pero **debe quedar consagrado en el reglamento** para evitar disputas. Marcado como pregunta en `DECISIONES.md`.
+- **Cómputo de juegos**: `getStandings` solo suma juegos de los **dos primeros sets** (`App.jsx:62 → if (index < 2)`). Esto deja el super tie-break fuera del cómputo de _diferencia de juegos_, lo cual es defendible (no es un set de 6 juegos), pero **debe quedar consagrado en el reglamento** para evitar disputas. Marcado como pregunta en `DECISIONES.md`.
 - **Sin auditoría**: cualquier admin con push a `main` puede reescribir resultados sin trazabilidad. La nueva DB necesita `audit_log` con trigger.
 
 ### P2 — cosmética / mantenimiento
@@ -151,17 +155,17 @@ Los nombres heredados son alias parciales (estilo *"nombre1 / nombre2"*, normalm
 
 ## Reutilizable vs reescribir (consolidado)
 
-| Elemento | Reutilizar | Adaptar | Reescribir |
-|---|:---:|:---:|:---:|
-| `getStandings`, `getMatchResult`, `generateMatches` | ✓ (portar a TS + tests) | | |
-| `ClassificationTable`, `MatchCard`, `Group`, `NormativaPanel` | ✓ (a Next.js + shadcn/ui) | | |
-| `FinalsBracket` (JSX) | | ✓ (separar render de derivación de cruces) | |
-| Tailwind tokens y paleta | ✓ | | |
-| Datos de parejas / resultados 2025 | | ✓ (importar como histórico) | |
-| `initialTournamentData`, `FINAL_SCHEDULES` | | | ✓ → tablas |
-| `useEffect` fetch + deep-clone matching | | | ✓ → Supabase client + Realtime |
-| Reglamento embebido | | | ✓ → `docs/REGLAMENTO_<AÑO>.md` |
-| Persistencia, auth, pagos, notificaciones, CI/CD, tests, observabilidad | | | ✓ desde cero |
+| Elemento                                                                |        Reutilizar         |                  Adaptar                   |           Reescribir           |
+| ----------------------------------------------------------------------- | :-----------------------: | :----------------------------------------: | :----------------------------: |
+| `getStandings`, `getMatchResult`, `generateMatches`                     |  ✓ (portar a TS + tests)  |                                            |                                |
+| `ClassificationTable`, `MatchCard`, `Group`, `NormativaPanel`           | ✓ (a Next.js + shadcn/ui) |                                            |                                |
+| `FinalsBracket` (JSX)                                                   |                           | ✓ (separar render de derivación de cruces) |                                |
+| Tailwind tokens y paleta                                                |             ✓             |                                            |                                |
+| Datos de parejas / resultados 2025                                      |                           |        ✓ (importar como histórico)         |                                |
+| `initialTournamentData`, `FINAL_SCHEDULES`                              |                           |                                            |           ✓ → tablas           |
+| `useEffect` fetch + deep-clone matching                                 |                           |                                            | ✓ → Supabase client + Realtime |
+| Reglamento embebido                                                     |                           |                                            | ✓ → `docs/REGLAMENTO_<AÑO>.md` |
+| Persistencia, auth, pagos, notificaciones, CI/CD, tests, observabilidad |                           |                                            |          ✓ desde cero          |
 
 ## Estado git / GitHub
 
@@ -169,11 +173,11 @@ Los nombres heredados son alias parciales (estilo *"nombre1 / nombre2"*, normalm
 - Rama de referencia: `main`.
 - Remotos: un único `origin` apuntando a `JonatanGhub/Torneig_Local_Padel_2025_vinroma` (a través del proxy del entorno).
 - Total de commits: **53**. Autores: `JonatanGhub` (42) y `Jonatan Garcia` (11) — probablemente la misma persona con dos identidades git.
-- **23 commits (≈43 %)** con mensaje *"Actualizar results.json"*. No hay convención (Conventional Commits o equivalente).
+- **23 commits (≈43 %)** con mensaje _"Actualizar results.json"_. No hay convención (Conventional Commits o equivalente).
 - **Tags / releases: 0**. Sin versionado semántico.
 - **Issues abiertos o cerrados: 0** (consultado vía GitHub MCP).
-- **Pull Requests: 1**, ya cerrado y merged: [#1 *"Visual Improvements and Refactor"*](https://github.com/JonatanGhub/Torneig_Local_Padel_2025_vinroma/pull/1) (jul 2025), del propio `JonatanGhub`.
-- Descripción oficial del repo en GitHub: *"repositorio del codigo web de gestión del torneo local de les Coves de Vinromà 2025"*.
+- **Pull Requests: 1**, ya cerrado y merged: [#1 _"Visual Improvements and Refactor"_](https://github.com/JonatanGhub/Torneig_Local_Padel_2025_vinroma/pull/1) (jul 2025), del propio `JonatanGhub`.
+- Descripción oficial del repo en GitHub: _"repositorio del codigo web de gestión del torneo local de les Coves de Vinromà 2025"_.
 - **Integraciones externas vivas detectadas en PRs**: Netlify Deploy Previews publica 3 check-runs por PR (`Pages changed`, `Header rules`, `Redirect rules`) y comenta automáticamente con el enlace al preview. Es la única integración CI/CD activa hoy.
 
 ## Configuración sensible y secretos

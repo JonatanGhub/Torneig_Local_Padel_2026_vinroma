@@ -1,0 +1,10 @@
+node_modules
+.next
+.vercel
+out
+build
+dist
+pnpm-lock.yaml
+public
+supabase/.branches
+supabase/.temp

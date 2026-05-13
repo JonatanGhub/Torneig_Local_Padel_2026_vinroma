@@ -7,18 +7,46 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+.pnpm-store
+
+# Build output
+.next
+out
+build
 dist
 dist-ssr
+*.tsbuildinfo
+next-env.d.ts
+
+# Misc
 *.local
+.DS_Store
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Env files (never commit secrets)
+.env
+.env*.local
+.env.development
+.env.production
+
+# Vercel
+.vercel
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+supabase/.env
+
+# Generated types
+types/supabase.ts

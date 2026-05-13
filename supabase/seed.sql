@@ -1,0 +1,16 @@
+-- =========================================================================
+-- seed.sql — datos de desarrollo locales (no se cargan en producción)
+-- =========================================================================
+-- Inserta jugadores ficticios, parejas y partidos para que el equipo de
+-- desarrollo pueda navegar la app sin tener inscripciones reales.
+--
+-- Para cargar:
+--   supabase db reset            # destruye + reaplica + aplica seed
+--
+-- NO ejecutar en producción. Producción arranca limpia, las inscripciones
+-- entran a través del formulario público desde el 1-jun-2026.
+-- =========================================================================
+
+-- Por ahora, sin seed adicional. Las filas de tournament/fees/categories
+-- vienen ya en la migración inicial. Cuando exista UI de inscripción
+-- (Sprint 2), aquí se añadirán parejas y partidos de prueba.
