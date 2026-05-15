@@ -15,5 +15,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
+  // Excluye /api, /auth (route handlers fuera de [locale] como /auth/callback),
+  // assets de Next y archivos con extensión. Para que next-intl no reescriba
+  // /auth/callback → /es/auth/callback (que daría 404).
+  matcher: ['/((?!api|auth|_next|_vercel|.*\\..*).*)'],
 };
