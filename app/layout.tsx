@@ -2,6 +2,7 @@ import './globals.css';
 
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { defaultLocale } from '@/i18n';
 
 export const metadata: Metadata = {
   title: {
@@ -22,5 +23,9 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return children;
+  return (
+    <html lang={defaultLocale} suppressHydrationWarning>
+      <body className="min-h-screen antialiased">{children}</body>
+    </html>
+  );
 }

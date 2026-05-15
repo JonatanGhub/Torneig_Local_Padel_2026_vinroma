@@ -3,6 +3,7 @@ import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { locales, type Locale } from '@/i18n';
+import { HtmlLangUpdater } from './html-lang-updater';
 
 function isValidLocale(value: string): value is Locale {
   return (locales as readonly string[]).includes(value);
@@ -26,10 +27,9 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages();
 
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body className="min-h-screen antialiased">
-        <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
-      </body>
-    </html>
+    <NextIntlClientProvider messages={messages} locale={locale}>
+      <HtmlLangUpdater locale={locale} />
+      {children}
+    </NextIntlClientProvider>
   );
 }
