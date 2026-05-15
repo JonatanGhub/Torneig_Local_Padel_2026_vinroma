@@ -1,0 +1,170 @@
+import { notFound } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
+import type { Locale } from '@/i18n';
+import { createClient } from '@/lib/supabase/server';
+
+type Props = { params: Promise<{ locale: Locale; level: string }> };
+
+export default async function GroupPage({ params }: Props) {
+  const { locale, level: levelParam } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations();
+  const level = Number.parseInt(levelParam, 10);
+  if (!Number.isFinite(level) || level < 1 || level > 4) notFound();
+
+  const supabase = await createClient();
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('id')
+    .eq('edition', 5)
+    .maybeSingle();
+
+  if (!tournament) notFound();
+
+  const { data: category } = await supabase
+    .from('categories')
+    .select('id, level, name_ca, name_es')
+    .eq('tournament_id', tournament.id)
+    .eq('level', level)
+    .maybeSingle();
+  if (!category) notFound();
+
+  const { data: groups } = await supabase
+    .from('groups')
+    .select('id, label')
+    .eq('category_id', category.id)
+    .order('label');
+
+  const { data: pairs } = await supabase
+    .from('pairs')
+    .select('id, player_a_id, player_b_id, group_id')
+    .eq('category_id', category.id)
+    .not('group_id', 'is', null);
+
+  const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
+  const { data: players } = playerIds.length
+    ? await supabase.from('players').select('id, first_name, last_name').in('id', playerIds)
+    : { data: [] };
+  const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
+
+  const { data: standings } = await supabase
+    .from('category_standings')
+    .select('*')
+    .eq('category_id', category.id);
+
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status')
+    .eq('category_id', category.id)
+    .eq('phase', 'group')
+    .order('scheduled_at', { ascending: true, nullsFirst: true });
+
+  const pairLabel = (pairId: string) => {
+    const pair = pairs?.find((p) => p.id === pairId);
+    if (!pair) return '—';
+    const a = playerMap.get(pair.player_a_id);
+    const b = playerMap.get(pair.player_b_id);
+    return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
+  };
+
+  return (
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-8">
+      <Link
+        href={`/${locale}/grups`}
+        className="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-1 text-sm"
+      >
+        <ArrowLeft className="size-4" />
+        {t('common.back')}
+      </Link>
+
+      <h1 className="mb-6 text-3xl font-bold tracking-tight">
+        {locale === 'ca' ? category.name_ca : category.name_es}
+      </h1>
+
+      {(!groups || groups.length === 0) && (
+        <p className="text-muted-foreground text-sm">{t('groups.not_drawn')}</p>
+      )}
+
+      <div className="space-y-10">
+        {(groups ?? []).map((g) => {
+          const groupStandings = (standings ?? [])
+            .filter((s) => s.group_id === g.id)
+            .sort((a, b) => {
+              if (a.matches_won !== b.matches_won) return b.matches_won - a.matches_won;
+              if (a.sets_diff !== b.sets_diff) return b.sets_diff - a.sets_diff;
+              return b.games_diff - a.games_diff;
+            });
+          const groupMatches = (matches ?? []).filter((m) => m.group_label === g.label);
+
+          return (
+            <section key={g.id} className="space-y-4">
+              <h2 className="text-xl font-semibold">
+                {t('groups.group_label', { label: g.label })}
+              </h2>
+
+              <div className="overflow-x-auto">
+                <table className="border-border w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-border border-b text-left">
+                      <th className="py-2 pr-3">#</th>
+                      <th className="py-2 pr-3">{t('groups.pair')}</th>
+                      <th className="py-2 pr-3 text-right">{t('groups.played')}</th>
+                      <th className="py-2 pr-3 text-right">{t('groups.won')}</th>
+                      <th className="py-2 pr-3 text-right">{t('groups.sets_diff')}</th>
+                      <th className="py-2 pr-3 text-right">{t('groups.games_diff')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupStandings.map((s, idx) => (
+                      <tr key={s.pair_id} className="border-border border-b">
+                        <td className="py-2 pr-3 font-mono">{idx + 1}</td>
+                        <td className="py-2 pr-3">{pairLabel(s.pair_id)}</td>
+                        <td className="py-2 pr-3 text-right">{s.matches_played}</td>
+                        <td className="py-2 pr-3 text-right">{s.matches_won}</td>
+                        <td className="py-2 pr-3 text-right">
+                          {s.sets_diff > 0 ? '+' : ''}
+                          {s.sets_diff}
+                        </td>
+                        <td className="py-2 pr-3 text-right">
+                          {s.games_diff > 0 ? '+' : ''}
+                          {s.games_diff}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <details className="text-sm">
+                <summary className="cursor-pointer">
+                  {t('groups.matches_label', { count: groupMatches.length })}
+                </summary>
+                <ul className="mt-3 space-y-1">
+                  {groupMatches.map((m) => (
+                    <li key={m.id} className="text-muted-foreground text-xs">
+                      <span className="font-mono">
+                        {m.scheduled_at
+                          ? new Date(m.scheduled_at).toLocaleString(
+                              locale === 'ca' ? 'ca-ES' : 'es-ES',
+                              { dateStyle: 'short', timeStyle: 'short' },
+                            )
+                          : '—'}{' '}
+                        · {m.court_label ?? '—'}
+                      </span>{' '}
+                      · {pairLabel(m.pair_a_id)} vs {pairLabel(m.pair_b_id)}{' '}
+                      <span className="text-foreground">
+                        ({t(`groups.match_status_${m.status}` as 'groups.match_status_scheduled')})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </section>
+          );
+        })}
+      </div>
+    </main>
+  );
+}
