@@ -1,0 +1,59 @@
+import { z } from 'zod';
+
+export const PlayerSchema = z.object({
+  first_name: z.string().min(1).max(80),
+  last_name: z.string().min(1).max(120),
+  email: z.string().email().toLowerCase(),
+  phone: z
+    .string()
+    .min(9)
+    .max(20)
+    .regex(/^[+0-9 ()-]+$/, { message: 'phone_invalid' }),
+  birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'date_invalid' }),
+  declared_level: z.coerce.number().int().min(1).max(4),
+});
+
+export const LegalGuardianSchema = z.object({
+  legal_guardian_name: z.string().min(1).max(160),
+  legal_guardian_dni: z.string().min(8).max(20),
+  legal_guardian_phone: z.string().min(9).max(20),
+  legal_guardian_email: z.string().email().toLowerCase(),
+});
+
+export const FeeModeSchema = z.enum(['per_pair', 'per_player']);
+
+export const RegistrationSchema = z
+  .object({
+    player_a: PlayerSchema,
+    player_b: PlayerSchema,
+    captain: z.enum(['a', 'b']),
+    category_level: z.coerce.number().int().min(1).max(4),
+    fee_mode: FeeModeSchema,
+    guardian_a: LegalGuardianSchema.optional(),
+    guardian_b: LegalGuardianSchema.optional(),
+    consent_data_processing: z.literal(true),
+    consent_results_publication: z.boolean(),
+    consent_whatsapp: z.boolean(),
+    consent_eligibility: z.literal(true),
+  })
+  .superRefine((data, ctx) => {
+    if (data.player_a.email === data.player_b.email) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['player_b', 'email'],
+        message: 'duplicate_email',
+      });
+    }
+  });
+
+export type RegistrationInput = z.infer<typeof RegistrationSchema>;
+export type PlayerInput = z.infer<typeof PlayerSchema>;
+export type LegalGuardianInput = z.infer<typeof LegalGuardianSchema>;
+export type FeeMode = z.infer<typeof FeeModeSchema>;
+
+export function isMinor(birthDate: string, referenceDate: Date = new Date()) {
+  const born = new Date(birthDate);
+  const eighteen = new Date(referenceDate);
+  eighteen.setFullYear(eighteen.getFullYear() - 18);
+  return born > eighteen;
+}
