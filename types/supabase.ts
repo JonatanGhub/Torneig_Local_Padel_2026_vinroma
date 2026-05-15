@@ -75,10 +75,36 @@ type PairRow = {
   captain_id: string;
   status: 'draft' | 'pending_payment' | 'confirmed' | 'withdrawn' | 'disqualified';
   fee_mode_chosen: 'per_pair' | 'per_player';
+  group_id: string | null;
   withdrawn_at: string | null;
   withdrawal_reason: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type GroupRow = {
+  id: string;
+  tournament_id: string;
+  category_id: string;
+  label: string;
+  draw_seed: number | null;
+  drawn_at: string | null;
+  created_at: string;
+};
+
+type CategoryStandingsRow = {
+  pair_id: string;
+  category_id: string;
+  group_id: string;
+  matches_played: number;
+  matches_won: number;
+  matches_lost: number;
+  sets_won: number;
+  sets_lost: number;
+  sets_diff: number;
+  games_for: number;
+  games_against: number;
+  games_diff: number;
 };
 
 type PaymentRow = {
@@ -169,6 +195,7 @@ export type Database = {
       categories: Tbl<CategoryRow>;
       players: Tbl<PlayerRow>;
       pairs: Tbl<PairRow>;
+      groups: Tbl<GroupRow>;
       payments: Tbl<PaymentRow>;
       matches: Tbl<MatchRow>;
       sets: Tbl<SetRow>;
@@ -176,7 +203,9 @@ export type Database = {
       audit_log: Tbl<AuditLogRow>;
       club_settings: Tbl<ClubSettingsRow>;
     };
-    Views: Record<string, never>;
+    Views: {
+      category_standings: { Row: CategoryStandingsRow; Relationships: [] };
+    };
     Functions: {
       current_active_fee: {
         Args: { p_tournament_id: string; p_at?: string };
@@ -185,6 +214,18 @@ export type Database = {
       generate_payment_reference: {
         Args: { p_pair_id: string; p_payer_player_id: string; p_mode: 'per_pair' | 'per_player' };
         Returns: string;
+      };
+      run_draw: {
+        Args: { p_category_id: string; p_seed?: number };
+        Returns: { group_id: string; group_label: string; pair_count: number }[];
+      };
+      reset_draw: {
+        Args: { p_category_id: string };
+        Returns: number;
+      };
+      schedule_match: {
+        Args: { p_match_id: string; p_scheduled_at: string; p_court_label: string };
+        Returns: undefined;
       };
     };
     Enums: {

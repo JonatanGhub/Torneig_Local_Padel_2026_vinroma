@@ -63,6 +63,21 @@ export default async function LandingPage({ params }: Props) {
           {t('landing.registration_opens')}
         </p>
 
+        <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
+          <Link
+            href="/grups"
+            className="text-muted-foreground hover:text-foreground rounded-md border border-[hsl(var(--border))] px-4 py-2"
+          >
+            {t('navigation.groups')}
+          </Link>
+          <Link
+            href="/calendari"
+            className="text-muted-foreground hover:text-foreground rounded-md border border-[hsl(var(--border))] px-4 py-2"
+          >
+            {t('navigation.calendar')}
+          </Link>
+        </div>
+
         <Link
           href="/inscripcio"
           className="rounded-md bg-[hsl(var(--primary))] px-6 py-3 text-sm font-medium text-[hsl(var(--primary-foreground))] hover:opacity-90"
