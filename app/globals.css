@@ -5,20 +5,26 @@
   --font-display: var(--font-display), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 
-  --color-court-50: oklch(0.97 0.04 145);
-  --color-court-100: oklch(0.92 0.08 145);
-  --color-court-400: oklch(0.65 0.15 150);
-  --color-court-500: oklch(0.56 0.18 152);
-  --color-court-600: oklch(0.47 0.18 152);
-  --color-court-700: oklch(0.39 0.15 152);
-  --color-court-900: oklch(0.24 0.08 152);
-  --color-clay-400: oklch(0.7 0.13 45);
-  --color-clay-500: oklch(0.6 0.16 38);
-  --color-clay-600: oklch(0.5 0.16 38);
-  --color-sand-50: oklch(0.98 0.015 80);
-  --color-sand-100: oklch(0.95 0.025 80);
+  --color-crimson-50: oklch(0.97 0.02 25);
+  --color-crimson-100: oklch(0.92 0.05 25);
+  --color-crimson-300: oklch(0.75 0.16 25);
+  --color-crimson-400: oklch(0.65 0.2 25);
+  --color-crimson-500: oklch(0.56 0.22 25);
+  --color-crimson-600: oklch(0.48 0.22 25);
+  --color-crimson-700: oklch(0.4 0.2 25);
+  --color-crimson-800: oklch(0.3 0.16 25);
+  --color-crimson-900: oklch(0.22 0.12 25);
 
-  --animate-gradient: gradient 12s ease infinite;
+  --color-ink-50: oklch(0.97 0 0);
+  --color-ink-100: oklch(0.93 0 0);
+  --color-ink-200: oklch(0.86 0 0);
+  --color-ink-400: oklch(0.55 0 0);
+  --color-ink-600: oklch(0.32 0 0);
+  --color-ink-800: oklch(0.18 0 0);
+  --color-ink-900: oklch(0.12 0 0);
+  --color-ink-950: oklch(0.08 0 0);
+
+  --animate-gradient: gradient 18s ease infinite;
   --animate-float-slow: floatSlow 6s ease-in-out infinite;
   --animate-fade-up: fadeUp 0.7s ease-out forwards;
   --animate-fade-in: fadeIn 0.7s ease-out forwards;
@@ -27,100 +33,222 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 0 0% 9%;
+    --foreground: 0 0% 7%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
+    --card-foreground: 0 0% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
-    --primary: 152 60% 30%;
+    --popover-foreground: 0 0% 7%;
+    --primary: 0 72% 45%;
     --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 9%;
+    --secondary-foreground: 0 0% 7%;
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: 0 0% 42%;
     --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84% 60%;
+    --accent-foreground: 0 0% 7%;
+    --destructive: 0 84% 55%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 152 60% 30%;
-    --radius: 0.5rem;
+    --ring: 0 72% 45%;
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 152 25% 6%;
+    --background: 0 0% 6%;
     --foreground: 0 0% 98%;
-    --card: 152 25% 8%;
+    --card: 0 0% 9%;
     --card-foreground: 0 0% 98%;
-    --popover: 152 25% 6%;
+    --popover: 0 0% 6%;
     --popover-foreground: 0 0% 98%;
-    --primary: 152 50% 50%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 152 15% 15%;
+    --primary: 0 80% 55%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 14%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 152 15% 15%;
-    --muted-foreground: 0 0% 63%;
-    --accent: 152 15% 15%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 14%;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62% 50%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 152 15% 18%;
-    --input: 152 15% 18%;
-    --ring: 152 50% 50%;
+    --border: 0 0% 17%;
+    --input: 0 0% 17%;
+    --ring: 0 80% 55%;
   }
 }
 
 @layer base {
-  * { border-color: hsl(var(--border)); }
-  body { background-color: hsl(var(--background)); color: hsl(var(--foreground)); font-family: var(--font-sans); }
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+  }
+  html.dark body {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, oklch(0.28 0.16 25 / 0.35), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, oklch(0.22 0.14 25 / 0.3), transparent 55%),
+      hsl(var(--background));
+  }
 }
 
 @layer utilities {
-  .font-display { font-family: var(--font-display); letter-spacing: -0.03em; }
-  .text-balance { text-wrap: balance; }
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Apple-inspired Liquid Glass — backdrop blur + saturate + subtle inner highlight */
+  .liquid-glass {
+    background: linear-gradient(
+      135deg,
+      oklch(1 0 0 / 0.12) 0%,
+      oklch(1 0 0 / 0.06) 50%,
+      oklch(1 0 0 / 0.1) 100%
+    );
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid oklch(1 0 0 / 0.18);
+    box-shadow:
+      inset 0 1px 0 0 oklch(1 0 0 / 0.2),
+      inset 0 -1px 0 0 oklch(0 0 0 / 0.1),
+      0 8px 32px oklch(0 0 0 / 0.25);
+  }
+  .liquid-glass-strong {
+    background: linear-gradient(
+      135deg,
+      oklch(1 0 0 / 0.18) 0%,
+      oklch(1 0 0 / 0.08) 50%,
+      oklch(1 0 0 / 0.14) 100%
+    );
+    backdrop-filter: blur(28px) saturate(200%);
+    -webkit-backdrop-filter: blur(28px) saturate(200%);
+    border: 1px solid oklch(1 0 0 / 0.22);
+    box-shadow:
+      inset 0 1px 0 0 oklch(1 0 0 / 0.28),
+      inset 0 -1px 0 0 oklch(0 0 0 / 0.12),
+      0 12px 40px oklch(0 0 0 / 0.3);
+  }
+  .liquid-glass-dark {
+    background: linear-gradient(
+      135deg,
+      oklch(0 0 0 / 0.5) 0%,
+      oklch(0 0 0 / 0.35) 50%,
+      oklch(0 0 0 / 0.45) 100%
+    );
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid oklch(1 0 0 / 0.1);
+    box-shadow:
+      inset 0 1px 0 0 oklch(1 0 0 / 0.12),
+      0 12px 40px oklch(0 0 0 / 0.4);
+  }
 
   .hero-gradient {
-    background: linear-gradient(135deg, oklch(0.96 0.05 150) 0%, oklch(0.94 0.07 80) 25%, oklch(0.97 0.03 50) 50%, oklch(0.92 0.08 150) 75%, oklch(0.95 0.06 100) 100%);
-    background-size: 400% 400%;
-    animation: gradient 18s ease infinite;
-  }
-  .dark .hero-gradient {
-    background: linear-gradient(135deg, oklch(0.18 0.05 150) 0%, oklch(0.16 0.04 80) 25%, oklch(0.14 0.03 50) 50%, oklch(0.2 0.06 152) 75%, oklch(0.17 0.05 100) 100%);
-    background-size: 400% 400%;
-    animation: gradient 18s ease infinite;
+    background:
+      radial-gradient(800px 500px at 15% 10%, oklch(0.4 0.2 25 / 0.45), transparent 60%),
+      radial-gradient(700px 500px at 90% 90%, oklch(0.3 0.18 25 / 0.4), transparent 55%),
+      linear-gradient(135deg, oklch(0.1 0.02 25) 0%, oklch(0.08 0 0) 50%, oklch(0.12 0.04 25) 100%);
+    background-size:
+      200% 200%,
+      200% 200%,
+      300% 300%;
+    animation: gradient 22s ease infinite;
   }
 
-  .glow-primary {
-    box-shadow: 0 0 0 0 oklch(0.56 0.18 152 / 0.5), 0 10px 25px -8px oklch(0.4 0.18 152 / 0.4);
+  .glow-crimson {
+    box-shadow:
+      0 0 0 0 oklch(0.56 0.22 25 / 0.55),
+      0 10px 30px -8px oklch(0.4 0.22 25 / 0.5);
     transition: all 0.3s ease;
   }
-  .glow-primary:hover {
-    box-shadow: 0 0 0 6px oklch(0.56 0.18 152 / 0.18), 0 16px 30px -8px oklch(0.4 0.18 152 / 0.55);
+  .glow-crimson:hover {
+    box-shadow:
+      0 0 0 8px oklch(0.56 0.22 25 / 0.2),
+      0 18px 40px -8px oklch(0.5 0.22 25 / 0.65);
     transform: translateY(-1px);
   }
 
-  .court-lines {
-    background-image:
-      linear-gradient(to right, transparent 0, transparent 49.5%, oklch(1 0 0 / 0.12) 49.5%, oklch(1 0 0 / 0.12) 50.5%, transparent 50.5%, transparent 100%),
-      linear-gradient(to bottom, transparent 0, transparent 32%, oklch(1 0 0 / 0.1) 32%, oklch(1 0 0 / 0.1) 32.5%, transparent 32.5%, transparent 67.5%, oklch(1 0 0 / 0.1) 67.5%, oklch(1 0 0 / 0.1) 68%, transparent 68%, transparent 100%);
+  .text-gradient-crimson {
+    background: linear-gradient(
+      120deg,
+      oklch(0.98 0 0) 0%,
+      oklch(0.85 0.12 25) 45%,
+      oklch(0.62 0.22 25) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .noise-grain::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 }
 
 @keyframes gradient {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+  0%,
+  100% {
+    background-position:
+      0% 50%,
+      100% 50%,
+      0% 50%;
+  }
+  50% {
+    background-position:
+      100% 50%,
+      0% 50%,
+      100% 50%;
+  }
 }
 @keyframes floatSlow {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-12px); }
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
 }
 @keyframes fadeUp {
-  0% { opacity: 0; transform: translateY(20px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes fadeIn {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
-@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes carouselFade {
+  0%,
+  28% {
+    opacity: 1;
+  }
+  33%,
+  95% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}

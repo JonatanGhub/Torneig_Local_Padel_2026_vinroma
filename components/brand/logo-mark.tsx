@@ -1,5 +1,10 @@
 import { cn } from '@/lib/utils';
 
+/**
+ * Logo del Club Pàdel Les Coves de Vinromà.
+ * Composición: cuatro puntos redondos a la izquierda (negro/blanco/rojo) + texto.
+ * Sin imagen, todo SVG — escala perfecta en cualquier tamaño.
+ */
 export function LogoMark({ className, size = 56 }: { className?: string; size?: number }) {
   return (
     <svg
@@ -12,35 +17,61 @@ export function LogoMark({ className, size = 56 }: { className?: string; size?: 
       aria-hidden
     >
       <defs>
-        <linearGradient id="courtGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="oklch(0.6 0.18 152)" />
-          <stop offset="100%" stopColor="oklch(0.42 0.18 152)" />
-        </linearGradient>
-        <linearGradient id="ballGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="oklch(0.95 0.18 100)" />
-          <stop offset="100%" stopColor="oklch(0.83 0.2 95)" />
-        </linearGradient>
+        <radialGradient id="dotGloss" cx="35%" cy="30%" r="65%">
+          <stop offset="0%" stopColor="oklch(1 0 0 / 0.55)" />
+          <stop offset="60%" stopColor="oklch(1 0 0 / 0)" />
+        </radialGradient>
       </defs>
-      <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#courtGrad)" />
-      <line x1="32" y1="6" x2="32" y2="58" stroke="oklch(1 0 0 / 0.55)" strokeWidth="1.2" />
-      <line x1="6" y1="22" x2="58" y2="22" stroke="oklch(1 0 0 / 0.45)" strokeWidth="1" />
-      <line x1="6" y1="42" x2="58" y2="42" stroke="oklch(1 0 0 / 0.45)" strokeWidth="1" />
-      <rect x="6" y="6" width="52" height="52" rx="10" fill="none" stroke="oklch(1 0 0 / 0.6)" strokeWidth="1.5" />
-      <circle cx="44" cy="20" r="6.5" fill="url(#ballGrad)" />
-      <path d="M 38.5 20 Q 44 14, 49.5 20" stroke="oklch(0.3 0.05 100)" strokeWidth="0.6" fill="none" opacity="0.6" />
-      <path d="M 38.5 20 Q 44 26, 49.5 20" stroke="oklch(0.3 0.05 100)" strokeWidth="0.6" fill="none" opacity="0.6" />
+      {/* 4 puntos en 2x2: negro, rojo / rojo, blanco */}
+      <circle cx="20" cy="20" r="10" fill="oklch(0.1 0 0)" />
+      <circle cx="20" cy="20" r="10" fill="url(#dotGloss)" />
+      <circle cx="44" cy="20" r="10" fill="oklch(0.56 0.22 25)" />
+      <circle cx="44" cy="20" r="10" fill="url(#dotGloss)" />
+      <circle cx="20" cy="44" r="10" fill="oklch(0.56 0.22 25)" />
+      <circle cx="20" cy="44" r="10" fill="url(#dotGloss)" />
+      <circle
+        cx="44"
+        cy="44"
+        r="10"
+        fill="oklch(0.98 0 0)"
+        stroke="oklch(0.12 0 0 / 0.18)"
+        strokeWidth="0.8"
+      />
+      <circle cx="44" cy="44" r="10" fill="url(#dotGloss)" opacity="0.5" />
     </svg>
   );
 }
 
-export function LogoLockup({ className }: { className?: string }) {
+/**
+ * Lockup horizontal: cuatro puntos + texto a la derecha.
+ * Variante por defecto sobre fondo oscuro (texto blanco).
+ */
+export function LogoLockup({
+  className,
+  inverted = false,
+}: {
+  className?: string;
+  inverted?: boolean;
+}) {
   return (
     <div className={cn('flex items-center gap-3', className)}>
-      <LogoMark size={44} />
+      <LogoMark size={40} />
       <div className="leading-tight">
-        <p className="font-display text-base font-semibold tracking-tight">V Torneig de Pàdel</p>
-        <p className="text-muted-foreground text-xs tracking-wide uppercase">
-          les Coves de Vinromà · 2026
+        <p
+          className={cn(
+            'font-display text-base font-semibold tracking-tight',
+            inverted ? 'text-ink-900' : 'text-white',
+          )}
+        >
+          V Torneig de Pàdel
+        </p>
+        <p
+          className={cn(
+            'text-[10px] font-medium tracking-[0.18em] uppercase',
+            inverted ? 'text-ink-600' : 'text-white/65',
+          )}
+        >
+          Les Coves de Vinromà · 2026
         </p>
       </div>
     </div>
