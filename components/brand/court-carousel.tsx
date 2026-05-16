@@ -8,21 +8,23 @@ type Slide = { src: string; alt: string };
 
 /**
  * Cross-fade carousel de fotos reales de las pistas.
- * - Transición lenta (~1.8s) entre imágenes.
- * - Cada slide visible ~6s.
+ * - Fundido largo y suave (~2.8 s) entre imágenes.
+ * - Cada slide visible ~9 s.
  * - Sin fotos de personas (§21.6 RGPD ok: instalaciones).
  *
- * Las imágenes viven en /public/images/courts/{1,2,3}.jpg
+ * Las imágenes viven en /public/images/courts/{1,2,3}.png
  * Si faltan, el contenedor mantiene su gradiente de fondo.
  */
 export function CourtCarousel({
   slides,
   className,
-  intervalMs = 6000,
+  intervalMs = 9000,
+  fadeMs = 2800,
 }: {
   slides: Slide[];
   className?: string;
   intervalMs?: number;
+  fadeMs?: number;
 }) {
   const [active, setActive] = useState(0);
 
@@ -46,8 +48,13 @@ export function CourtCarousel({
         <div
           key={slide.src}
           aria-hidden={i !== active}
-          className="absolute inset-0 transition-opacity duration-[1800ms] ease-in-out"
-          style={{ opacity: i === active ? 1 : 0 }}
+          className="absolute inset-0 ease-in-out"
+          style={{
+            opacity: i === active ? 1 : 0,
+            transitionProperty: 'opacity',
+            transitionDuration: `${fadeMs}ms`,
+            willChange: 'opacity',
+          }}
         >
           <Image
             src={slide.src}
@@ -63,15 +70,7 @@ export function CourtCarousel({
       {/* Capa de oscurecido + viñeta para legibilidad de overlays */}
       <div
         aria-hidden
-        className="from-ink-950/85 via-ink-950/30 to-ink-950/50 absolute inset-0 bg-gradient-to-t"
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(120% 80% at 50% 50%, transparent 50%, oklch(0.08 0 0 / 0.55) 100%)',
-        }}
+        className="from-ink-950/70 to-ink-950/40 absolute inset-0 bg-gradient-to-t via-transparent"
       />
 
       {/* Indicadores */}
@@ -81,7 +80,7 @@ export function CourtCarousel({
             <span
               key={i}
               className={cn(
-                'h-1 rounded-full transition-all duration-500',
+                'h-1 rounded-full transition-all duration-700',
                 i === active ? 'w-8 bg-white' : 'w-1.5 bg-white/40',
               )}
             />
