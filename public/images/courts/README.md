@@ -1,10 +1,13 @@
 # Fotos de las pistas para el carrusel del landing
 
-Sube aquí 3 imágenes JPG/WebP/AVIF con estos nombres exactos:
+Las imágenes del carrusel usan formato PNG:
 
-- `1.jpg`
-- `2.jpg`
-- `3.jpg`
+- `1.png`
+- `2.png`
+- `3.png`
+
+Si las cambias a JPG/WebP/AVIF, edita `SLIDES` en `app/[locale]/page.tsx` para
+que coincidan las extensiones.
 
 Recomendaciones técnicas:
 
