@@ -17,9 +17,9 @@ import { LogoLockup, LogoMark } from '@/components/brand/logo-mark';
 type Props = { params: Promise<{ locale: Locale }> };
 
 const SLIDES = [
-  { src: '/images/courts/1.jpg', alt: 'Pistes de pàdel — Les Coves de Vinromà' },
-  { src: '/images/courts/2.jpg', alt: 'Pista exterior amb vallat — Les Coves de Vinromà' },
-  { src: '/images/courts/3.jpg', alt: 'Pistes de pàdel al capvespre — Les Coves de Vinromà' },
+  { src: '/images/courts/1.png', alt: 'Pistes de pàdel — Les Coves de Vinromà' },
+  { src: '/images/courts/2.png', alt: 'Pista exterior amb vallat — Les Coves de Vinromà' },
+  { src: '/images/courts/3.png', alt: 'Pistes de pàdel al capvespre — Les Coves de Vinromà' },
 ];
 
 const KEY_DATES: Array<{
