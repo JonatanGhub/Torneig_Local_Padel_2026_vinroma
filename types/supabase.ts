@@ -227,6 +227,10 @@ export type Database = {
         Args: { p_match_id: string; p_scheduled_at: string; p_court_label: string };
         Returns: undefined;
       };
+      submit_match_report: {
+        Args: { p_match_id: string; p_score: Json };
+        Returns: string;
+      };
     };
     Enums: {
       user_role: 'anon' | 'captain' | 'admin';

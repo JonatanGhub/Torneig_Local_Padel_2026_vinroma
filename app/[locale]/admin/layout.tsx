@@ -2,7 +2,14 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { LayoutDashboard, Wallet, Settings, Shuffle, CalendarClock } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Wallet,
+  Settings,
+  Shuffle,
+  CalendarClock,
+  AlertCircle,
+} from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 
@@ -46,6 +53,9 @@ export default async function AdminLayout({ children, params }: Props) {
         </NavLink>
         <NavLink href={`/${locale}/admin/matches`} icon={<CalendarClock className="size-4" />}>
           {t('nav_matches')}
+        </NavLink>
+        <NavLink href={`/${locale}/admin/disputes`} icon={<AlertCircle className="size-4" />}>
+          {t('nav_disputes')}
         </NavLink>
         <NavLink href={`/${locale}/admin/settings`} icon={<Settings className="size-4" />}>
           {t('nav_settings')}
