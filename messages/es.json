@@ -271,7 +271,17 @@
     "error_invalid_set_score": "Uno de los sets tiene un marcador imposible en pádel (p.ej. 6-5 no es válido).",
     "error_no_winner": "El marcador no determina ganador (hay que llegar a 2 sets ganados).",
     "error_not_captain_of_this_match": "No eres el capitán de este partido.",
-    "error_unauthenticated": "Debes volver a iniciar sesión."
+    "error_unauthenticated": "Debes volver a iniciar sesión.",
+    "role_badge": "Capitán",
+    "stat_total": "Partidos totales",
+    "stat_wins": "Victorias",
+    "stat_pending": "Por jugar",
+    "upcoming_title": "Próximos partidos",
+    "past_title": "Resultados",
+    "no_matches_body": "Cuando la organización programe tus partidos, aparecerán aquí con la pista y la hora.",
+    "match_pill_scheduled": "Programado",
+    "match_pill_pending": "Por validar",
+    "match_pill_disputed": "En disputa"
   },
   "cookies_banner": {
     "aria_label": "Aviso de cookies",

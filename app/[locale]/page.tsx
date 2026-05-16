@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { CourtCarousel } from '@/components/brand/court-carousel';
-import { LogoLockup, LogoMark } from '@/components/brand/logo-mark';
+import { LogoLockup } from '@/components/brand/logo-mark';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -48,21 +48,10 @@ export default async function LandingPage({ params }: Props) {
 
   return (
     <div className="bg-ink-950 relative min-h-screen overflow-hidden text-white">
-      {/* Fondo principal: gradiente + ruido */}
+      {/* Fondo principal: gradiente estático (sin animación pesada) */}
       <div className="hero-gradient pointer-events-none absolute inset-0 -z-10" />
-      <div aria-hidden className="noise-grain pointer-events-none absolute inset-0 -z-10" />
-      <div
-        aria-hidden
-        className="bg-crimson-700/30 pointer-events-none absolute -top-40 -left-40 -z-10 size-[32rem] rounded-full blur-3xl"
-        style={{ animation: 'floatSlow 9s ease-in-out infinite' }}
-      />
-      <div
-        aria-hidden
-        className="bg-crimson-900/40 pointer-events-none absolute top-1/3 -right-40 -z-10 size-[36rem] rounded-full blur-3xl"
-        style={{ animation: 'floatSlow 11s ease-in-out infinite reverse' }}
-      />
 
-      {/* NAV con liquid glass */}
+      {/* NAV: única zona con backdrop-filter para rendimiento */}
       <div className="sticky top-4 z-40 mx-auto flex max-w-6xl items-center justify-between px-4">
         <div className="liquid-glass-dark flex w-full items-center justify-between rounded-full px-4 py-2.5 sm:px-5">
           <LogoLockup />
@@ -85,12 +74,9 @@ export default async function LandingPage({ params }: Props) {
 
       {/* HERO */}
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-16 pb-24 md:grid-cols-2 md:pt-24">
-        <div className="space-y-7" style={{ animation: 'fadeUp 0.8s ease-out' }}>
-          <div className="liquid-glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-white/90">
-            <span className="relative flex size-2">
-              <span className="bg-crimson-500 absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" />
-              <span className="bg-crimson-500 relative inline-flex size-2 rounded-full" />
-            </span>
+        <div className="space-y-7">
+          <div className="bg-crimson-500/10 border-crimson-500/30 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-medium text-white/90">
+            <span className="bg-crimson-400 relative inline-flex size-2 rounded-full" />
             {t('landing.hero_subtitle')}
           </div>
 
@@ -109,7 +95,7 @@ export default async function LandingPage({ params }: Props) {
             </Link>
             <Link
               href={`/${locale}/grups`}
-              className="liquid-glass inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white transition-transform hover:scale-[1.02]"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
             >
               {t('landing.see_groups_cta')}
             </Link>
@@ -118,33 +104,22 @@ export default async function LandingPage({ params }: Props) {
           <p className="text-xs text-white/55">{t('landing.registration_opens')}</p>
         </div>
 
-        {/* CARRUSEL con liquid glass overlays */}
-        <div className="relative aspect-[4/3] w-full" style={{ animation: 'fadeIn 1s ease-out' }}>
-          <div className="bg-crimson-600/20 absolute inset-0 -z-10 rounded-3xl blur-2xl" />
+        {/* CARRUSEL — sin logo flotante encima */}
+        <div className="relative aspect-[4/3] w-full">
           <CourtCarousel
             slides={SLIDES}
             className="relative h-full w-full rounded-3xl border border-white/10 shadow-2xl"
           />
 
-          {/* Chips flotantes en liquid glass */}
+          {/* Chips estáticos (sin backdrop-filter para no afectar al scroll) */}
           <div className="absolute top-5 left-5 z-10 space-y-2">
-            <GlassChip icon={<Trophy className="size-3.5" />}>
+            <Chip icon={<Trophy className="size-3.5" />}>
               {t('landing.stat_categories', { count: 4 })}
-            </GlassChip>
-            <GlassChip icon={<Users className="size-3.5" />}>
+            </Chip>
+            <Chip icon={<Users className="size-3.5" />}>
               {t('landing.stat_pairs', { count: 32 })}
-            </GlassChip>
-            <GlassChip icon={<MapPin className="size-3.5" />}>{t('landing.stat_courts')}</GlassChip>
-          </div>
-
-          {/* Logo flotando */}
-          <div
-            className="absolute right-5 bottom-12 z-10"
-            style={{ animation: 'floatSlow 6s ease-in-out infinite' }}
-          >
-            <div className="liquid-glass-strong rounded-2xl p-3">
-              <LogoMark size={56} />
-            </div>
+            </Chip>
+            <Chip icon={<MapPin className="size-3.5" />}>{t('landing.stat_courts')}</Chip>
           </div>
         </div>
       </section>
@@ -170,18 +145,13 @@ export default async function LandingPage({ params }: Props) {
         </div>
 
         <ol className="grid grid-cols-2 gap-4 md:grid-cols-5">
-          {KEY_DATES.map((step, i) => {
+          {KEY_DATES.map((step) => {
             const Icon = step.icon;
             return (
               <li
                 key={step.labelKey}
-                className="liquid-glass group hover:border-crimson-400/40 relative overflow-hidden rounded-2xl p-5 transition-all hover:-translate-y-1"
-                style={{ animation: `fadeUp 0.6s ease-out ${i * 0.08}s backwards` }}
+                className="glass-card hover:border-crimson-400/40 group rounded-2xl p-5 transition-colors"
               >
-                <div
-                  aria-hidden
-                  className="from-crimson-500/0 to-crimson-500/0 group-hover:from-crimson-500/10 absolute inset-0 bg-gradient-to-br transition-colors group-hover:to-transparent"
-                />
                 <div className="bg-crimson-500/15 text-crimson-300 mb-3 inline-flex size-9 items-center justify-center rounded-lg">
                   <Icon className="size-4" />
                 </div>
@@ -222,15 +192,6 @@ export default async function LandingPage({ params }: Props) {
       {/* CTA FINAL */}
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <div className="from-crimson-700 via-crimson-600 to-ink-900 relative overflow-hidden rounded-3xl bg-gradient-to-br p-10 text-white md:p-14">
-          <div
-            aria-hidden
-            className="absolute -top-24 -right-24 size-80 rounded-full bg-white/10 blur-3xl"
-          />
-          <div
-            aria-hidden
-            className="absolute -bottom-32 -left-20 size-96 rounded-full bg-black/30 blur-3xl"
-          />
-          <div aria-hidden className="noise-grain pointer-events-none absolute inset-0" />
           <div className="relative max-w-2xl space-y-5">
             <h2 className="font-display text-3xl font-semibold text-balance md:text-5xl">
               {t('landing.cta_title')}
@@ -291,9 +252,9 @@ function NavLink({
   );
 }
 
-function GlassChip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+function Chip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="liquid-glass-strong inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-white">
+    <div className="bg-ink-950/70 inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1 text-xs font-medium text-white">
       {icon}
       {children}
     </div>
@@ -312,7 +273,7 @@ function InfoCard({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="liquid-glass group hover:border-crimson-400/40 relative overflow-hidden rounded-2xl p-6 transition-all hover:-translate-y-1">
+    <div className="glass-card hover:border-crimson-400/40 group rounded-2xl p-6 transition-colors">
       <div className="bg-crimson-500/15 text-crimson-300 mb-4 inline-flex size-11 items-center justify-center rounded-xl">
         {icon}
       </div>
