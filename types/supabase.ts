@@ -173,6 +173,19 @@ type RescheduleProposalRow = {
   created_at: string;
 };
 
+type PairFinanceEntryRow = {
+  id: string;
+  pair_id: string;
+  kind: 'income' | 'expense';
+  amount_cents: number;
+  label: string;
+  notes: string | null;
+  occurred_on: string;
+  created_by_player_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
 type AuditLogRow = {
   id: number;
   table_name: string;
@@ -215,6 +228,7 @@ export type Database = {
       sets: Tbl<SetRow>;
       match_reports: Tbl<MatchReportRow>;
       match_reschedule_proposals: Tbl<RescheduleProposalRow>;
+      pair_finance_entries: Tbl<PairFinanceEntryRow>;
       audit_log: Tbl<AuditLogRow>;
       club_settings: Tbl<ClubSettingsRow>;
     };
@@ -272,6 +286,7 @@ export type Database = {
       match_status: 'scheduled' | 'pending_validation' | 'validated' | 'disputed' | 'walkover';
       fee_mode: 'per_pair' | 'per_player';
       reschedule_status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+      finance_entry_kind: 'income' | 'expense';
     };
     CompositeTypes: Record<string, never>;
   };

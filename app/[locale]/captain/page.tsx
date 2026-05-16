@@ -1,6 +1,17 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CalendarClock, Check, Clock, Sparkles, Trophy, Users, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarClock,
+  Check,
+  Clock,
+  Sparkles,
+  Trophy,
+  Users,
+  Wallet,
+  X,
+} from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -89,7 +100,6 @@ export default async function CaptainHome({ params }: Props) {
     <div className="bg-ink-950 relative min-h-screen text-white">
       <div className="hero-gradient pointer-events-none absolute inset-0 -z-10" />
 
-      {/* Top bar */}
       <div className="bg-ink-950/85 sticky top-0 z-40 border-b border-white/10 backdrop-blur-md">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
           <LogoLockup />
@@ -104,7 +114,6 @@ export default async function CaptainHome({ params }: Props) {
       </div>
 
       <main className="mx-auto max-w-4xl px-6 py-10">
-        {/* Hero */}
         <header className="mb-10">
           <p className="text-crimson-400 text-xs font-medium tracking-widest uppercase">
             {t('captain.role_badge')}
@@ -115,7 +124,24 @@ export default async function CaptainHome({ params }: Props) {
           <p className="mt-2 text-white/65">{t('captain.subtitle')}</p>
         </header>
 
-        {/* Stats */}
+        <Link
+          href={`/${locale}/captain/finance`}
+          className="glass-card hover:border-crimson-400/40 group mb-6 flex items-center justify-between gap-3 rounded-2xl p-4 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-crimson-500/15 text-crimson-300 inline-flex size-10 items-center justify-center rounded-xl">
+              <Wallet className="size-5" />
+            </div>
+            <div>
+              <p className="font-display text-base font-semibold text-white">
+                {t('captain.finance_card_title')}
+              </p>
+              <p className="text-xs text-white/55">{t('captain.finance_card_body')}</p>
+            </div>
+          </div>
+          <ArrowRight className="size-4 text-white/45 transition-transform group-hover:translate-x-1" />
+        </Link>
+
         <section className="mb-10 grid gap-3 sm:grid-cols-3">
           <StatCard
             icon={<CalendarClock className="size-5" />}
@@ -134,7 +160,6 @@ export default async function CaptainHome({ params }: Props) {
           />
         </section>
 
-        {/* Próximos partidos */}
         <section className="mb-12">
           <h2 className="font-display mb-4 text-2xl font-semibold tracking-tight">
             {t('captain.upcoming_title')}
@@ -181,7 +206,6 @@ export default async function CaptainHome({ params }: Props) {
           )}
         </section>
 
-        {/* Resultados pasados */}
         {past.length > 0 && (
           <section>
             <h2 className="font-display mb-4 text-2xl font-semibold tracking-tight">
