@@ -20,7 +20,7 @@
     "sponsors": "Patrocinadores",
     "login": "Entrar",
     "logout": "Salir",
-    "admin": "Admin"
+    "admin": "Gestor"
   },
   "landing": {
     "hero_title": "V Torneo de Pádel les Coves de Vinromà",
@@ -176,7 +176,7 @@
     "empty": "Aún no hay partidos programados."
   },
   "admin": {
-    "sidebar_title": "Administración",
+    "sidebar_title": "Gestor del torneo",
     "nav_dashboard": "Resumen",
     "nav_payments": "Pagos",
     "nav_draw": "Sorteo",
@@ -237,7 +237,17 @@
     "disputes_section_disputed": "Disputados (requieren acción)",
     "disputes_section_pending": "Pendientes de validación",
     "disputes_no_disputes": "No hay partidos disputados.",
-    "disputes_no_pending": "Ningún partido pendiente de validar."
+    "disputes_no_pending": "Ningún partido pendiente de validar.",
+    "role_badge": "Gestor del torneo",
+    "export_csv": "Exportar CSV",
+    "walkover_cta": "Marcar walkover",
+    "walkover_title": "Resolver por incomparecencia",
+    "walkover_subtitle": "Marcar el partido como ganado por una pareja sin juego. Se borran reportes y sets previos.",
+    "walkover_winner": "Pareja ganadora",
+    "walkover_reason": "Motivo (opcional)",
+    "walkover_reason_placeholder": "Por ejemplo: la pareja B no se ha presentado",
+    "walkover_cancel": "Cancelar",
+    "walkover_confirm": "Confirmar walkover"
   },
   "captain": {
     "no_profile_title": "Tu perfil de capitán aún no está vinculado",
@@ -272,7 +282,7 @@
     "error_no_winner": "El marcador no determina ganador (hay que llegar a 2 sets ganados).",
     "error_not_captain_of_this_match": "No eres el capitán de este partido.",
     "error_unauthenticated": "Debes volver a iniciar sesión.",
-    "role_badge": "Capitán",
+    "role_badge": "Capitán · Participante",
     "stat_total": "Partidos totales",
     "stat_wins": "Victorias",
     "stat_pending": "Por jugar",
