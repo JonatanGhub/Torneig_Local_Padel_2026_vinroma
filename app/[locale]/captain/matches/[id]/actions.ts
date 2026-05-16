@@ -70,3 +70,75 @@ export async function submitReport(formData: FormData) {
   revalidatePath('/[locale]/grups/[level]', 'page');
   return { ok: true, side: data as string } as const;
 }
+
+const RescheduleSchema = z.object({
+  matchId: z.string().uuid(),
+  newScheduledAt: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
+    message: 'invalid_date',
+  }),
+  newCourtLabel: z.string().max(80).nullable().optional(),
+  message: z.string().max(500).nullable().optional(),
+});
+
+export async function proposeReschedule(formData: FormData) {
+  const parsed = RescheduleSchema.safeParse({
+    matchId: formData.get('matchId'),
+    newScheduledAt: formData.get('newScheduledAt'),
+    newCourtLabel: (formData.get('newCourtLabel') as string | null) || null,
+    message: (formData.get('message') as string | null) || null,
+  });
+  if (!parsed.success) {
+    return { ok: false, error: 'invalid_input' } as const;
+  }
+
+  const when = new Date(parsed.data.newScheduledAt);
+  if (when.getTime() <= Date.now()) {
+    return { ok: false, error: 'new_date_must_be_future' } as const;
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('propose_reschedule', {
+    p_match_id: parsed.data.matchId,
+    p_new_scheduled_at: when.toISOString(),
+    p_new_court_label: parsed.data.newCourtLabel ?? null,
+    p_message: parsed.data.message ?? null,
+  });
+  if (error) return { ok: false, error: error.message } as const;
+
+  revalidatePath('/[locale]/captain', 'page');
+  revalidatePath('/[locale]/captain/matches/[id]', 'page');
+  return { ok: true, proposalId: data as string } as const;
+}
+
+export async function respondToReschedule(formData: FormData) {
+  const proposalId = formData.get('proposalId');
+  const accept = formData.get('accept');
+  if (typeof proposalId !== 'string' || (accept !== 'yes' && accept !== 'no')) {
+    return { ok: false, error: 'invalid_input' } as const;
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('respond_to_reschedule', {
+    p_proposal_id: proposalId,
+    p_accept: accept === 'yes',
+  });
+  if (error) return { ok: false, error: error.message } as const;
+
+  revalidatePath('/[locale]/captain', 'page');
+  revalidatePath('/[locale]/captain/matches/[id]', 'page');
+  revalidatePath('/[locale]/calendari', 'page');
+  return { ok: true, status: data as string } as const;
+}
+
+export async function cancelReschedule(formData: FormData) {
+  const proposalId = formData.get('proposalId');
+  if (typeof proposalId !== 'string') {
+    return { ok: false, error: 'invalid_input' } as const;
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('cancel_reschedule', {
+    p_proposal_id: proposalId,
+  });
+  if (error) return { ok: false, error: error.message } as const;
+  revalidatePath('/[locale]/captain/matches/[id]', 'page');
+  return { ok: true, status: data as string } as const;
+}
