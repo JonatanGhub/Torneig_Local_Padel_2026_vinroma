@@ -159,6 +159,20 @@ type MatchReportRow = {
   reported_at: string;
 };
 
+type RescheduleProposalRow = {
+  id: string;
+  match_id: string;
+  proposer_player_id: string;
+  proposer_pair_side: 'a' | 'b';
+  new_scheduled_at: string;
+  new_court_label: string | null;
+  message: string | null;
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+  responded_by_player_id: string | null;
+  responded_at: string | null;
+  created_at: string;
+};
+
 type AuditLogRow = {
   id: number;
   table_name: string;
@@ -200,6 +214,7 @@ export type Database = {
       matches: Tbl<MatchRow>;
       sets: Tbl<SetRow>;
       match_reports: Tbl<MatchReportRow>;
+      match_reschedule_proposals: Tbl<RescheduleProposalRow>;
       audit_log: Tbl<AuditLogRow>;
       club_settings: Tbl<ClubSettingsRow>;
     };
@@ -231,6 +246,23 @@ export type Database = {
         Args: { p_match_id: string; p_score: Json };
         Returns: string;
       };
+      propose_reschedule: {
+        Args: {
+          p_match_id: string;
+          p_new_scheduled_at: string;
+          p_new_court_label: string | null;
+          p_message?: string | null;
+        };
+        Returns: string;
+      };
+      respond_to_reschedule: {
+        Args: { p_proposal_id: string; p_accept: boolean };
+        Returns: string;
+      };
+      cancel_reschedule: {
+        Args: { p_proposal_id: string };
+        Returns: string;
+      };
     };
     Enums: {
       user_role: 'anon' | 'captain' | 'admin';
@@ -239,6 +271,7 @@ export type Database = {
       pair_status: 'draft' | 'pending_payment' | 'confirmed' | 'withdrawn' | 'disqualified';
       match_status: 'scheduled' | 'pending_validation' | 'validated' | 'disputed' | 'walkover';
       fee_mode: 'per_pair' | 'per_player';
+      reschedule_status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
     };
     CompositeTypes: Record<string, never>;
   };

@@ -5,6 +5,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { ReportForm } from './report-form';
+import { ReschedulePanel } from './reschedule-panel';
 
 type Props = { params: Promise<{ locale: Locale; id: string }> };
 
@@ -40,7 +41,6 @@ export default async function CaptainMatchPage({ params }: Props) {
 
   const myPair = (pairs ?? []).find((p) => p.captain_id === player.id);
   if (!myPair) {
-    // No es capitán de ninguna pareja en este partido.
     redirect(`/${locale}/captain`);
   }
 
@@ -60,7 +60,6 @@ export default async function CaptainMatchPage({ params }: Props) {
     return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
   };
 
-  // Reports existentes
   const { data: reports } = await supabase
     .from('match_reports')
     .select('id, reporter_player_id, reporter_pair_side, score_json, reported_at')
@@ -71,6 +70,16 @@ export default async function CaptainMatchPage({ params }: Props) {
   const rivalReport =
     reports?.find((r) => r.reporter_pair_side !== mySide && r.reporter_pair_side !== 'admin') ??
     null;
+
+  const { data: proposals } = await supabase
+    .from('match_reschedule_proposals')
+    .select(
+      'id, proposer_pair_side, new_scheduled_at, new_court_label, message, status, created_at',
+    )
+    .eq('match_id', matchId)
+    .order('created_at', { ascending: false });
+  const pendingProposal = proposals?.find((p) => p.status === 'pending') ?? null;
+  const historyProposals = (proposals ?? []).filter((p) => p.status !== 'pending');
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-8">
@@ -112,6 +121,16 @@ export default async function CaptainMatchPage({ params }: Props) {
         defaultScore={myReport?.score_json ?? rivalReport?.score_json ?? null}
         readOnly={match.status === 'validated' || match.status === 'walkover'}
       />
+
+      {match.status !== 'validated' && match.status !== 'walkover' && (
+        <ReschedulePanel
+          locale={locale}
+          matchId={match.id}
+          mySide={mySide}
+          pending={pendingProposal}
+          history={historyProposals}
+        />
+      )}
     </main>
   );
 }
