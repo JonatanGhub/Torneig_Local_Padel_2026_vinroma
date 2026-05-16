@@ -271,7 +271,17 @@
     "error_invalid_set_score": "Un dels sets té un marcador impossible al pàdel (p.ex. 6-5 no és vàlid).",
     "error_no_winner": "El marcador no determina guanyador (cal arribar a 2 sets guanyats).",
     "error_not_captain_of_this_match": "No ets el capità d'aquest partit.",
-    "error_unauthenticated": "Has de tornar a iniciar sessió."
+    "error_unauthenticated": "Has de tornar a iniciar sessió.",
+    "role_badge": "Capità",
+    "stat_total": "Partits totals",
+    "stat_wins": "Victòries",
+    "stat_pending": "Per jugar",
+    "upcoming_title": "Pròxims partits",
+    "past_title": "Resultats",
+    "no_matches_body": "Quan l'organització programi els teus partits, apareixeran aquí amb la pista i l'hora.",
+    "match_pill_scheduled": "Programat",
+    "match_pill_pending": "Per validar",
+    "match_pill_disputed": "En disputa"
   },
   "cookies_banner": {
     "aria_label": "Avís de cookies",
