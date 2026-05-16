@@ -308,7 +308,9 @@
     "reschedule_error_not_rival_captain": "Solo el capitán rival puede responder.",
     "reschedule_error_match_already_finished": "El partido ya está validado, no puede cambiarse.",
     "reschedule_error_proposal_not_pending": "Esta propuesta ya no está pendiente.",
-    "reschedule_error_only_proposer_can_cancel": "Solo quien propuso puede cancelar."
+    "reschedule_error_only_proposer_can_cancel": "Solo quien propuso puede cancelar.",
+    "finance_card_title": "Cuentas de la pareja",
+    "finance_card_body": "Anota ingresos y gastos compartidos con tu compañero."
   },
   "cookies_banner": {
     "aria_label": "Aviso de cookies",
@@ -318,5 +320,37 @@
     "accept_all": "Aceptar todas",
     "only_essential": "Solo esenciales",
     "close": "Cerrar"
+  },
+  "finance": {
+    "eyebrow": "Capitán · Finanzas",
+    "title": "Cuentas de la pareja",
+    "back_to_captain": "Volver",
+    "summary_income": "Ingresos",
+    "summary_expense": "Gastos",
+    "summary_balance": "Saldo",
+    "add_entry_cta": "Añadir movimiento",
+    "field_kind": "Tipo",
+    "kind_income": "Ingreso",
+    "kind_expense": "Gasto",
+    "field_amount": "Importe (€)",
+    "field_label": "Concepto",
+    "label_placeholder": "Por ejemplo: pelotas, cerveza post-partido, pista extra…",
+    "field_date": "Fecha",
+    "field_notes": "Notas (opcional)",
+    "notes_placeholder": "Detalles adicionales",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "confirm_delete": "¿Seguro que quieres eliminar este movimiento?",
+    "empty_title": "Aún no hay movimientos",
+    "empty_body": "Apunta el primer ingreso o gasto para empezar a llevar las cuentas.",
+    "disclaimer": "Estas cuentas son privadas para tu pareja. Ni la pareja rival ni la organización pueden verlas.",
+    "no_pair_title": "No tienes pareja vinculada",
+    "no_pair_body": "Esta pantalla está reservada para capitanes con una pareja inscrita.",
+    "error_invalid_input": "Datos inválidos.",
+    "error_invalid_amount": "Importe incorrecto. Formato: 12,50",
+    "error_invalid_date": "Fecha inválida.",
+    "error_unauthenticated": "Debes volver a iniciar sesión.",
+    "error_no_player_profile": "No tienes perfil de jugador vinculado."
   }
 }

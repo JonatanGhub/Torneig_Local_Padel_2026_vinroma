@@ -308,7 +308,9 @@
     "reschedule_error_not_rival_captain": "Només el capità rival pot respondre.",
     "reschedule_error_match_already_finished": "El partit ja està validat, no es pot canviar.",
     "reschedule_error_proposal_not_pending": "Aquesta proposta ja no està pendent.",
-    "reschedule_error_only_proposer_can_cancel": "Només qui ha proposat pot cancel·lar."
+    "reschedule_error_only_proposer_can_cancel": "Només qui ha proposat pot cancel·lar.",
+    "finance_card_title": "Comptes de la parella",
+    "finance_card_body": "Anota ingressos i despeses compartides amb el teu company."
   },
   "cookies_banner": {
     "aria_label": "Avís de cookies",
@@ -318,5 +320,37 @@
     "accept_all": "Acceptar totes",
     "only_essential": "Només essencials",
     "close": "Tancar"
+  },
+  "finance": {
+    "eyebrow": "Capità · Finances",
+    "title": "Comptes de la parella",
+    "back_to_captain": "Tornar",
+    "summary_income": "Ingressos",
+    "summary_expense": "Despeses",
+    "summary_balance": "Saldo",
+    "add_entry_cta": "Afegir moviment",
+    "field_kind": "Tipus",
+    "kind_income": "Ingrés",
+    "kind_expense": "Despesa",
+    "field_amount": "Import (€)",
+    "field_label": "Concepte",
+    "label_placeholder": "Per exemple: pelotes, cervesa post-partit, pista extra…",
+    "field_date": "Data",
+    "field_notes": "Notes (opcional)",
+    "notes_placeholder": "Detalls addicionals",
+    "save": "Desar",
+    "cancel": "Cancel·lar",
+    "delete": "Eliminar",
+    "confirm_delete": "Segur que vols eliminar aquest moviment?",
+    "empty_title": "Encara no hi ha moviments",
+    "empty_body": "Apunta el primer ingrés o despesa per començar a portar els comptes.",
+    "disclaimer": "Aquests comptes són privats per a la teva parella. Ni la teva pareja rival ni l'organització els poden veure.",
+    "no_pair_title": "No tens parella vinculada",
+    "no_pair_body": "Aquesta pantalla està reservada per a capitans amb una parella inscrita.",
+    "error_invalid_input": "Dades invàlides.",
+    "error_invalid_amount": "Import incorrecte. Format: 12,50",
+    "error_invalid_date": "Data invàlida.",
+    "error_unauthenticated": "Has de tornar a iniciar sessió.",
+    "error_no_player_profile": "No tens perfil de jugador vinculat."
   }
 }
