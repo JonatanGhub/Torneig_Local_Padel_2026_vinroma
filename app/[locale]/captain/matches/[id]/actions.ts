@@ -3,6 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import {
+  notifyMatchDisputed,
+  notifyMatchValidated,
+  notifyRescheduleProposed,
+} from '@/lib/email/notify';
 
 const SetSchema = z.object({
   set: z.number().int().min(1).max(3),
@@ -52,6 +57,19 @@ export async function submitReport(formData: FormData) {
   });
   if (error) return { ok: false, error: error.message } as const;
 
+  // Tras el RPC, el trigger ya ha actualizado matches.status. Releemos
+  // para decidir qué notificar. Errores de email no rompen la mutación.
+  const { data: matchAfter } = await supabase
+    .from('matches')
+    .select('status')
+    .eq('id', matchId)
+    .maybeSingle();
+  if (matchAfter?.status === 'validated') {
+    await notifyMatchValidated(matchId);
+  } else if (matchAfter?.status === 'disputed') {
+    await notifyMatchDisputed(matchId);
+  }
+
   revalidatePath('/[locale]/captain', 'page');
   revalidatePath('/[locale]/captain/matches/[id]', 'page');
   revalidatePath('/[locale]/grups/[level]', 'page');
@@ -89,6 +107,11 @@ export async function proposeReschedule(formData: FormData) {
     p_message: parsed.data.message ?? null,
   });
   if (error) return { ok: false, error: error.message } as const;
+
+  // Notificar al capitán rival en background (errores no rompen la mutación).
+  if (typeof data === 'string') {
+    await notifyRescheduleProposed(data);
+  }
 
   revalidatePath('/[locale]/captain', 'page');
   revalidatePath('/[locale]/captain/matches/[id]', 'page');
