@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { locales, type Locale } from '@/i18n';
 import { HtmlLangUpdater } from './html-lang-updater';
+import { CookiesBanner } from '@/components/legal/cookies-banner';
 
 function isValidLocale(value: string): value is Locale {
   return (locales as readonly string[]).includes(value);
@@ -30,6 +31,7 @@ export default async function LocaleLayout({ children, params }: Props) {
     <NextIntlClientProvider messages={messages} locale={locale}>
       <HtmlLangUpdater locale={locale} />
       {children}
+      <CookiesBanner locale={locale} />
     </NextIntlClientProvider>
   );
 }
