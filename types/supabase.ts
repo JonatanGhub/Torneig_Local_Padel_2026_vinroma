@@ -186,6 +186,18 @@ type PairFinanceEntryRow = {
   updated_at: string;
 };
 
+type SponsorRow = {
+  id: string;
+  name: string;
+  logo_url: string;
+  website_url: string | null;
+  tier: 'gold' | 'silver' | 'bronze' | 'collaborator';
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 type AuditLogRow = {
   id: number;
   table_name: string;
@@ -229,6 +241,7 @@ export type Database = {
       match_reports: Tbl<MatchReportRow>;
       match_reschedule_proposals: Tbl<RescheduleProposalRow>;
       pair_finance_entries: Tbl<PairFinanceEntryRow>;
+      sponsors: Tbl<SponsorRow>;
       audit_log: Tbl<AuditLogRow>;
       club_settings: Tbl<ClubSettingsRow>;
     };
@@ -291,6 +304,7 @@ export type Database = {
       fee_mode: 'per_pair' | 'per_player';
       reschedule_status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
       finance_entry_kind: 'income' | 'expense';
+      sponsor_tier: 'gold' | 'silver' | 'bronze' | 'collaborator';
     };
     CompositeTypes: Record<string, never>;
   };
