@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { WalkoverButton } from '../walkover-button';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -171,6 +172,15 @@ function DisputeBlock({
                     <ScoreCell label="A" report={reportA} score={scoreToText} />
                     <ScoreCell label="B" report={reportB} score={scoreToText} />
                   </div>
+                )}
+                {emphasizeDispute && (
+                  <WalkoverButton
+                    matchId={m.id}
+                    pairAId={m.pair_a_id}
+                    pairBId={m.pair_b_id}
+                    pairALabel={pairLabel(m.pair_a_id)}
+                    pairBLabel={pairLabel(m.pair_b_id)}
+                  />
                 )}
               </li>
             );

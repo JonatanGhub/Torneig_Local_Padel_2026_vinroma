@@ -277,6 +277,10 @@ export type Database = {
         Args: { p_proposal_id: string };
         Returns: string;
       };
+      admin_set_walkover: {
+        Args: { p_match_id: string; p_winner_pair_id: string; p_reason?: string | null };
+        Returns: undefined;
+      };
     };
     Enums: {
       user_role: 'anon' | 'captain' | 'admin';

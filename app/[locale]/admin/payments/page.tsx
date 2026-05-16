@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { Download } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -45,9 +47,9 @@ export default async function PaymentsAdminPage({ params, searchParams }: Props)
 
   return (
     <section className="space-y-6">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{t('payments_title')}</h1>
-        <div className="flex gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <StatusFilter
             current={status}
             value="pending"
@@ -61,6 +63,13 @@ export default async function PaymentsAdminPage({ params, searchParams }: Props)
             label={t('status_cancelled')}
             locale={locale}
           />
+          <Link
+            href={`/${locale}/admin/payments/export`}
+            className="ml-2 inline-flex items-center gap-1 rounded-md border border-[hsl(var(--border))] px-2 py-1 hover:bg-[hsl(var(--accent))]"
+          >
+            <Download className="size-3" />
+            {t('export_csv')}
+          </Link>
         </div>
       </header>
 
