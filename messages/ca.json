@@ -272,5 +272,14 @@
     "error_no_winner": "El marcador no determina guanyador (cal arribar a 2 sets guanyats).",
     "error_not_captain_of_this_match": "No ets el capità d'aquest partit.",
     "error_unauthenticated": "Has de tornar a iniciar sessió."
+  },
+  "cookies_banner": {
+    "aria_label": "Avís de cookies",
+    "title": "Cookies",
+    "body": "Utilitzem cookies tècniques per al funcionament del lloc. També podem activar analítica si l'acceptes.",
+    "more": "Més informació",
+    "accept_all": "Acceptar totes",
+    "only_essential": "Només essencials",
+    "close": "Tancar"
   }
 }

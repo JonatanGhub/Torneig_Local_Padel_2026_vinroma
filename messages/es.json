@@ -272,5 +272,14 @@
     "error_no_winner": "El marcador no determina ganador (hay que llegar a 2 sets ganados).",
     "error_not_captain_of_this_match": "No eres el capitán de este partido.",
     "error_unauthenticated": "Debes volver a iniciar sesión."
+  },
+  "cookies_banner": {
+    "aria_label": "Aviso de cookies",
+    "title": "Cookies",
+    "body": "Usamos cookies técnicas para el funcionamiento del sitio. También podemos activar analítica si la aceptas.",
+    "more": "Más información",
+    "accept_all": "Aceptar todas",
+    "only_essential": "Solo esenciales",
+    "close": "Cerrar"
   }
 }
