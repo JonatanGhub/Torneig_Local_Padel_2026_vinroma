@@ -60,6 +60,7 @@ type PlayerRow = {
   health_declaration_signed_at: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
+  calendar_feed_token: string;
   consent_data_processing: boolean;
   consent_results_publication: boolean;
   consent_whatsapp: boolean;
