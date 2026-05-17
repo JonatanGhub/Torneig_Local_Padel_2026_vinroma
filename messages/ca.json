@@ -363,7 +363,20 @@
     "registrations_withdraw_error_already_withdrawn": "La parella ja està retirada o desqualificada.",
     "registrations_withdraw_error_has_played_matches": "La parella té partits jugats o validats. Has d'utilitzar una altra acció (walkover/desqualificació).",
     "registrations_withdraw_error_update_failed": "No s'ha pogut actualitzar la parella.",
-    "registrations_withdraw_error_payments_update_failed": "No s'han pogut cancel·lar els pagaments pendents."
+    "registrations_withdraw_error_payments_update_failed": "No s'han pogut cancel·lar els pagaments pendents.",
+    "registrations_resend_email_cta": "Reenviar email",
+    "registrations_resend_email_sending": "Enviant…",
+    "registrations_resend_email_ok": "Email enviat ✓",
+    "registrations_resend_email_error_invalid_input": "Dades invàlides.",
+    "registrations_resend_email_error_unauthenticated": "Has de tornar a iniciar sessió.",
+    "registrations_resend_email_error_forbidden": "No tens permisos d'administrador.",
+    "registrations_resend_email_error_pair_not_found": "Parella no trobada.",
+    "registrations_resend_email_error_not_pending_payment": "La parella no està pendent de pagament.",
+    "registrations_resend_email_error_no_pending_payment": "No hi ha pagaments pendents per a aquesta parella.",
+    "registrations_resend_email_error_captain_not_found": "No s'ha trobat el capità.",
+    "registrations_resend_email_error_captain_email_missing": "El capità no té correu electrònic registrat.",
+    "registrations_resend_email_error_fee_not_found": "No s'ha trobat la tarifa associada al pagament.",
+    "registrations_resend_email_error_send_failed": "L'enviament ha fallat. Revisa-ho als logs."
   },
   "captain": {
     "no_profile_title": "El teu perfil de capità no està vinculat encara",
