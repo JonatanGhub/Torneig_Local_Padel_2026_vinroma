@@ -74,6 +74,8 @@ export function AdminRegistrationForm({
     'pending_payment',
   );
   const [notes, setNotes] = useState('');
+  const [sendCaptainEmail, setSendCaptainEmail] = useState(true);
+  const canSendEmail = initialStatus === 'pending_payment';
 
   const aIsMinor = playerA.birth_date ? isMinor(playerA.birth_date) : false;
   const bIsMinor = playerB.birth_date ? isMinor(playerB.birth_date) : false;
@@ -116,13 +118,17 @@ export function AdminRegistrationForm({
         locale,
         initialStatus,
         adminNotes: notes || undefined,
+        sendCaptainEmail: canSendEmail && sendCaptainEmail,
       });
       if (!res.ok) {
         setError(res.error);
         if (res.field_errors) setFieldErrors(res.field_errors);
         return;
       }
-      router.push(`/${locale}/admin/registrations?status=${initialStatus}`);
+      const params = new URLSearchParams({ status: initialStatus });
+      if (res.email_sent) params.set('email', 'sent');
+      else if (res.email_error) params.set('email', `error_${res.email_error}`);
+      router.push(`/${locale}/admin/registrations?${params.toString()}`);
       router.refresh();
     });
   }
@@ -241,6 +247,25 @@ export function AdminRegistrationForm({
             className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
           />
         </Field>
+        <div className="border-border space-y-2 rounded-md border border-dashed p-3">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              disabled={!canSendEmail}
+              checked={canSendEmail && sendCaptainEmail}
+              onChange={(e) => setSendCaptainEmail(e.target.checked)}
+            />
+            <span className={canSendEmail ? '' : 'text-muted-foreground'}>
+              {t('registrations_field_send_captain_email')}
+            </span>
+          </label>
+          <p className="text-muted-foreground text-xs">
+            {canSendEmail
+              ? t('registrations_send_captain_email_help')
+              : t('registrations_send_captain_email_disabled_help')}
+          </p>
+        </div>
       </fieldset>
 
       {error && (

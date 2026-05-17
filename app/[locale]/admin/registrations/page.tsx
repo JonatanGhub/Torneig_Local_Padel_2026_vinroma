@@ -7,7 +7,7 @@ import { AdminWithdrawButton } from './withdraw-button';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
-  searchParams: Promise<{ status?: string; q?: string; category?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; category?: string; email?: string }>;
 };
 
 const VALID_PAIR_STATUSES = [
@@ -31,6 +31,7 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
   const status = asStatus(sp.status);
   const search = (sp.q ?? '').trim().toLowerCase();
   const categoryFilter = (sp.category ?? '').trim();
+  const emailFeedback = (sp.email ?? '').trim();
   setRequestLocale(locale);
   const t = await getTranslations('admin');
 
@@ -142,6 +143,13 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
         </button>
       </form>
 
+      {emailFeedback && (
+        <EmailFeedbackBanner
+          feedback={emailFeedback}
+          label={emailFeedbackLabel(emailFeedback, t)}
+        />
+      )}
+
       <p className="text-muted-foreground text-xs">
         {t('registrations_count', { count: filtered.length })}
       </p>
@@ -202,6 +210,26 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
 function formatPlayer(p: { first_name: string | null; last_name: string | null } | undefined) {
   if (!p) return '—';
   return `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || '—';
+}
+
+function emailFeedbackLabel(
+  feedback: string,
+  t: Awaited<ReturnType<typeof getTranslations<'admin'>>>,
+) {
+  if (feedback === 'sent') return t('registrations_email_sent');
+  if (feedback === 'error_captain_email_missing')
+    return t('registrations_email_error_captain_email_missing');
+  if (feedback === 'error_send_failed') return t('registrations_email_error_send_failed');
+  return null;
+}
+
+function EmailFeedbackBanner({ feedback, label }: { feedback: string; label: string | null }) {
+  if (!label) return null;
+  const isSuccess = feedback === 'sent';
+  const tone = isSuccess
+    ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300'
+    : 'border-amber-400/60 bg-amber-400/10 text-amber-700 dark:text-amber-300';
+  return <div className={`rounded-md border px-3 py-2 text-xs ${tone}`}>{label}</div>;
 }
 
 function PairStatusPill({
