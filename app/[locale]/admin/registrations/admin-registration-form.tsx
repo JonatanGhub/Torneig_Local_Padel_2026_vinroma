@@ -17,6 +17,9 @@ type PlayerDraft = {
   phone: string;
   birth_date: string;
   declared_level: number;
+  health_declaration_signed: boolean;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
 };
 
 type GuardianDraft = {
@@ -33,6 +36,9 @@ const emptyPlayer: PlayerDraft = {
   phone: '',
   birth_date: '',
   declared_level: 2,
+  health_declaration_signed: false,
+  emergency_contact_name: '',
+  emergency_contact_phone: '',
 };
 
 const emptyGuardian: GuardianDraft = {
@@ -84,8 +90,14 @@ export function AdminRegistrationForm({
     }
 
     const input: RegistrationInput = {
-      player_a: playerA,
-      player_b: playerB,
+      player_a: {
+        ...playerA,
+        health_declaration_signed: playerA.health_declaration_signed as true,
+      },
+      player_b: {
+        ...playerB,
+        health_declaration_signed: playerB.health_declaration_signed as true,
+      },
       captain,
       category_level: selectedCategory.level,
       fee_mode: feeMode,
@@ -327,6 +339,38 @@ function PlayerFields({
           ))}
         </select>
       </Field>
+      <Field label={t('registrations_field_emergency_name')}>
+        <Input
+          value={value.emergency_contact_name}
+          onChange={(e) => onChange({ ...value, emergency_contact_name: e.target.value })}
+          required
+        />
+      </Field>
+      <Field label={t('registrations_field_emergency_phone')}>
+        <Input
+          type="tel"
+          value={value.emergency_contact_phone}
+          onChange={(e) => onChange({ ...value, emergency_contact_phone: e.target.value })}
+          required
+        />
+      </Field>
+      <div className="md:col-span-2">
+        <div className="border-border space-y-2 rounded-md border border-dashed p-3">
+          <p className="text-muted-foreground text-xs">{t('registrations_health_text')}</p>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={value.health_declaration_signed}
+              onChange={(e) => onChange({ ...value, health_declaration_signed: e.target.checked })}
+            />
+            <span>{t('registrations_health_checkbox')}</span>
+          </label>
+          {fieldErrors[`${errorPrefix}.health_declaration_signed`] && (
+            <FieldError msg={fieldErrors[`${errorPrefix}.health_declaration_signed`]!} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
