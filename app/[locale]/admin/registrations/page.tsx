@@ -4,6 +4,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { AdminWithdrawButton } from './withdraw-button';
+import { AdminResendEmailButton } from './resend-email-button';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
@@ -189,6 +190,9 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     <PairStatusPill status={p.status} t={t} />
+                    {p.status === 'pending_payment' && (
+                      <AdminResendEmailButton pairId={p.id} locale={locale} />
+                    )}
                     {(p.status === 'pending_payment' || p.status === 'confirmed') && (
                       <AdminWithdrawButton
                         pairId={p.id}
