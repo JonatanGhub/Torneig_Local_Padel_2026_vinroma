@@ -1,16 +1,23 @@
 import { z } from 'zod';
 
+const phoneSchema = z
+  .string()
+  .min(9)
+  .max(20)
+  .regex(/^[+0-9 ()-]+$/, { message: 'phone_invalid' });
+
 export const PlayerSchema = z.object({
   first_name: z.string().min(1).max(80),
   last_name: z.string().min(1).max(120),
   email: z.string().email().toLowerCase(),
-  phone: z
-    .string()
-    .min(9)
-    .max(20)
-    .regex(/^[+0-9 ()-]+$/, { message: 'phone_invalid' }),
+  phone: phoneSchema,
   birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'date_invalid' }),
   declared_level: z.coerce.number().int().min(1).max(4),
+  health_declaration_signed: z.literal(true, {
+    errorMap: () => ({ message: 'health_declaration_required' }),
+  }),
+  emergency_contact_name: z.string().min(1).max(160),
+  emergency_contact_phone: phoneSchema,
 });
 
 export const LegalGuardianSchema = z.object({

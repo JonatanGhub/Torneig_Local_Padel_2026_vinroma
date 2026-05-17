@@ -19,6 +19,9 @@ const emptyPlayer = {
   phone: '',
   birth_date: '',
   declared_level: 2,
+  health_declaration_signed: false as boolean,
+  emergency_contact_name: '',
+  emergency_contact_phone: '',
 };
 
 const emptyGuardian = {
@@ -91,8 +94,14 @@ export function RegistrationWizard({
   function submit() {
     setError(null);
     const input: RegistrationInput = {
-      player_a: draft.player_a,
-      player_b: draft.player_b,
+      player_a: {
+        ...draft.player_a,
+        health_declaration_signed: draft.player_a.health_declaration_signed as true,
+      },
+      player_b: {
+        ...draft.player_b,
+        health_declaration_signed: draft.player_b.health_declaration_signed as true,
+      },
       captain: draft.captain,
       category_level: draft.category_level,
       fee_mode: draft.fee_mode,
@@ -334,6 +343,38 @@ function PlayerForm({
           </div>
         </div>
       )}
+
+      <div className="border-border space-y-3 rounded-md border p-4">
+        <h3 className="text-sm font-medium">{t('emergency_title')}</h3>
+        <p className="text-muted-foreground text-xs">{t('emergency_subtitle')}</p>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <LabeledInput
+            label={t('emergency_name')}
+            value={player.emergency_contact_name}
+            onChange={(v) => onChange({ emergency_contact_name: v })}
+          />
+          <LabeledInput
+            label={t('emergency_phone')}
+            value={player.emergency_contact_phone}
+            type="tel"
+            onChange={(v) => onChange({ emergency_contact_phone: v })}
+          />
+        </div>
+      </div>
+
+      <div className="border-border space-y-3 rounded-md border p-4">
+        <h3 className="text-sm font-medium">{t('health_title')}</h3>
+        <p className="text-muted-foreground text-xs">{t('health_text')}</p>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={player.health_declaration_signed}
+            onChange={(e) => onChange({ health_declaration_signed: e.target.checked })}
+          />
+          <span>{t('health_checkbox')}</span>
+        </label>
+      </div>
 
       <div className="flex justify-between pt-2">
         {onBack ? (

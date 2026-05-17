@@ -43,6 +43,10 @@ function playerPayload(p: PlayerInput, guardian: LegalGuardianInput | undefined,
     legal_guardian_dni: guardian?.legal_guardian_dni ?? null,
     legal_guardian_phone: guardian?.legal_guardian_phone ?? null,
     legal_guardian_email: guardian?.legal_guardian_email ?? null,
+    health_declaration_signed: p.health_declaration_signed,
+    health_declaration_signed_at: signedAt,
+    emergency_contact_name: p.emergency_contact_name,
+    emergency_contact_phone: p.emergency_contact_phone,
     consent_signed_at: signedAt,
   };
 }

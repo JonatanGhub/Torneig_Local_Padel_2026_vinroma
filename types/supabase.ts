@@ -56,6 +56,10 @@ type PlayerRow = {
   legal_guardian_phone: string | null;
   legal_guardian_email: string | null;
   is_minor: boolean;
+  health_declaration_signed: boolean;
+  health_declaration_signed_at: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
   consent_data_processing: boolean;
   consent_results_publication: boolean;
   consent_whatsapp: boolean;
