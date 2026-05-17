@@ -247,7 +247,28 @@
     "walkover_reason": "Motiu (opcional)",
     "walkover_reason_placeholder": "Per exemple: la parella B no s'ha presentat",
     "walkover_cancel": "Cancel·lar",
-    "walkover_confirm": "Confirmar walkover"
+    "walkover_confirm": "Confirmar walkover",
+    "nav_sponsors": "Patrocinadors",
+    "sponsors_title": "Patrocinadors",
+    "sponsors_subtitle": "Gestiona els patrocinadors visibles a la pàgina /sponsors.",
+    "sponsors_empty": "Encara no hi ha patrocinadors.",
+    "sponsors_tier_gold": "Gold",
+    "sponsors_tier_silver": "Silver",
+    "sponsors_tier_bronze": "Bronze",
+    "sponsors_tier_collaborator": "Col·laborador",
+    "sponsor_add": "Afegir patrocinador",
+    "sponsor_name": "Nom",
+    "sponsor_tier": "Categoria",
+    "sponsor_logo_url": "URL del logo",
+    "sponsor_logo_help": "PNG o SVG transparent recomanat. Pot ser una URL externa o de Supabase Storage.",
+    "sponsor_website_url": "Web (opcional)",
+    "sponsor_display_order": "Ordre",
+    "sponsor_active": "Actiu",
+    "sponsor_inactive": "Inactiu",
+    "sponsor_save": "Desar canvis",
+    "sponsor_create": "Crear",
+    "sponsor_delete": "Eliminar",
+    "sponsor_confirm_delete": "Segur que vols eliminar aquest patrocinador?"
   },
   "captain": {
     "no_profile_title": "El teu perfil de capità no està vinculat encara",
@@ -362,5 +383,17 @@
     "error_invalid_date": "Data invàlida.",
     "error_unauthenticated": "Has de tornar a iniciar sessió.",
     "error_no_player_profile": "No tens perfil de jugador vinculat."
+  },
+  "sponsors": {
+    "eyebrow": "Patrocinadors",
+    "title": "Gràcies als patrocinadors",
+    "subtitle": "El V Torneig de Pàdel les Coves de Vinromà existeix gràcies al suport d'aquestes empreses i col·laboradors.",
+    "back": "Inici",
+    "empty_title": "En busca de patrocinadors",
+    "empty_body": "Encara no hi ha patrocinadors confirmats per a aquesta edició. Si vols ser-ho, contacta amb l'organització.",
+    "tier_gold": "Patrocinador principal",
+    "tier_silver": "Patrocinadors",
+    "tier_bronze": "Patrocinadors",
+    "tier_collaborator": "Col·laboradors"
   }
 }

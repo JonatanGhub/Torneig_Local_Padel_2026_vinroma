@@ -215,6 +215,9 @@ export default async function LandingPage({ params }: Props) {
             {t('footer.organized_by')} · {t('footer.edition')}
           </p>
           <div className="flex items-center gap-4">
+            <Link href={`/${locale}/sponsors`} className="hover:text-white">
+              {t('navigation.sponsors')}
+            </Link>
             <Link href={`/${locale}/privacitat`} className="hover:text-white">
               {t('footer.privacy')}
             </Link>
