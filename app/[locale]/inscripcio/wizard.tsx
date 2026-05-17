@@ -8,7 +8,13 @@ import { cn } from '@/lib/utils';
 import { isMinor, RegistrationSchema, type RegistrationInput } from '@/types/registration';
 import { submitRegistration } from './actions';
 
-type Category = { id: string; level: number; label: string; maxPairs: number };
+type Category = {
+  id: string;
+  level: number;
+  label: string;
+  maxPairs: number;
+  usedPairs: number;
+};
 
 type Step = 'player_a' | 'player_b' | 'category' | 'review';
 
@@ -422,21 +428,37 @@ function CategoryStep({
       <div className="space-y-2">
         <span className="text-sm font-medium">{t('category_label')}</span>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => onChangeLevel(c.level)}
-              className={cn(
-                'rounded-md border p-3 text-sm transition-colors',
-                c.level === value
-                  ? 'border-[hsl(var(--primary))] bg-[hsl(var(--secondary))]'
-                  : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--accent))]',
-              )}
-            >
-              {c.label}
-            </button>
-          ))}
+          {categories.map((c) => {
+            const isFull = c.usedPairs >= c.maxPairs;
+            const isSelected = c.level === value;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                disabled={isFull}
+                onClick={() => onChangeLevel(c.level)}
+                className={cn(
+                  'flex flex-col items-start gap-1 rounded-md border p-3 text-left text-sm transition-colors',
+                  isSelected
+                    ? 'border-[hsl(var(--primary))] bg-[hsl(var(--secondary))]'
+                    : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--accent))]',
+                  isFull && 'cursor-not-allowed opacity-50 hover:bg-transparent',
+                )}
+              >
+                <span className="font-medium">{c.label}</span>
+                <span
+                  className={cn(
+                    'text-xs',
+                    isFull ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground',
+                  )}
+                >
+                  {isFull
+                    ? t('category_full_label')
+                    : t('category_capacity_label', { used: c.usedPairs, max: c.maxPairs })}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
