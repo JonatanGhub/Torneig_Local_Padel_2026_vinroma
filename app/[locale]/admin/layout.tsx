@@ -10,6 +10,7 @@ import {
   CalendarClock,
   AlertCircle,
   Heart,
+  UserPlus,
 } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -45,6 +46,9 @@ export default async function AdminLayout({ children, params }: Props) {
         </p>
         <NavLink href={`/${locale}/admin`} icon={<LayoutDashboard className="size-4" />}>
           {t('nav_dashboard')}
+        </NavLink>
+        <NavLink href={`/${locale}/admin/registrations`} icon={<UserPlus className="size-4" />}>
+          {t('nav_registrations')}
         </NavLink>
         <NavLink href={`/${locale}/admin/payments`} icon={<Wallet className="size-4" />}>
           {t('nav_payments')}
