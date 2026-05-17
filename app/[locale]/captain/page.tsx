@@ -17,6 +17,7 @@ import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { LogoLockup } from '@/components/brand/logo-mark';
 import { CalendarSubscriptionCard } from './calendar-subscription';
+import { MyPairsCard, type CaptainPairItem } from './my-pairs-card';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -43,10 +44,17 @@ export default async function CaptainHome({ params }: Props) {
 
   const { data: myPairs } = await supabase
     .from('pairs')
-    .select('id, status, category_id, group_id, player_a_id, player_b_id, captain_id')
+    .select(
+      'id, status, category_id, group_id, player_a_id, player_b_id, captain_id, withdrawn_at, withdrawal_reason',
+    )
     .eq('captain_id', player.id);
 
   const myPairIds = (myPairs ?? []).map((p) => p.id);
+  const myPartnerIds = Array.from(
+    new Set(
+      (myPairs ?? []).map((p) => (p.player_a_id === player.id ? p.player_b_id : p.player_a_id)),
+    ),
+  );
 
   const { data: matches } = myPairIds.length
     ? await supabase
@@ -70,11 +78,28 @@ export default async function CaptainHome({ params }: Props) {
     ? await supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', rivalPairIds)
     : { data: [] };
 
-  const allPlayerIds = (rivals ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
+  const allPlayerIds = Array.from(
+    new Set([...(rivals ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]), ...myPartnerIds]),
+  );
   const { data: players } = allPlayerIds.length
     ? await supabase.from('players').select('id, first_name, last_name').in('id', allPlayerIds)
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
+
+  const pairsWithMatches = new Set((matches ?? []).flatMap((m) => [m.pair_a_id, m.pair_b_id]));
+
+  const myPairItems: CaptainPairItem[] = (myPairs ?? []).map((p) => {
+    const partnerId = p.player_a_id === player.id ? p.player_b_id : p.player_a_id;
+    const partner = playerMap.get(partnerId);
+    return {
+      id: p.id,
+      status: p.status,
+      categoryLabel: p.category_id ? (categoryLabel.get(p.category_id) ?? '') : '',
+      partnerLabel: `${partner?.first_name ?? ''} ${partner?.last_name ?? ''}`.trim() || '—',
+      withdrawnReason: p.withdrawal_reason,
+      hasMatches: pairsWithMatches.has(p.id),
+    };
+  });
   const pairLabel = (pairId: string) => {
     const pair = rivals?.find((p) => p.id === pairId);
     if (!pair) return '—';
@@ -133,6 +158,8 @@ export default async function CaptainHome({ params }: Props) {
         </header>
 
         <CalendarSubscriptionCard feedUrl={feedUrl} webcalUrl={webcalUrl} />
+
+        <MyPairsCard pairs={myPairItems} locale={locale} />
 
         <Link
           href={`/${locale}/captain/finance`}

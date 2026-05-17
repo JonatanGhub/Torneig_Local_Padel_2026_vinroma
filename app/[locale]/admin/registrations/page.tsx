@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { AdminWithdrawButton } from './withdraw-button';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
@@ -178,7 +179,16 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
                       </p>
                     )}
                   </div>
-                  <PairStatusPill status={p.status} t={t} />
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <PairStatusPill status={p.status} t={t} />
+                    {(p.status === 'pending_payment' || p.status === 'confirmed') && (
+                      <AdminWithdrawButton
+                        pairId={p.id}
+                        locale={locale}
+                        pairLabel={`${formatPlayer(a)} / ${formatPlayer(b)}`}
+                      />
+                    )}
+                  </div>
                 </div>
               </li>
             );
