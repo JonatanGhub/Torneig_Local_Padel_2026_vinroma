@@ -130,7 +130,10 @@
     "error_payments_insert_failed": "No s'han pogut crear els pagaments.",
     "error_duplicate_email": "Els dos jugadors tenen el mateix correu electrònic.",
     "error_validation_failed": "Hi ha errors al formulari.",
-    "error_unknown_category": "Categoria desconeguda."
+    "error_unknown_category": "Categoria desconeguda.",
+    "error_category_full": "Aquesta categoria ja està plena. Tria una altra o contacta amb l'organització.",
+    "category_capacity_label": "{used}/{max} inscrites",
+    "category_full_label": "Plena"
   },
   "payment": {
     "back_home": "Tornar a l'inici",
@@ -376,7 +379,9 @@
     "registrations_resend_email_error_captain_not_found": "No s'ha trobat el capità.",
     "registrations_resend_email_error_captain_email_missing": "El capità no té correu electrònic registrat.",
     "registrations_resend_email_error_fee_not_found": "No s'ha trobat la tarifa associada al pagament.",
-    "registrations_resend_email_error_send_failed": "L'enviament ha fallat. Revisa-ho als logs."
+    "registrations_resend_email_error_send_failed": "L'enviament ha fallat. Revisa-ho als logs.",
+    "registrations_error_unknown_category": "Categoria desconeguda.",
+    "registrations_error_category_full": "Aquesta categoria ja està plena. No es poden afegir més parelles."
   },
   "captain": {
     "no_profile_title": "El teu perfil de capità no està vinculat encara",
