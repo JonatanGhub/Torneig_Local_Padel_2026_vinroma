@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { getCategoryCounts } from '@/lib/category-capacity';
 import { RegistrationWizard } from './wizard';
 
 type Props = {
@@ -28,6 +29,8 @@ export default async function InscripcioPage({ params }: Props) {
     .eq('tournament_id', tournament?.id ?? '')
     .order('level', { ascending: true });
 
+  const counts = tournament ? await getCategoryCounts(supabase, tournament.id) : new Map();
+
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-8">
       <Link
@@ -51,6 +54,7 @@ export default async function InscripcioPage({ params }: Props) {
             level: c.level,
             label: locale === 'ca' ? c.name_ca : c.name_es,
             maxPairs: c.max_pairs,
+            usedPairs: counts.get(c.id) ?? 0,
           }))}
           locale={locale}
         />
