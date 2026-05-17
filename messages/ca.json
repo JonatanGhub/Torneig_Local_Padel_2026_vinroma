@@ -414,7 +414,13 @@
     "reschedule_error_proposal_not_pending": "Aquesta proposta ja no està pendent.",
     "reschedule_error_only_proposer_can_cancel": "Només qui ha proposat pot cancel·lar.",
     "finance_card_title": "Comptes de la parella",
-    "finance_card_body": "Anota ingressos i despeses compartides amb el teu company."
+    "finance_card_body": "Anota ingressos i despeses compartides amb el teu company.",
+    "calendar_card_title": "Subscriu-te al calendari",
+    "calendar_card_body": "Afegeix els teus partits al Google/Apple Calendar. S'actualitza sol quan canviï l'horari.",
+    "calendar_card_hint": "Copia l'URL i enganxa-la a 'Afegir calendari per URL' a la teva app, o toca 'Afegir' al mòbil.",
+    "calendar_copy": "Copiar URL",
+    "calendar_copied": "Copiat",
+    "calendar_add_to_app": "Afegir al calendari"
   },
   "cookies_banner": {
     "aria_label": "Avís de cookies",
