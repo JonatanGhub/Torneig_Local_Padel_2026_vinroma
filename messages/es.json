@@ -363,7 +363,20 @@
     "registrations_withdraw_error_already_withdrawn": "La pareja ya está retirada o descalificada.",
     "registrations_withdraw_error_has_played_matches": "La pareja tiene partidos jugados o validados. Debes usar otra acción (walkover/descalificación).",
     "registrations_withdraw_error_update_failed": "No se ha podido actualizar la pareja.",
-    "registrations_withdraw_error_payments_update_failed": "No se han podido cancelar los pagos pendientes."
+    "registrations_withdraw_error_payments_update_failed": "No se han podido cancelar los pagos pendientes.",
+    "registrations_resend_email_cta": "Reenviar email",
+    "registrations_resend_email_sending": "Enviando…",
+    "registrations_resend_email_ok": "Email enviado ✓",
+    "registrations_resend_email_error_invalid_input": "Datos inválidos.",
+    "registrations_resend_email_error_unauthenticated": "Debes volver a iniciar sesión.",
+    "registrations_resend_email_error_forbidden": "No tienes permisos de administrador.",
+    "registrations_resend_email_error_pair_not_found": "Pareja no encontrada.",
+    "registrations_resend_email_error_not_pending_payment": "La pareja no está pendiente de pago.",
+    "registrations_resend_email_error_no_pending_payment": "No hay pagos pendientes para esta pareja.",
+    "registrations_resend_email_error_captain_not_found": "No se ha encontrado al capitán.",
+    "registrations_resend_email_error_captain_email_missing": "El capitán no tiene correo electrónico registrado.",
+    "registrations_resend_email_error_fee_not_found": "No se ha encontrado la tarifa asociada al pago.",
+    "registrations_resend_email_error_send_failed": "El envío ha fallado. Revísalo en los logs."
   },
   "captain": {
     "no_profile_title": "Tu perfil de capitán aún no está vinculado",
