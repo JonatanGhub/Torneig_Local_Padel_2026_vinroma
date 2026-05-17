@@ -42,3 +42,34 @@ export async function updateClubSettings(formData: FormData) {
   revalidatePath('/[locale]/admin/settings', 'page');
   return { ok: true } as const;
 }
+
+const CategoryMaxPairsSchema = z.object({
+  categoryId: z.string().uuid(),
+  maxPairs: z.coerce.number().int().min(1),
+});
+
+export async function updateCategoryMaxPairs(
+  categoryId: string,
+  maxPairs: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const parsed = CategoryMaxPairsSchema.safeParse({ categoryId, maxPairs });
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+  if ((user.app_metadata?.role as string | undefined) !== 'admin')
+    return { ok: false, error: 'forbidden' };
+
+  const { error } = await supabase
+    .from('categories')
+    .update({ max_pairs: parsed.data.maxPairs })
+    .eq('id', parsed.data.categoryId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/[locale]/admin/settings', 'page');
+  return { ok: true };
+}
