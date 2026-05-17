@@ -1,0 +1,219 @@
+import Link from 'next/link';
+import { Plus } from 'lucide-react';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
+import type { Locale } from '@/i18n';
+import { createClient } from '@/lib/supabase/server';
+
+type Props = {
+  params: Promise<{ locale: Locale }>;
+  searchParams: Promise<{ status?: string; q?: string; category?: string }>;
+};
+
+const VALID_PAIR_STATUSES = [
+  'pending_payment',
+  'confirmed',
+  'withdrawn',
+  'disqualified',
+  'draft',
+] as const;
+type PairStatus = (typeof VALID_PAIR_STATUSES)[number];
+
+function asStatus(value: string | undefined): PairStatus | 'all' {
+  if (!value) return 'all';
+  if ((VALID_PAIR_STATUSES as readonly string[]).includes(value)) return value as PairStatus;
+  return 'all';
+}
+
+export default async function RegistrationsAdminPage({ params, searchParams }: Props) {
+  const { locale } = await params;
+  const sp = await searchParams;
+  const status = asStatus(sp.status);
+  const search = (sp.q ?? '').trim().toLowerCase();
+  const categoryFilter = (sp.category ?? '').trim();
+  setRequestLocale(locale);
+  const t = await getTranslations('admin');
+
+  const supabase = await createClient();
+
+  let pairsQuery = supabase
+    .from('pairs')
+    .select(
+      'id, status, fee_mode_chosen, created_at, category_id, player_a_id, player_b_id, captain_id, group_id, withdrawn_at, withdrawal_reason',
+    )
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (status !== 'all') {
+    pairsQuery = pairsQuery.eq('status', status);
+  }
+  if (categoryFilter) {
+    pairsQuery = pairsQuery.eq('category_id', categoryFilter);
+  }
+
+  const { data: pairs } = await pairsQuery;
+
+  const playerIds = Array.from(
+    new Set((pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id, p.captain_id])),
+  );
+
+  const categoryIds = Array.from(new Set((pairs ?? []).map((p) => p.category_id).filter(Boolean)));
+
+  const [{ data: players }, { data: categories }, { data: allCategories }] = await Promise.all([
+    playerIds.length
+      ? supabase.from('players').select('id, first_name, last_name, email').in('id', playerIds)
+      : Promise.resolve({ data: [] }),
+    categoryIds.length
+      ? supabase
+          .from('categories')
+          .select('id, level, name_ca, name_es')
+          .in('id', categoryIds as string[])
+      : Promise.resolve({ data: [] }),
+    supabase.from('categories').select('id, level, name_ca, name_es').order('level'),
+  ]);
+
+  const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
+  const categoryMap = new Map(categories?.map((c) => [c.id, c]) ?? []);
+
+  const filtered = (pairs ?? []).filter((p) => {
+    if (!search) return true;
+    const a = playerMap.get(p.player_a_id);
+    const b = playerMap.get(p.player_b_id);
+    const hay = [a?.first_name, a?.last_name, a?.email, b?.first_name, b?.last_name, b?.email]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return hay.includes(search);
+  });
+
+  return (
+    <section className="space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">{t('registrations_title')}</h1>
+          <p className="text-muted-foreground text-sm">{t('registrations_subtitle')}</p>
+        </div>
+        <Link
+          href={`/${locale}/admin/registrations/new`}
+          className="inline-flex items-center gap-1.5 rounded-md bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary-foreground))]"
+        >
+          <Plus className="size-4" />
+          {t('registrations_new_cta')}
+        </Link>
+      </header>
+
+      <form className="flex flex-wrap gap-3" action="">
+        <select
+          name="status"
+          defaultValue={status}
+          className="rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1.5 text-sm"
+        >
+          <option value="all">{t('registrations_filter_all')}</option>
+          <option value="pending_payment">{t('pair_status_pending_payment')}</option>
+          <option value="confirmed">{t('pair_status_confirmed')}</option>
+          <option value="withdrawn">{t('pair_status_withdrawn')}</option>
+          <option value="disqualified">{t('pair_status_disqualified')}</option>
+          <option value="draft">{t('pair_status_draft')}</option>
+        </select>
+        <select
+          name="category"
+          defaultValue={categoryFilter}
+          className="rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1.5 text-sm"
+        >
+          <option value="">{t('registrations_filter_all_categories')}</option>
+          {(allCategories ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {locale === 'ca' ? c.name_ca : c.name_es}
+            </option>
+          ))}
+        </select>
+        <input
+          type="search"
+          name="q"
+          defaultValue={search}
+          placeholder={t('registrations_search_placeholder')}
+          className="min-w-[200px] flex-1 rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-1.5 text-sm"
+        />
+        <button
+          type="submit"
+          className="rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-sm font-medium hover:bg-[hsl(var(--accent))]"
+        >
+          {t('registrations_filter_apply')}
+        </button>
+      </form>
+
+      <p className="text-muted-foreground text-xs">
+        {t('registrations_count', { count: filtered.length })}
+      </p>
+
+      {filtered.length === 0 ? (
+        <p className="text-muted-foreground text-sm">{t('registrations_empty')}</p>
+      ) : (
+        <ul className="divide-border divide-y rounded-md border border-[hsl(var(--border))]">
+          {filtered.map((p) => {
+            const a = playerMap.get(p.player_a_id);
+            const b = playerMap.get(p.player_b_id);
+            const category = p.category_id ? categoryMap.get(p.category_id) : null;
+            const captainSide = p.captain_id === p.player_a_id ? 'a' : 'b';
+            return (
+              <li key={p.id} className="p-3 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">
+                      {formatPlayer(a)} <span className="text-muted-foreground">·</span>{' '}
+                      {formatPlayer(b)}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 text-xs">
+                      {category
+                        ? `${locale === 'ca' ? category.name_ca : category.name_es} · `
+                        : ''}
+                      {t('registrations_captain_short', { side: captainSide.toUpperCase() })}
+                      {' · '}
+                      {p.fee_mode_chosen === 'per_pair'
+                        ? t('registrations_fee_per_pair')
+                        : t('registrations_fee_per_player')}
+                    </p>
+                    {p.withdrawn_at && p.withdrawal_reason && (
+                      <p className="mt-1 text-xs text-orange-700 dark:text-orange-300">
+                        {t('registrations_withdrawn_label')}: {p.withdrawal_reason}
+                      </p>
+                    )}
+                  </div>
+                  <PairStatusPill status={p.status} t={t} />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function formatPlayer(p: { first_name: string | null; last_name: string | null } | undefined) {
+  if (!p) return '—';
+  return `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || '—';
+}
+
+function PairStatusPill({
+  status,
+  t,
+}: {
+  status: string;
+  t: Awaited<ReturnType<typeof getTranslations<'admin'>>>;
+}) {
+  const tone =
+    status === 'confirmed'
+      ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300'
+      : status === 'pending_payment'
+        ? 'border-amber-400/60 bg-amber-400/10 text-amber-700 dark:text-amber-300'
+        : status === 'withdrawn'
+          ? 'border-orange-400/60 bg-orange-400/10 text-orange-700 dark:text-orange-300'
+          : status === 'disqualified'
+            ? 'border-red-400/60 bg-red-400/10 text-red-700 dark:text-red-300'
+            : 'border-[hsl(var(--border))] text-muted-foreground';
+  return (
+    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase ${tone}`}>
+      {t(`pair_status_${status}` as 'pair_status_confirmed')}
+    </span>
+  );
+}
