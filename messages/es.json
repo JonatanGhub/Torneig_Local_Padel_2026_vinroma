@@ -130,7 +130,10 @@
     "error_payments_insert_failed": "No se han podido crear los pagos.",
     "error_duplicate_email": "Los dos jugadores tienen el mismo correo electrónico.",
     "error_validation_failed": "Hay errores en el formulario.",
-    "error_unknown_category": "Categoría desconocida."
+    "error_unknown_category": "Categoría desconocida.",
+    "error_category_full": "Esta categoría ya está llena. Elige otra o contacta con la organización.",
+    "category_capacity_label": "{used}/{max} inscritas",
+    "category_full_label": "Llena"
   },
   "payment": {
     "back_home": "Volver al inicio",
@@ -376,7 +379,9 @@
     "registrations_resend_email_error_captain_not_found": "No se ha encontrado al capitán.",
     "registrations_resend_email_error_captain_email_missing": "El capitán no tiene correo electrónico registrado.",
     "registrations_resend_email_error_fee_not_found": "No se ha encontrado la tarifa asociada al pago.",
-    "registrations_resend_email_error_send_failed": "El envío ha fallado. Revísalo en los logs."
+    "registrations_resend_email_error_send_failed": "El envío ha fallado. Revísalo en los logs.",
+    "registrations_error_unknown_category": "Categoría desconocida.",
+    "registrations_error_category_full": "Esta categoría ya está llena. No se pueden añadir más parejas."
   },
   "captain": {
     "no_profile_title": "Tu perfil de capitán aún no está vinculado",

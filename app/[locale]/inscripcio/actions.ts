@@ -6,6 +6,7 @@ import { sendEmail } from '@/lib/email/send';
 import InscriptionConfirmed from '@/lib/email/templates/inscription-confirmed';
 import { getActiveFee, formatCents, computePerPairAmount } from '@/lib/pricing';
 import { createPairAndPlayers } from '@/lib/registration';
+import { isCategoryFull } from '@/lib/category-capacity';
 import type { RegistrationInput } from '@/types/registration';
 
 export type RegistrationResult =
@@ -25,6 +26,21 @@ export async function submitRegistration(
   }
 
   const supabase = await createClient();
+
+  const { data: category } = await supabase
+    .from('categories')
+    .select('max_pairs')
+    .eq('id', options.categoryId)
+    .maybeSingle();
+  if (!category) {
+    return { ok: false, error: 'unknown_category' };
+  }
+  if (
+    await isCategoryFull(supabase, options.tournamentId, options.categoryId, category.max_pairs)
+  ) {
+    return { ok: false, error: 'category_full' };
+  }
+
   const result = await createPairAndPlayers(supabase, input, {
     tournamentId: options.tournamentId,
     categoryId: options.categoryId,
