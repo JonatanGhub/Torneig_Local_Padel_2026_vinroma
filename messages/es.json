@@ -414,7 +414,13 @@
     "reschedule_error_proposal_not_pending": "Esta propuesta ya no está pendiente.",
     "reschedule_error_only_proposer_can_cancel": "Solo quien propuso puede cancelar.",
     "finance_card_title": "Cuentas de la pareja",
-    "finance_card_body": "Anota ingresos y gastos compartidos con tu compañero."
+    "finance_card_body": "Anota ingresos y gastos compartidos con tu compañero.",
+    "calendar_card_title": "Suscríbete al calendario",
+    "calendar_card_body": "Añade tus partidos a Google/Apple Calendar. Se actualiza solo cuando cambie el horario.",
+    "calendar_card_hint": "Copia la URL y pégala en 'Añadir calendario por URL' en tu app, o toca 'Añadir' en el móvil.",
+    "calendar_copy": "Copiar URL",
+    "calendar_copied": "Copiado",
+    "calendar_add_to_app": "Añadir al calendario"
   },
   "cookies_banner": {
     "aria_label": "Aviso de cookies",

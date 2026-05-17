@@ -16,6 +16,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { LogoLockup } from '@/components/brand/logo-mark';
+import { CalendarSubscriptionCard } from './calendar-subscription';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -32,7 +33,7 @@ export default async function CaptainHome({ params }: Props) {
 
   const { data: player } = await supabase
     .from('players')
-    .select('id, first_name, last_name')
+    .select('id, first_name, last_name, calendar_feed_token')
     .eq('auth_user_id', user.id)
     .maybeSingle();
 
@@ -82,6 +83,13 @@ export default async function CaptainHome({ params }: Props) {
     return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
   };
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? '';
+  const feedPath = `/api/captain/calendar/${player.calendar_feed_token}?lang=${locale}`;
+  const feedUrl = siteUrl ? `${siteUrl}${feedPath}` : feedPath;
+  const webcalUrl = siteUrl
+    ? `webcal://${siteUrl.replace(/^https?:\/\//, '')}${feedPath}`
+    : feedPath;
+
   const total = matches?.length ?? 0;
   const validated = (matches ?? []).filter(
     (m) => m.status === 'validated' || m.status === 'walkover',
@@ -123,6 +131,8 @@ export default async function CaptainHome({ params }: Props) {
           </h1>
           <p className="mt-2 text-white/65">{t('captain.subtitle')}</p>
         </header>
+
+        <CalendarSubscriptionCard feedUrl={feedUrl} webcalUrl={webcalUrl} />
 
         <Link
           href={`/${locale}/captain/finance`}
