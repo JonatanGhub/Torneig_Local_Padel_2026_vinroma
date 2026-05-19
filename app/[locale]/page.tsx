@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/server';
 import { formatCents, getTournamentFees, type PublicFee } from '@/lib/pricing';
 import { CourtCarousel } from '@/components/brand/court-carousel';
 import { LogoLockup } from '@/components/brand/logo-mark';
+import { InterestSubscribe } from '@/components/public/interest-subscribe';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -147,14 +148,7 @@ export default async function LandingPage({ params }: Props) {
                 {registrationCtaLabel}
                 <ArrowRight className="size-4" />
               </Link>
-            ) : (
-              <span
-                aria-disabled
-                className="bg-crimson-600/40 inline-flex cursor-not-allowed items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white/80"
-              >
-                {registrationCtaLabel}
-              </span>
-            )}
+            ) : null}
             <Link
               href={`/${locale}/grups`}
               className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
@@ -164,6 +158,14 @@ export default async function LandingPage({ params }: Props) {
           </div>
 
           {heroCaption && <p className="text-xs text-white/55">{heroCaption}</p>}
+
+          {beforeOpen && (
+            <div className="border-crimson-500/20 max-w-md space-y-3 rounded-2xl border bg-white/5 p-5">
+              <p className="text-sm font-medium text-white">{t('interest.title')}</p>
+              <p className="text-xs text-white/65">{t('interest.subtitle')}</p>
+              <InterestSubscribe locale={locale} source="landing_hero" />
+            </div>
+          )}
         </div>
 
         <div className="relative aspect-[4/3] w-full">
