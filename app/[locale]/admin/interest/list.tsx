@@ -2,10 +2,10 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { Download, Trash2 } from 'lucide-react';
+import { Download, Send, Trash2 } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { Button } from '@/components/ui/button';
-import { deleteInterestSubscription } from './actions';
+import { announceInterest, deleteInterestSubscription } from './actions';
 
 type Subscription = {
   id: string;
@@ -24,7 +24,24 @@ export function InterestList({
 }) {
   const t = useTranslations('admin');
   const [isPending, startTransition] = useTransition();
+  const [isAnnouncing, startAnnounce] = useTransition();
+  const [announceFeedback, setAnnounceFeedback] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+
+  function handleAnnounce() {
+    if (!window.confirm(t('interest_confirm_announce'))) return;
+    setAnnounceFeedback(null);
+    startAnnounce(async () => {
+      const result = await announceInterest();
+      if (result.ok) {
+        setAnnounceFeedback(
+          t('interest_announce_result', { sent: result.sent, failed: result.failed }),
+        );
+      } else {
+        setAnnounceFeedback(`${t('interest_announce_error')}: ${result.error}`);
+      }
+    });
+  }
   const formatter = useMemo(
     () =>
       new Intl.DateTimeFormat(locale === 'ca' ? 'ca-ES' : 'es-ES', {
@@ -62,21 +79,34 @@ export function InterestList({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
           {t('interest_count', { count: subscriptions.length })}
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={exportCsv}
-          disabled={subscriptions.length === 0}
-        >
-          <Download className="size-3.5" />
-          {t('interest_export_csv')}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAnnounce}
+            disabled={subscriptions.length === 0 || isAnnouncing}
+          >
+            <Send className="size-3.5" />
+            {isAnnouncing ? t('interest_announce_sending') : t('interest_announce_cta')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={exportCsv}
+            disabled={subscriptions.length === 0}
+          >
+            <Download className="size-3.5" />
+            {t('interest_export_csv')}
+          </Button>
+        </div>
       </div>
+      {announceFeedback && <p className="text-muted-foreground text-xs">{announceFeedback}</p>}
 
       {subscriptions.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t('interest_empty')}</p>
