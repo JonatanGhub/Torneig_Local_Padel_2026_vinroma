@@ -61,6 +61,13 @@
     "cta_title": "¿Quieres competir este verano?",
     "cta_body": "Las inscripciones abren el 1 de junio. Apúntalo en la agenda y prepara la pareja."
   },
+  "fees_schedule": {
+    "title": "Tarifas de inscripción",
+    "subtitle": "Cuota por jugador según la fecha de inscripción. La tarifa activa se aplica al confirmar la inscripción.",
+    "per_player": "/ jugador",
+    "status_active": "Activa ahora",
+    "status_upcoming": "Próximamente"
+  },
   "auth": {
     "login_title": "Entrar a tu cuenta de capitán",
     "login_subtitle": "Te enviaremos un enlace mágico para acceder",

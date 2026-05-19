@@ -61,6 +61,13 @@
     "cta_title": "Vols competir aquest estiu?",
     "cta_body": "Les inscripcions s'obren l'1 de juny. Reserva-ho a l'agenda i prepara la parella."
   },
+  "fees_schedule": {
+    "title": "Tarifes d'inscripció",
+    "subtitle": "Quota per jugador segons la data d'inscripció. La tarifa activa s'aplica al moment de confirmar la inscripció.",
+    "per_player": "/ jugador",
+    "status_active": "Activa ara",
+    "status_upcoming": "Pròximament"
+  },
   "auth": {
     "login_title": "Entrar al teu compte de capità",
     "login_subtitle": "T'enviarem un enllaç màgic per accedir",
