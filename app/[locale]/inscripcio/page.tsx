@@ -5,6 +5,8 @@ import { ArrowLeft } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { getCategoryCounts } from '@/lib/category-capacity';
+import { getTournamentFees } from '@/lib/pricing';
+import { FeesSchedule } from '@/components/public/fees-schedule';
 import { RegistrationWizard } from './wizard';
 
 type Props = {
@@ -32,6 +34,7 @@ export default async function InscripcioPage({ params }: Props) {
     .order('level', { ascending: true });
 
   const counts = tournament ? await getCategoryCounts(supabase, tournament.id) : new Map();
+  const fees = tournament ? await getTournamentFees(supabase, tournament.id) : [];
 
   const now = Date.now();
   const opensAt = tournament ? new Date(tournament.registration_opens_at).getTime() : null;
@@ -61,6 +64,12 @@ export default async function InscripcioPage({ params }: Props) {
         <h1 className="text-3xl font-bold tracking-tight">{t('registration.title')}</h1>
         <p className="text-muted-foreground text-sm">{t('registration.subtitle')}</p>
       </header>
+
+      {fees.length > 0 && (
+        <div className="mb-6">
+          <FeesSchedule fees={fees} locale={locale} />
+        </div>
+      )}
 
       {tournament && categories && categories.length > 0 && windowOpen ? (
         <RegistrationWizard
