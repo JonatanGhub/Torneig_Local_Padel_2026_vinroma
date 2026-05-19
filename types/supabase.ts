@@ -229,6 +229,15 @@ type ClubSettingsRow = {
   updated_at: string;
 };
 
+export type InterestSubscriptionRow = {
+  id: string;
+  tournament_id: string;
+  email: string;
+  locale: 'ca' | 'es';
+  source: string | null;
+  created_at: string;
+};
+
 type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
 
 export type Database = {
@@ -249,6 +258,7 @@ export type Database = {
       sponsors: Tbl<SponsorRow>;
       audit_log: Tbl<AuditLogRow>;
       club_settings: Tbl<ClubSettingsRow>;
+      interest_subscriptions: Tbl<InterestSubscriptionRow>;
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };
