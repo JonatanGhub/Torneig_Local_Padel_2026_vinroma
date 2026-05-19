@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { formatCents, getTournamentFees, type PublicFee } from '@/lib/pricing';
 import { CourtCarousel } from '@/components/brand/court-carousel';
 import { LogoLockup } from '@/components/brand/logo-mark';
 
@@ -50,10 +51,11 @@ export default async function LandingPage({ params }: Props) {
   const { data: tournament } = await supabase
     .from('tournaments')
     .select(
-      'registration_opens_at, registration_closes_at, draw_at, first_match_at, final_at, is_published',
+      'id, registration_opens_at, registration_closes_at, draw_at, first_match_at, final_at, is_published',
     )
     .eq('edition', 5)
     .maybeSingle();
+  const fees = tournament ? await getTournamentFees(supabase, tournament.id) : [];
 
   const intlLocale = locale === 'ca' ? 'ca-ES' : 'es-ES';
   const shortDateFormatter = new Intl.DateTimeFormat(intlLocale, {
@@ -96,6 +98,9 @@ export default async function LandingPage({ params }: Props) {
     : beforeOpen
       ? t('landing.registration_opens_soon_cta')
       : t('landing.registration_open_cta');
+
+  const relevantFee = pickRelevantFee(fees, now);
+  const pricingCard = buildPricingCard(relevantFee, locale, t, shortDateFormatter);
 
   return (
     <div className="bg-ink-950 relative min-h-screen overflow-hidden text-white">
@@ -236,8 +241,8 @@ export default async function LandingPage({ params }: Props) {
         />
         <InfoCard
           eyebrow={t('landing.card_pricing_eyebrow')}
-          title={t('landing.card_pricing_title')}
-          body={t('landing.card_pricing_body')}
+          title={pricingCard.title}
+          body={pricingCard.body}
           icon={<Sparkles className="size-5" />}
         />
       </section>
@@ -322,6 +327,64 @@ function Chip({ icon, children }: { icon: React.ReactNode; children: React.React
       {children}
     </div>
   );
+}
+
+function pickRelevantFee(
+  fees: PublicFee[],
+  now: number,
+): { fee: PublicFee; kind: 'active' | 'upcoming' | 'past' } | null {
+  const active = fees.find((f) => {
+    const s = new Date(f.starts_at).getTime();
+    const e = new Date(f.ends_at).getTime();
+    return now >= s && now <= e;
+  });
+  if (active) return { fee: active, kind: 'active' };
+
+  const upcoming = fees.find((f) => new Date(f.starts_at).getTime() > now);
+  if (upcoming) return { fee: upcoming, kind: 'upcoming' };
+
+  const past = [...fees].reverse().find((f) => new Date(f.ends_at).getTime() < now);
+  if (past) return { fee: past, kind: 'past' };
+  return null;
+}
+
+function buildPricingCard(
+  preview: ReturnType<typeof pickRelevantFee>,
+  locale: Locale,
+  t: (key: string, values?: Record<string, string | number>) => string,
+  shortDateFormatter: Intl.DateTimeFormat,
+): { title: string; body: string } {
+  if (!preview) {
+    return {
+      title: t('landing.card_pricing_title'),
+      body: t('landing.card_pricing_body'),
+    };
+  }
+  const { fee, kind } = preview;
+  const label = locale === 'ca' ? fee.label_ca : fee.label_es;
+  const amount = formatCents(fee.amount_per_player_cents, locale);
+  if (kind === 'active') {
+    return {
+      title: label,
+      body: t('landing.card_pricing_active', {
+        amount,
+        date: shortDateFormatter.format(new Date(fee.ends_at)),
+      }),
+    };
+  }
+  if (kind === 'upcoming') {
+    return {
+      title: label,
+      body: t('landing.card_pricing_upcoming', {
+        amount,
+        date: shortDateFormatter.format(new Date(fee.starts_at)),
+      }),
+    };
+  }
+  return {
+    title: label,
+    body: t('landing.card_pricing_past', { amount }),
+  };
 }
 
 function InfoCard({

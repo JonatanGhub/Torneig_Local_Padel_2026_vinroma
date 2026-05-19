@@ -58,6 +58,9 @@
     "card_pricing_eyebrow": "Tarifa",
     "card_pricing_title": "Quota escalonada",
     "card_pricing_body": "Des de 15 €/persona si t'apuntes abans del 10 de juny. Bizum o transferència bancària al club.",
+    "card_pricing_active": "{amount} per jugador · vàlida fins al {date}. Bizum o transferència al club.",
+    "card_pricing_upcoming": "{amount} per jugador a partir del {date}. Bizum o transferència al club.",
+    "card_pricing_past": "{amount} per jugador a la darrera finestra. Inscripcions tancades.",
     "cta_title": "Vols competir aquest estiu?",
     "cta_body": "Les inscripcions s'obren l'1 de juny. Reserva-ho a l'agenda i prepara la parella."
   },
