@@ -73,3 +73,90 @@ export async function updateCategoryMaxPairs(
   revalidatePath('/[locale]/admin/settings', 'page');
   return { ok: true };
 }
+
+const TournamentDatesSchema = z
+  .object({
+    tournamentId: z.string().uuid(),
+    registration_opens_at: z.string().min(1),
+    registration_closes_at: z.string().min(1),
+    draw_at: z.string().min(1),
+    first_match_at: z.string().min(1),
+    final_at: z.string().min(1),
+    is_published: z.coerce.boolean().optional(),
+  })
+  .superRefine((val, ctx) => {
+    const opens = new Date(val.registration_opens_at);
+    const closes = new Date(val.registration_closes_at);
+    const draw = new Date(val.draw_at);
+    const first = new Date(val.first_match_at);
+    const final = new Date(val.final_at);
+    if (Number.isNaN(opens.getTime()))
+      ctx.addIssue({ code: 'custom', path: ['registration_opens_at'], message: 'invalid_date' });
+    if (Number.isNaN(closes.getTime()))
+      ctx.addIssue({ code: 'custom', path: ['registration_closes_at'], message: 'invalid_date' });
+    if (Number.isNaN(draw.getTime()))
+      ctx.addIssue({ code: 'custom', path: ['draw_at'], message: 'invalid_date' });
+    if (Number.isNaN(first.getTime()))
+      ctx.addIssue({ code: 'custom', path: ['first_match_at'], message: 'invalid_date' });
+    if (Number.isNaN(final.getTime()))
+      ctx.addIssue({ code: 'custom', path: ['final_at'], message: 'invalid_date' });
+    if (opens >= closes)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['registration_closes_at'],
+        message: 'closes_before_opens',
+      });
+    if (closes > draw)
+      ctx.addIssue({ code: 'custom', path: ['draw_at'], message: 'draw_before_closes' });
+    if (draw > first)
+      ctx.addIssue({ code: 'custom', path: ['first_match_at'], message: 'first_before_draw' });
+    if (first > final)
+      ctx.addIssue({ code: 'custom', path: ['final_at'], message: 'final_before_first' });
+  });
+
+export async function updateTournamentDates(formData: FormData) {
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = TournamentDatesSchema.safeParse({
+    tournamentId: raw.tournamentId,
+    registration_opens_at: raw.registration_opens_at,
+    registration_closes_at: raw.registration_closes_at,
+    draw_at: raw.draw_at,
+    first_match_at: raw.first_match_at,
+    final_at: raw.final_at,
+    is_published: raw.is_published === 'on' || raw.is_published === 'true',
+  });
+
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return {
+      ok: false,
+      error: issue?.message ?? 'validation',
+      field: issue?.path.join('.'),
+    } as const;
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' } as const;
+  if ((user.app_metadata?.role as string | undefined) !== 'admin')
+    return { ok: false, error: 'forbidden' } as const;
+
+  const { tournamentId, is_published, ...dates } = parsed.data;
+  const update = {
+    registration_opens_at: new Date(dates.registration_opens_at).toISOString(),
+    registration_closes_at: new Date(dates.registration_closes_at).toISOString(),
+    draw_at: new Date(dates.draw_at).toISOString(),
+    first_match_at: new Date(dates.first_match_at).toISOString(),
+    final_at: new Date(dates.final_at).toISOString(),
+    ...(typeof is_published === 'boolean' ? { is_published } : {}),
+  };
+
+  const { error } = await supabase.from('tournaments').update(update).eq('id', tournamentId);
+  if (error) return { ok: false, error: error.message } as const;
+
+  revalidatePath('/[locale]/admin/settings', 'page');
+  revalidatePath('/', 'layout');
+  return { ok: true } as const;
+}

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCategoryCounts } from '@/lib/category-capacity';
 import { SettingsForm } from './form';
 import { CategoryCapacityForm } from './category-capacity-form';
+import { TournamentDatesForm } from './tournament-dates-form';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
@@ -23,7 +24,13 @@ export default async function SettingsPage({ params }: Props) {
         'id, legal_name, cif, address, email, bizum_phone, iban, contact_person_name, contact_person_phone',
       )
       .maybeSingle(),
-    supabase.from('tournaments').select('id').eq('edition', 5).maybeSingle(),
+    supabase
+      .from('tournaments')
+      .select(
+        'id, registration_opens_at, registration_closes_at, draw_at, first_match_at, final_at, is_published',
+      )
+      .eq('edition', 5)
+      .maybeSingle(),
   ]);
 
   let categories: {
@@ -65,6 +72,12 @@ export default async function SettingsPage({ params }: Props) {
           <p className="text-destructive text-sm">{t('settings_not_found')}</p>
         )}
       </div>
+
+      {tournament && (
+        <div className="border-border border-t pt-8">
+          <TournamentDatesForm tournament={tournament} />
+        </div>
+      )}
 
       {categories.length > 0 && (
         <div className="border-border border-t pt-8">
