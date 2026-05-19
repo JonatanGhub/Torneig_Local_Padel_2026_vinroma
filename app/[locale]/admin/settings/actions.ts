@@ -160,3 +160,122 @@ export async function updateTournamentDates(formData: FormData) {
   revalidatePath('/', 'layout');
   return { ok: true } as const;
 }
+
+async function requireAdmin() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, error: 'unauthenticated' as const };
+  if ((user.app_metadata?.role as string | undefined) !== 'admin')
+    return { ok: false as const, error: 'forbidden' as const };
+  return { ok: true as const, supabase };
+}
+
+const FeeInputSchema = z
+  .object({
+    tournamentId: z.string().uuid(),
+    label_ca: z.string().min(1).max(120),
+    label_es: z.string().min(1).max(120),
+    starts_at: z.string().min(1),
+    ends_at: z.string().min(1),
+    amount_eur: z.coerce.number().nonnegative(),
+    is_default_open: z.coerce.boolean().optional(),
+  })
+  .superRefine((val, ctx) => {
+    const starts = new Date(val.starts_at);
+    const ends = new Date(val.ends_at);
+    if (Number.isNaN(starts.getTime()))
+      ctx.addIssue({ code: 'custom', path: ['starts_at'], message: 'invalid_date' });
+    if (Number.isNaN(ends.getTime()))
+      ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'invalid_date' });
+    if (starts >= ends)
+      ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'ends_before_starts' });
+  });
+
+export async function createFee(formData: FormData) {
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = FeeInputSchema.safeParse({
+    tournamentId: raw.tournamentId,
+    label_ca: raw.label_ca,
+    label_es: raw.label_es,
+    starts_at: raw.starts_at,
+    ends_at: raw.ends_at,
+    amount_eur: raw.amount_eur,
+    is_default_open: raw.is_default_open === 'on' || raw.is_default_open === 'true',
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { ok: false, error: issue?.message ?? 'validation' } as const;
+  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const { tournamentId, amount_eur, ...rest } = parsed.data;
+  const { error } = await auth.supabase.from('tournament_fees').insert({
+    tournament_id: tournamentId,
+    label_ca: rest.label_ca,
+    label_es: rest.label_es,
+    starts_at: new Date(rest.starts_at).toISOString(),
+    ends_at: new Date(rest.ends_at).toISOString(),
+    amount_per_player_cents: Math.round(amount_eur * 100),
+    is_default_open: rest.is_default_open ?? false,
+  });
+  if (error) return { ok: false, error: error.message } as const;
+  revalidatePath('/[locale]/admin/settings', 'page');
+  return { ok: true } as const;
+}
+
+const FeeUpdateSchema = FeeInputSchema.innerType().extend({ id: z.string().uuid() });
+
+export async function updateFee(formData: FormData) {
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = FeeUpdateSchema.safeParse({
+    id: raw.id,
+    tournamentId: raw.tournamentId,
+    label_ca: raw.label_ca,
+    label_es: raw.label_es,
+    starts_at: raw.starts_at,
+    ends_at: raw.ends_at,
+    amount_eur: raw.amount_eur,
+    is_default_open: raw.is_default_open === 'on' || raw.is_default_open === 'true',
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { ok: false, error: issue?.message ?? 'validation' } as const;
+  }
+  const starts = new Date(parsed.data.starts_at);
+  const ends = new Date(parsed.data.ends_at);
+  if (starts >= ends) return { ok: false, error: 'ends_before_starts' } as const;
+
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const { error } = await auth.supabase
+    .from('tournament_fees')
+    .update({
+      label_ca: parsed.data.label_ca,
+      label_es: parsed.data.label_es,
+      starts_at: starts.toISOString(),
+      ends_at: ends.toISOString(),
+      amount_per_player_cents: Math.round(parsed.data.amount_eur * 100),
+      is_default_open: parsed.data.is_default_open ?? false,
+    })
+    .eq('id', parsed.data.id);
+  if (error) return { ok: false, error: error.message } as const;
+  revalidatePath('/[locale]/admin/settings', 'page');
+  return { ok: true } as const;
+}
+
+export async function deleteFee(formData: FormData) {
+  const id = formData.get('id');
+  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) {
+    return { ok: false, error: 'invalid_input' } as const;
+  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  const { error } = await auth.supabase.from('tournament_fees').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message } as const;
+  revalidatePath('/[locale]/admin/settings', 'page');
+  return { ok: true } as const;
+}
