@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { Locale } from '@/i18n';
+import { createClient } from '@/lib/supabase/server';
 import { CourtCarousel } from '@/components/brand/court-carousel';
 import { LogoLockup } from '@/components/brand/logo-mark';
 
@@ -22,22 +23,21 @@ const SLIDES = [
   { src: '/images/courts/3.png', alt: 'Pistes de pàdel al capvespre — Les Coves de Vinromà' },
 ];
 
-const KEY_DATES: Array<{
+const KEY_DATE_FIELDS: Array<{
   icon: typeof Calendar;
   labelKey: 'date_opens' | 'date_close' | 'date_draw' | 'date_first_match' | 'date_final';
-  dateCa: string;
-  dateEs: string;
+  field:
+    | 'registration_opens_at'
+    | 'registration_closes_at'
+    | 'draw_at'
+    | 'first_match_at'
+    | 'final_at';
 }> = [
-  { icon: Calendar, labelKey: 'date_opens', dateCa: '1 de juny', dateEs: '1 de junio' },
-  { icon: CalendarClock, labelKey: 'date_close', dateCa: '30 de juny', dateEs: '30 de junio' },
-  { icon: Sparkles, labelKey: 'date_draw', dateCa: '1 de juliol', dateEs: '1 de julio' },
-  {
-    icon: CalendarCheck,
-    labelKey: 'date_first_match',
-    dateCa: '6 de juliol',
-    dateEs: '6 de julio',
-  },
-  { icon: Trophy, labelKey: 'date_final', dateCa: "9 d'agost", dateEs: '9 de agosto' },
+  { icon: Calendar, labelKey: 'date_opens', field: 'registration_opens_at' },
+  { icon: CalendarClock, labelKey: 'date_close', field: 'registration_closes_at' },
+  { icon: Sparkles, labelKey: 'date_draw', field: 'draw_at' },
+  { icon: CalendarCheck, labelKey: 'date_first_match', field: 'first_match_at' },
+  { icon: Trophy, labelKey: 'date_final', field: 'final_at' },
 ];
 
 export default async function LandingPage({ params }: Props) {
@@ -46,12 +46,61 @@ export default async function LandingPage({ params }: Props) {
   const t = await getTranslations();
   const otherLocale: Locale = locale === 'ca' ? 'es' : 'ca';
 
+  const supabase = await createClient();
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select(
+      'registration_opens_at, registration_closes_at, draw_at, first_match_at, final_at, is_published',
+    )
+    .eq('edition', 5)
+    .maybeSingle();
+
+  const intlLocale = locale === 'ca' ? 'ca-ES' : 'es-ES';
+  const shortDateFormatter = new Intl.DateTimeFormat(intlLocale, {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'Europe/Madrid',
+  });
+  const longDateFormatter = new Intl.DateTimeFormat(intlLocale, {
+    dateStyle: 'long',
+    timeZone: 'Europe/Madrid',
+  });
+
+  const now = Date.now();
+  const opensAt = tournament ? new Date(tournament.registration_opens_at).getTime() : null;
+  const closesAt = tournament ? new Date(tournament.registration_closes_at).getTime() : null;
+  const isPublished = tournament?.is_published === true;
+  const beforeOpen = opensAt !== null && now < opensAt;
+  const afterClose = closesAt !== null && now > closesAt;
+  const registrationOpen = isPublished && !beforeOpen && !afterClose;
+
+  const keyDates = KEY_DATE_FIELDS.map((step) => ({
+    ...step,
+    formatted: tournament ? shortDateFormatter.format(new Date(tournament[step.field])) : null,
+  }));
+
+  const heroCaption = tournament
+    ? afterClose
+      ? t('landing.registration_closed_caption')
+      : beforeOpen
+        ? t('landing.registration_opens_caption', {
+            date: longDateFormatter.format(new Date(tournament.registration_opens_at)),
+          })
+        : t('landing.registration_closes_caption', {
+            date: longDateFormatter.format(new Date(tournament.registration_closes_at)),
+          })
+    : null;
+
+  const registrationCtaLabel = afterClose
+    ? t('landing.registration_closed_cta')
+    : beforeOpen
+      ? t('landing.registration_opens_soon_cta')
+      : t('landing.registration_open_cta');
+
   return (
     <div className="bg-ink-950 relative min-h-screen overflow-hidden text-white">
-      {/* Fondo principal: gradiente estático (sin animación pesada) */}
       <div className="hero-gradient pointer-events-none absolute inset-0 -z-10" />
 
-      {/* NAV: única zona con backdrop-filter para rendimiento */}
       <div className="sticky top-4 z-40 mx-auto flex max-w-6xl items-center justify-between px-4">
         <div className="liquid-glass-dark flex w-full items-center justify-between rounded-full px-4 py-2.5 sm:px-5">
           <LogoLockup />
@@ -72,7 +121,6 @@ export default async function LandingPage({ params }: Props) {
         </div>
       </div>
 
-      {/* HERO */}
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-16 pb-24 md:grid-cols-2 md:pt-24">
         <div className="space-y-7">
           <div className="bg-crimson-500/10 border-crimson-500/30 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-medium text-white/90">
@@ -86,13 +134,22 @@ export default async function LandingPage({ params }: Props) {
           <p className="max-w-md text-lg text-balance text-white/75">{t('landing.hero_tagline')}</p>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href={`/${locale}/inscripcio`}
-              className="glow-crimson bg-crimson-600 hover:bg-crimson-500 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white"
-            >
-              {t('landing.registration_open_cta')}
-              <ArrowRight className="size-4" />
-            </Link>
+            {registrationOpen ? (
+              <Link
+                href={`/${locale}/inscripcio`}
+                className="glow-crimson bg-crimson-600 hover:bg-crimson-500 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white"
+              >
+                {registrationCtaLabel}
+                <ArrowRight className="size-4" />
+              </Link>
+            ) : (
+              <span
+                aria-disabled
+                className="bg-crimson-600/40 inline-flex cursor-not-allowed items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white/80"
+              >
+                {registrationCtaLabel}
+              </span>
+            )}
             <Link
               href={`/${locale}/grups`}
               className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
@@ -101,17 +158,15 @@ export default async function LandingPage({ params }: Props) {
             </Link>
           </div>
 
-          <p className="text-xs text-white/55">{t('landing.registration_opens')}</p>
+          {heroCaption && <p className="text-xs text-white/55">{heroCaption}</p>}
         </div>
 
-        {/* CARRUSEL — sin logo flotante encima */}
         <div className="relative aspect-[4/3] w-full">
           <CourtCarousel
             slides={SLIDES}
             className="relative h-full w-full rounded-3xl border border-white/10 shadow-2xl"
           />
 
-          {/* Chips estáticos (sin backdrop-filter para no afectar al scroll) */}
           <div className="absolute top-5 left-5 z-10 space-y-2">
             <Chip icon={<Trophy className="size-3.5" />}>
               {t('landing.stat_categories', { count: 4 })}
@@ -124,7 +179,6 @@ export default async function LandingPage({ params }: Props) {
         </div>
       </section>
 
-      {/* TIMELINE */}
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -145,7 +199,7 @@ export default async function LandingPage({ params }: Props) {
         </div>
 
         <ol className="grid grid-cols-2 gap-4 md:grid-cols-5">
-          {KEY_DATES.map((step) => {
+          {keyDates.map((step) => {
             const Icon = step.icon;
             return (
               <li
@@ -159,7 +213,7 @@ export default async function LandingPage({ params }: Props) {
                   {t(`landing.${step.labelKey}` as 'landing.date_opens')}
                 </p>
                 <p className="font-display mt-1 text-xl font-semibold text-white">
-                  {locale === 'ca' ? step.dateCa : step.dateEs}
+                  {step.formatted ?? '—'}
                 </p>
               </li>
             );
@@ -167,7 +221,6 @@ export default async function LandingPage({ params }: Props) {
         </ol>
       </section>
 
-      {/* CARDS */}
       <section className="mx-auto grid max-w-6xl gap-6 px-6 pb-24 md:grid-cols-3">
         <InfoCard
           eyebrow={t('landing.card_venue_eyebrow')}
@@ -189,7 +242,6 @@ export default async function LandingPage({ params }: Props) {
         />
       </section>
 
-      {/* CTA FINAL */}
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <div className="from-crimson-700 via-crimson-600 to-ink-900 relative overflow-hidden rounded-3xl bg-gradient-to-br p-10 text-white md:p-14">
           <div className="relative max-w-2xl space-y-5">
@@ -197,18 +249,26 @@ export default async function LandingPage({ params }: Props) {
               {t('landing.cta_title')}
             </h2>
             <p className="text-balance text-white/85">{t('landing.cta_body')}</p>
-            <Link
-              href={`/${locale}/inscripcio`}
-              className="text-crimson-700 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold transition-transform hover:scale-105"
-            >
-              {t('landing.registration_open_cta')}
-              <ArrowRight className="size-4" />
-            </Link>
+            {registrationOpen ? (
+              <Link
+                href={`/${locale}/inscripcio`}
+                className="text-crimson-700 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold transition-transform hover:scale-105"
+              >
+                {registrationCtaLabel}
+                <ArrowRight className="size-4" />
+              </Link>
+            ) : (
+              <span
+                aria-disabled
+                className="inline-flex cursor-not-allowed items-center gap-2 rounded-full bg-white/70 px-7 py-3 text-sm font-semibold text-white/90"
+              >
+                {registrationCtaLabel}
+              </span>
+            )}
           </div>
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="mx-auto max-w-6xl border-t border-white/10 px-6 py-8">
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-white/55">
           <p>
