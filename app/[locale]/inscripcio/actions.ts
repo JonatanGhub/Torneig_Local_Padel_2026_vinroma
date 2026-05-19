@@ -17,6 +17,27 @@ export async function submitRegistration(
   input: RegistrationInput,
   options: { tournamentId: string; locale: 'ca' | 'es'; categoryId: string },
 ): Promise<RegistrationResult> {
+  const supabase = await createClient();
+
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('registration_opens_at, registration_closes_at, is_published')
+    .eq('id', options.tournamentId)
+    .maybeSingle();
+  if (!tournament) {
+    return { ok: false, error: 'unknown_tournament' };
+  }
+  if (!tournament.is_published) {
+    return { ok: false, error: 'registration_not_open' };
+  }
+  const now = Date.now();
+  if (now < new Date(tournament.registration_opens_at).getTime()) {
+    return { ok: false, error: 'registration_not_open' };
+  }
+  if (now > new Date(tournament.registration_closes_at).getTime()) {
+    return { ok: false, error: 'registration_window_closed' };
+  }
+
   const fee = await getActiveFee(options.tournamentId);
   if (!fee) {
     return { ok: false, error: 'registration_closed' };
@@ -24,8 +45,6 @@ export async function submitRegistration(
   if (!fee.is_default_open) {
     return { ok: false, error: 'fee_out_of_window' };
   }
-
-  const supabase = await createClient();
 
   const { data: category } = await supabase
     .from('categories')

@@ -19,7 +19,9 @@ export default async function InscripcioPage({ params }: Props) {
   const supabase = await createClient();
   const { data: tournament } = await supabase
     .from('tournaments')
-    .select('id, slug, name_ca, name_es, registration_opens_at, registration_closes_at')
+    .select(
+      'id, slug, name_ca, name_es, registration_opens_at, registration_closes_at, is_published',
+    )
     .eq('edition', 5)
     .maybeSingle();
 
@@ -30,6 +32,20 @@ export default async function InscripcioPage({ params }: Props) {
     .order('level', { ascending: true });
 
   const counts = tournament ? await getCategoryCounts(supabase, tournament.id) : new Map();
+
+  const now = Date.now();
+  const opensAt = tournament ? new Date(tournament.registration_opens_at).getTime() : null;
+  const closesAt = tournament ? new Date(tournament.registration_closes_at).getTime() : null;
+  const isPublished = tournament?.is_published === true;
+  const beforeOpen = opensAt !== null && now < opensAt;
+  const afterClose = closesAt !== null && now > closesAt;
+  const windowOpen = isPublished && !beforeOpen && !afterClose;
+
+  const dateFormatter = new Intl.DateTimeFormat(locale === 'ca' ? 'ca-ES' : 'es-ES', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Europe/Madrid',
+  });
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-8">
@@ -46,7 +62,7 @@ export default async function InscripcioPage({ params }: Props) {
         <p className="text-muted-foreground text-sm">{t('registration.subtitle')}</p>
       </header>
 
-      {tournament && categories && categories.length > 0 ? (
+      {tournament && categories && categories.length > 0 && windowOpen ? (
         <RegistrationWizard
           tournamentId={tournament.id}
           categories={categories.map((c) => ({
@@ -58,6 +74,25 @@ export default async function InscripcioPage({ params }: Props) {
           }))}
           locale={locale}
         />
+      ) : afterClose ? (
+        <div className="border-border space-y-2 rounded-md border p-6">
+          <p className="font-medium">{t('registration.closed_title')}</p>
+          <p className="text-muted-foreground text-sm">{t('registration.closed_subtitle')}</p>
+          {closesAt !== null && (
+            <p className="text-muted-foreground text-xs">
+              {t('registration.closed_at', { date: dateFormatter.format(closesAt) })}
+            </p>
+          )}
+        </div>
+      ) : beforeOpen ? (
+        <div className="border-border space-y-2 rounded-md border p-6">
+          <p className="font-medium">{t('registration.opens_title')}</p>
+          {opensAt !== null && (
+            <p className="text-muted-foreground text-sm">
+              {t('registration.opens_at', { date: dateFormatter.format(opensAt) })}
+            </p>
+          )}
+        </div>
       ) : (
         <p className="text-muted-foreground text-sm">{t('registration.not_open_yet')}</p>
       )}
