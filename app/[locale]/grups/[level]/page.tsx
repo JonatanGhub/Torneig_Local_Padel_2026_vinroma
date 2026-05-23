@@ -56,7 +56,9 @@ export default async function GroupPage({ params }: Props) {
 
   const { data: matches } = await supabase
     .from('matches')
-    .select('id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status')
+    .select(
+      'id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id',
+    )
     .eq('category_id', category.id)
     .eq('phase', 'group')
     .order('scheduled_at', { ascending: true, nullsFirst: true });
@@ -94,7 +96,18 @@ export default async function GroupPage({ params }: Props) {
             .sort((a, b) => {
               if (a.matches_won !== b.matches_won) return b.matches_won - a.matches_won;
               if (a.sets_diff !== b.sets_diff) return b.sets_diff - a.sets_diff;
-              return b.games_diff - a.games_diff;
+              if (a.games_diff !== b.games_diff) return b.games_diff - a.games_diff;
+              // §7: desempat final per enfrontament directe (cara a cara).
+              const direct = (matches ?? []).find(
+                (m) =>
+                  (m.status === 'validated' || m.status === 'walkover') &&
+                  m.winner_pair_id != null &&
+                  ((m.pair_a_id === a.pair_id && m.pair_b_id === b.pair_id) ||
+                    (m.pair_a_id === b.pair_id && m.pair_b_id === a.pair_id)),
+              );
+              if (direct?.winner_pair_id === a.pair_id) return -1;
+              if (direct?.winner_pair_id === b.pair_id) return 1;
+              return 0;
             });
           const groupMatches = (matches ?? []).filter((m) => m.group_label === g.label);
 
