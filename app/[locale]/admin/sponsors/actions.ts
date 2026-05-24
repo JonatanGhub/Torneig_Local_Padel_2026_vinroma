@@ -18,6 +18,18 @@ const SponsorSchema = z.object({
   tier: z.enum(['gold', 'silver', 'bronze', 'collaborator']),
   displayOrder: z.coerce.number().int().min(0).max(9999).default(0),
   isActive: z.coerce.boolean().default(true),
+  roleCa: z
+    .string()
+    .max(120)
+    .nullable()
+    .optional()
+    .or(z.literal('').transform(() => null)),
+  roleEs: z
+    .string()
+    .max(120)
+    .nullable()
+    .optional()
+    .or(z.literal('').transform(() => null)),
 });
 
 export async function upsertSponsor(formData: FormData) {
@@ -29,6 +41,8 @@ export async function upsertSponsor(formData: FormData) {
     tier: formData.get('tier'),
     displayOrder: formData.get('displayOrder') ?? 0,
     isActive: formData.get('isActive') === 'on' || formData.get('isActive') === 'true',
+    roleCa: (formData.get('roleCa') as string | null) || null,
+    roleEs: (formData.get('roleEs') as string | null) || null,
   });
   if (!parsed.success) return { ok: false, error: 'invalid_input' } as const;
 
@@ -40,6 +54,8 @@ export async function upsertSponsor(formData: FormData) {
     tier: parsed.data.tier,
     display_order: parsed.data.displayOrder,
     is_active: parsed.data.isActive,
+    role_ca: parsed.data.roleCa ?? null,
+    role_es: parsed.data.roleEs ?? null,
   };
 
   if (parsed.data.id) {

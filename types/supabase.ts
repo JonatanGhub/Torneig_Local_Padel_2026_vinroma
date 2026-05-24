@@ -199,6 +199,8 @@ type SponsorRow = {
   tier: 'gold' | 'silver' | 'bronze' | 'collaborator';
   display_order: number;
   is_active: boolean;
+  role_ca: string | null;
+  role_es: string | null;
   created_at: string;
   updated_at: string;
 };

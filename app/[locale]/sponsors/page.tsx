@@ -23,7 +23,7 @@ export default async function SponsorsPage({ params }: Props) {
   const supabase = await createClient();
   const { data: sponsors } = await supabase
     .from('sponsors')
-    .select('id, name, logo_url, website_url, tier, display_order')
+    .select('id, name, logo_url, website_url, tier, display_order, role_ca, role_es')
     .eq('is_active', true)
     .order('tier', { ascending: true })
     .order('display_order', { ascending: true })
@@ -80,27 +80,34 @@ export default async function SponsorsPage({ params }: Props) {
                 {t(`tier_${tier}` as 'tier_gold')}
               </h2>
               <ul className={tierGrid(tier)}>
-                {list.map((s) => (
-                  <li key={s.id}>
-                    {s.website_url ? (
-                      <a
-                        href={s.website_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="glass-card hover:border-crimson-400/40 group flex aspect-[3/2] items-center justify-center rounded-2xl p-6 transition-colors"
-                      >
-                        <SponsorLogo src={s.logo_url} alt={s.name} tier={tier} />
-                        <span className="sr-only">
-                          {s.name} <ExternalLink className="ml-1 inline size-3" />
-                        </span>
-                      </a>
-                    ) : (
-                      <div className="glass-card flex aspect-[3/2] items-center justify-center rounded-2xl p-6">
-                        <SponsorLogo src={s.logo_url} alt={s.name} tier={tier} />
+                {list.map((s) => {
+                  const role = locale === 'ca' ? s.role_ca : s.role_es;
+                  return (
+                    <li key={s.id} className="space-y-2">
+                      {s.website_url ? (
+                        <a
+                          href={s.website_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="glass-card hover:border-crimson-400/40 group flex aspect-[3/2] items-center justify-center rounded-2xl p-6 transition-colors"
+                        >
+                          <SponsorLogo src={s.logo_url} alt={s.name} tier={tier} />
+                          <span className="sr-only">
+                            {s.name} <ExternalLink className="ml-1 inline size-3" />
+                          </span>
+                        </a>
+                      ) : (
+                        <div className="glass-card flex aspect-[3/2] items-center justify-center rounded-2xl p-6">
+                          <SponsorLogo src={s.logo_url} alt={s.name} tier={tier} />
+                        </div>
+                      )}
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-white/90">{s.name}</p>
+                        {role && <p className="text-crimson-300 text-xs">{role}</p>}
                       </div>
-                    )}
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           );

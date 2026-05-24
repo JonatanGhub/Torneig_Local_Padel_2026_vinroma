@@ -13,7 +13,7 @@ export default async function SponsorsAdminPage({ params }: Props) {
   const supabase = await createClient();
   const { data: sponsors } = await supabase
     .from('sponsors')
-    .select('id, name, logo_url, website_url, tier, display_order, is_active')
+    .select('id, name, logo_url, website_url, tier, display_order, is_active, role_ca, role_es')
     .order('is_active', { ascending: false })
     .order('tier', { ascending: true })
     .order('display_order', { ascending: true })

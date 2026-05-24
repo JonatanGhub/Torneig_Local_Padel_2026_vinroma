@@ -14,6 +14,8 @@ type Sponsor = {
   tier: 'gold' | 'silver' | 'bronze' | 'collaborator';
   display_order: number;
   is_active: boolean;
+  role_ca: string | null;
+  role_es: string | null;
 };
 
 export function SponsorForm({
@@ -90,6 +92,29 @@ export function SponsorForm({
           placeholder="https://…"
         />
       </label>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1">
+          <span className="text-muted-foreground text-xs">{t('sponsor_role_ca')}</span>
+          <Input
+            type="text"
+            name="roleCa"
+            maxLength={120}
+            defaultValue={sponsor?.role_ca ?? ''}
+            placeholder={t('sponsor_role_placeholder')}
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-muted-foreground text-xs">{t('sponsor_role_es')}</span>
+          <Input
+            type="text"
+            name="roleEs"
+            maxLength={120}
+            defaultValue={sponsor?.role_es ?? ''}
+            placeholder={t('sponsor_role_placeholder')}
+          />
+        </label>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1">
