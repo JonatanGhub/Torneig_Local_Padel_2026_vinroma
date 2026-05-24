@@ -143,7 +143,7 @@ export async function createPairAndPlayers(
         player_id: p.playerId,
         payer_player_id: p.payer.id,
         fee_id: options.fee.id,
-        method: 'bizum' as const,
+        method: 'transfer' as const,
         amount_cents: amount,
         reference_code: ref as string,
         status: options.paymentStatus,
