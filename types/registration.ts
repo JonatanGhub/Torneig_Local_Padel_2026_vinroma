@@ -6,11 +6,22 @@ const phoneSchema = z
   .max(20)
   .regex(/^[+0-9 ()-]+$/, { message: 'phone_invalid' });
 
+export function isValidEmail(v: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+}
+
+// Spanish mobile: 9 digits starting with 6 or 7, optional +34 prefix, spaces ignored.
+export function isValidMobile(v: string) {
+  return /^(\+34)?[67]\d{8}$/.test(v.replace(/\s+/g, ''));
+}
+
+const mobileSchema = z.string().refine(isValidMobile, { message: 'mobile_invalid' });
+
 export const PlayerSchema = z.object({
   first_name: z.string().min(1).max(80),
   last_name: z.string().min(1).max(120),
   email: z.string().email().toLowerCase(),
-  phone: phoneSchema,
+  phone: mobileSchema,
   birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'date_invalid' }),
   declared_level: z.coerce.number().int().min(1).max(4),
   health_declaration_signed: z.literal(true, {
