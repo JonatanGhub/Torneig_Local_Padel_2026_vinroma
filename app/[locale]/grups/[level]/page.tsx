@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trophy } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -45,7 +45,7 @@ export default async function GroupPage({ params }: Props) {
 
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: players } = playerIds.length
-    ? await supabase.from('players').select('id, first_name, last_name').in('id', playerIds)
+    ? await supabase.from('public_player_names').select('id, last_name').in('id', playerIds)
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
 
@@ -62,6 +62,15 @@ export default async function GroupPage({ params }: Props) {
     .eq('category_id', category.id)
     .eq('phase', 'group')
     .order('scheduled_at', { ascending: true, nullsFirst: true });
+
+  const { data: koProbe } = await supabase
+    .from('matches')
+    .select('phase')
+    .eq('category_id', category.id)
+    .neq('phase', 'group');
+  const hasBracket = (koProbe ?? []).some(
+    (m) => m.phase.startsWith('ko_') || m.phase.startsWith('cons_'),
+  );
 
   const pairLabel = (pairId: string) => {
     const pair = pairs?.find((p) => p.id === pairId);
@@ -81,9 +90,20 @@ export default async function GroupPage({ params }: Props) {
         {t('common.back')}
       </Link>
 
-      <h1 className="mb-6 text-3xl font-bold tracking-tight">
-        {locale === 'ca' ? category.name_ca : category.name_es}
-      </h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-bold tracking-tight">
+          {locale === 'ca' ? category.name_ca : category.name_es}
+        </h1>
+        {hasBracket && (
+          <Link
+            href={`/${locale}/quadre/${category.level}`}
+            className="border-border inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-[hsl(var(--accent))]"
+          >
+            <Trophy className="size-4" />
+            {t('bracket.view_cta')}
+          </Link>
+        )}
+      </div>
 
       {(!groups || groups.length === 0) && (
         <p className="text-muted-foreground text-sm">{t('groups.not_drawn')}</p>

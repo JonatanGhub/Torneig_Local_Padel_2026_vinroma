@@ -262,6 +262,10 @@ export type Database = {
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };
+      public_player_names: {
+        Row: { id: string; last_name: string | null };
+        Relationships: [];
+      };
     };
     Functions: {
       current_active_fee: {
@@ -279,6 +283,10 @@ export type Database = {
       reset_draw: {
         Args: { p_category_id: string };
         Returns: number;
+      };
+      generate_knockout: {
+        Args: { p_category_id: string };
+        Returns: string;
       };
       schedule_match: {
         Args: { p_match_id: string; p_scheduled_at: string; p_court_label: string };

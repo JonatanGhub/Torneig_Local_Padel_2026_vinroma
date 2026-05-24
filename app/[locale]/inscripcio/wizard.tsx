@@ -45,22 +45,22 @@ const emptyGuardian = {
 
 const VALIDATION_MESSAGES = {
   ca: {
-    required: "Omple el nom i els cognoms.",
-    email: "El correu electrònic no és vàlid.",
-    mobile: "El telèfon mòbil no és vàlid. Introdueix un mòbil espanyol (ex.: 612 345 678).",
-    birth: "Indica la data de naixement.",
+    required: 'Omple el nom i els cognoms.',
+    email: 'El correu electrònic no és vàlid.',
+    mobile: 'El telèfon mòbil no és vàlid. Introdueix un mòbil espanyol (ex.: 612 345 678).',
+    birth: 'Indica la data de naixement.',
     emergency: "Omple el contacte d'emergència (nom i telèfon).",
     health: "Has d'acceptar la declaració de salut.",
-    guardian: "Completa les dades del tutor legal (nom, DNI, telèfon i un correu vàlid).",
+    guardian: 'Completa les dades del tutor legal (nom, DNI, telèfon i un correu vàlid).',
   },
   es: {
-    required: "Rellena el nombre y los apellidos.",
-    email: "El correo electrónico no es válido.",
-    mobile: "El teléfono móvil no es válido. Introduce un móvil español (ej.: 612 345 678).",
-    birth: "Indica la fecha de nacimiento.",
-    emergency: "Rellena el contacto de emergencia (nombre y teléfono).",
-    health: "Debes aceptar la declaración de salud.",
-    guardian: "Completa los datos del tutor legal (nombre, DNI, teléfono y un correo válido).",
+    required: 'Rellena el nombre y los apellidos.',
+    email: 'El correo electrónico no es válido.',
+    mobile: 'El teléfono móvil no es válido. Introduce un móvil español (ej.: 612 345 678).',
+    birth: 'Indica la fecha de nacimiento.',
+    emergency: 'Rellena el contacto de emergencia (nombre y teléfono).',
+    health: 'Debes aceptar la declaración de salud.',
+    guardian: 'Completa los datos del tutor legal (nombre, DNI, teléfono y un correo válido).',
   },
 } as const;
 

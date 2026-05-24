@@ -32,6 +32,25 @@ export async function runDraw(formData: FormData) {
   return { ok: true, groups: data ?? [] } as const;
 }
 
+const KnockoutSchema = z.object({ categoryId: z.string().uuid() });
+
+export async function generateKnockout(formData: FormData) {
+  const parsed = KnockoutSchema.safeParse({ categoryId: formData.get('categoryId') });
+  if (!parsed.success) return { ok: false, error: 'invalid_input' } as const;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('generate_knockout', {
+    p_category_id: parsed.data.categoryId,
+  });
+
+  if (error) return { ok: false, error: error.message } as const;
+
+  revalidatePath('/[locale]/admin/draw', 'page');
+  revalidatePath('/[locale]/quadre', 'page');
+  revalidatePath('/[locale]/quadre/[level]', 'page');
+  return { ok: true, summary: data ?? '' } as const;
+}
+
 const ResetSchema = z.object({ categoryId: z.string().uuid() });
 
 export async function resetDraw(formData: FormData) {

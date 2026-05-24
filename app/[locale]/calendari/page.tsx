@@ -39,7 +39,7 @@ export default async function CalendariPage({ params }: Props) {
     : { data: [] };
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: players } = playerIds.length
-    ? await supabase.from('players').select('id, first_name, last_name').in('id', playerIds)
+    ? await supabase.from('public_player_names').select('id, last_name').in('id', playerIds)
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
   const pairLabel = (pairId: string) => {
