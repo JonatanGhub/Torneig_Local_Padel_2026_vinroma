@@ -15,6 +15,8 @@ type Sponsor = {
   tier: 'gold' | 'silver' | 'bronze' | 'collaborator';
   display_order: number;
   is_active: boolean;
+  role_ca: string | null;
+  role_es: string | null;
 };
 
 export function SponsorList({ sponsors }: { sponsors: Sponsor[] }) {

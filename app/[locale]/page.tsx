@@ -16,6 +16,7 @@ import { formatCents, getTournamentFees, type PublicFee } from '@/lib/pricing';
 import { CourtCarousel } from '@/components/brand/court-carousel';
 import { LogoLockup } from '@/components/brand/logo-mark';
 import { InterestSubscribe } from '@/components/public/interest-subscribe';
+import { LocaleSwitcher } from '@/components/locale-switcher';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -46,7 +47,6 @@ export default async function LandingPage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations();
-  const otherLocale: Locale = locale === 'ca' ? 'es' : 'ca';
 
   const supabase = await createClient();
   const { data: tournament } = await supabase
@@ -114,9 +114,7 @@ export default async function LandingPage({ params }: Props) {
             <NavLink href={`/${locale}/grups`}>{t('navigation.groups')}</NavLink>
             <NavLink href={`/${locale}/quadre`}>{t('navigation.knockout')}</NavLink>
             <NavLink href={`/${locale}/calendari`}>{t('navigation.calendar')}</NavLink>
-            <NavLink href={`/${otherLocale}`} compact>
-              {otherLocale.toUpperCase()}
-            </NavLink>
+            <LocaleSwitcher current={locale} className="ml-1" />
             <Link
               href={`/${locale}/login`}
               className="text-ink-900 ml-2 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold transition-transform hover:scale-105"
@@ -183,6 +181,7 @@ export default async function LandingPage({ params }: Props) {
               {t('landing.stat_pairs', { count: 32 })}
             </Chip>
             <Chip icon={<MapPin className="size-3.5" />}>{t('landing.stat_courts')}</Chip>
+            <Chip icon={<CalendarClock className="size-3.5" />}>{t('landing.stat_schedule')}</Chip>
           </div>
         </div>
       </section>
@@ -248,6 +247,13 @@ export default async function LandingPage({ params }: Props) {
           body={pricingCard.body}
           icon={<Sparkles className="size-5" />}
         />
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="border-crimson-500/20 flex items-center justify-center gap-3 rounded-2xl border bg-white/5 px-6 py-5 text-center">
+          <CalendarClock className="text-crimson-400 size-5 shrink-0" />
+          <p className="text-sm text-white/85 md:text-base">{t('landing.schedule')}</p>
+        </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-24">

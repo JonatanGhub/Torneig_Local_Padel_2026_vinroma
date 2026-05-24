@@ -214,3 +214,18 @@
     transition: none !important;
   }
 }
+
+/* Panel admin: texto más legible (sube los tamaños base de las utilidades
+   densas). El selector descendiente gana especificidad a las utilidades de
+   Tailwind, así que no hace falta tocar cada página del admin. */
+.admin-shell {
+  font-size: 1rem;
+}
+.admin-shell .text-xs {
+  font-size: 0.8125rem;
+  line-height: 1.15rem;
+}
+.admin-shell .text-sm {
+  font-size: 0.9375rem;
+  line-height: 1.4rem;
+}
