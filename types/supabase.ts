@@ -262,6 +262,10 @@ export type Database = {
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };
+      public_player_names: {
+        Row: { id: string; last_name: string | null };
+        Relationships: [];
+      };
     };
     Functions: {
       current_active_fee: {
