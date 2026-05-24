@@ -19,7 +19,7 @@ const TEXTS = {
       },
       {
         h: '3. Finalitats',
-        p: `Les teves dades s'utilitzen per: (a) gestionar la inscripció i la cobertura asseguradora del torneig; (b) comunicar-te calendari, resultats i incidències; (c) publicar resultats i classificacions amb el teu nom (consentible per separat); (d) emetre justificants i conciliar pagaments (Bizum o transferència).`,
+        p: `Les teves dades s'utilitzen per: (a) gestionar la inscripció i la cobertura asseguradora del torneig; (b) comunicar-te calendari, resultats i incidències; (c) publicar resultats i classificacions amb el teu nom (consentible per separat); (d) emetre justificants i conciliar pagaments (transferència o ingrés en compte).`,
       },
       {
         h: '4. Base legal',
@@ -65,7 +65,7 @@ const TEXTS = {
       },
       {
         h: '3. Finalidades',
-        p: `Tus datos se usan para: (a) gestionar la inscripción y la cobertura aseguradora del torneo; (b) comunicarte calendario, resultados e incidencias; (c) publicar resultados y clasificaciones con tu nombre (consentible por separado); (d) emitir justificantes y conciliar pagos (Bizum o transferencia).`,
+        p: `Tus datos se usan para: (a) gestionar la inscripción y la cobertura aseguradora del torneo; (b) comunicarte calendario, resultados e incidencias; (c) publicar resultados y clasificaciones con tu nombre (consentible por separado); (d) emitir justificantes y conciliar pagos (transferencia o ingreso en cuenta).`,
       },
       {
         h: '4. Base legal',
