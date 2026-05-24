@@ -8,6 +8,11 @@ import {
   notifyMatchValidated,
   notifyRescheduleProposed,
 } from '@/lib/email/notify';
+import {
+  notifyMatchDisputedWhatsApp,
+  notifyMatchValidatedWhatsApp,
+  notifyRescheduleProposedWhatsApp,
+} from '@/lib/whatsapp/notify';
 
 const SetSchema = z.object({
   set: z.number().int().min(1).max(3),
@@ -66,8 +71,10 @@ export async function submitReport(formData: FormData) {
     .maybeSingle();
   if (matchAfter?.status === 'validated') {
     await notifyMatchValidated(matchId);
+    await notifyMatchValidatedWhatsApp(matchId);
   } else if (matchAfter?.status === 'disputed') {
     await notifyMatchDisputed(matchId);
+    await notifyMatchDisputedWhatsApp(matchId);
   }
 
   revalidatePath('/[locale]/captain', 'page');
@@ -111,6 +118,7 @@ export async function proposeReschedule(formData: FormData) {
   // Notificar al capitán rival en background (errores no rompen la mutación).
   if (typeof data === 'string') {
     await notifyRescheduleProposed(data);
+    await notifyRescheduleProposedWhatsApp(data);
   }
 
   revalidatePath('/[locale]/captain', 'page');
