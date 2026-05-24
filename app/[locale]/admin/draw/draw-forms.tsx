@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { runDraw, resetDraw } from './actions';
+import { runDraw, resetDraw, generateKnockout } from './actions';
 
 type CategorySummary = {
   id: string;
@@ -15,6 +15,10 @@ type CategorySummary = {
   groupCount: number;
   drawSeed: number | null;
   drawnAt: string | null;
+  groupMatchesTotal: number;
+  groupMatchesDone: number;
+  groupPhaseFinished: boolean;
+  koGenerated: boolean;
 };
 
 export function DrawForms({ summary }: { summary: CategorySummary[] }) {
@@ -64,6 +68,19 @@ function CategoryRow({ cat }: { cat: CategorySummary }) {
     });
   }
 
+  function handleGenerateKnockout() {
+    if (!confirm(t('ko_generate_confirm'))) return;
+    setError(null);
+    setFeedback(null);
+    const fd = new FormData();
+    fd.set('categoryId', cat.id);
+    startTransition(async () => {
+      const res = await generateKnockout(fd);
+      if (res.ok) setFeedback(t('ko_generate_done'));
+      else setError(res.error);
+    });
+  }
+
   return (
     <li className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
       <div className="space-y-1">
@@ -82,7 +99,7 @@ function CategoryRow({ cat }: { cat: CategorySummary }) {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {!alreadyDrawn ? (
           <>
             <Input
@@ -97,9 +114,22 @@ function CategoryRow({ cat }: { cat: CategorySummary }) {
             </Button>
           </>
         ) : (
-          <Button onClick={handleReset} variant="outline" disabled={isPending} type="button">
-            {t('draw_reset_action')}
-          </Button>
+          <>
+            <Button onClick={handleReset} variant="outline" disabled={isPending} type="button">
+              {t('draw_reset_action')}
+            </Button>
+            {cat.koGenerated ? (
+              <span className="text-xs font-medium text-green-600">{t('ko_generated_badge')}</span>
+            ) : (
+              <Button
+                onClick={handleGenerateKnockout}
+                disabled={isPending || !cat.groupPhaseFinished}
+                type="button"
+              >
+                {isPending ? '…' : t('ko_generate_action')}
+              </Button>
+            )}
+          </>
         )}
       </div>
 
@@ -108,6 +138,14 @@ function CategoryRow({ cat }: { cat: CategorySummary }) {
       {!alreadyDrawn && !canDraw && (
         <p className="text-muted-foreground text-xs md:basis-full">
           {t('draw_not_enough_pairs', { needed: 4 - drawnPairsMissing })}
+        </p>
+      )}
+      {alreadyDrawn && !cat.koGenerated && !cat.groupPhaseFinished && (
+        <p className="text-muted-foreground text-xs md:basis-full">
+          {t('ko_group_progress', {
+            done: cat.groupMatchesDone,
+            total: cat.groupMatchesTotal,
+          })}
         </p>
       )}
     </li>

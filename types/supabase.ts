@@ -280,6 +280,10 @@ export type Database = {
         Args: { p_category_id: string };
         Returns: number;
       };
+      generate_knockout: {
+        Args: { p_category_id: string };
+        Returns: string;
+      };
       schedule_match: {
         Args: { p_match_id: string; p_scheduled_at: string; p_court_label: string };
         Returns: undefined;

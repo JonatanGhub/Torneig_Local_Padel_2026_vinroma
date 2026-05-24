@@ -112,6 +112,7 @@ export default async function LandingPage({ params }: Props) {
           <LogoLockup />
           <nav className="hidden items-center gap-1 text-sm md:flex">
             <NavLink href={`/${locale}/grups`}>{t('navigation.groups')}</NavLink>
+            <NavLink href={`/${locale}/quadre`}>{t('navigation.knockout')}</NavLink>
             <NavLink href={`/${locale}/calendari`}>{t('navigation.calendar')}</NavLink>
             <NavLink href={`/${otherLocale}`} compact>
               {otherLocale.toUpperCase()}
