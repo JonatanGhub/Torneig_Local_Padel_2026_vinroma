@@ -6,6 +6,7 @@ import { sendEmail } from '@/lib/email/send';
 import InscriptionConfirmed from '@/lib/email/templates/inscription-confirmed';
 import { getActiveFee, formatCents, computePerPairAmount } from '@/lib/pricing';
 import { createPairAndPlayers } from '@/lib/registration';
+import { createServiceClient } from '@/lib/supabase/service';
 import { isCategoryFull } from '@/lib/category-capacity';
 import type { RegistrationInput } from '@/types/registration';
 
@@ -60,7 +61,11 @@ export async function submitRegistration(
     return { ok: false, error: 'category_full' };
   }
 
-  const result = await createPairAndPlayers(supabase, input, {
+  // Public registration runs as the anon role; the inserts into players/pairs/
+  // payments are blocked by RLS (which only allows admins or signed-in users).
+  // This server action has already validated everything, so we perform the
+  // writes with the service-role client.
+  const result = await createPairAndPlayers(createServiceClient(), input, {
     tournamentId: options.tournamentId,
     categoryId: options.categoryId,
     fee,

@@ -5,7 +5,13 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { isMinor, RegistrationSchema, type RegistrationInput } from '@/types/registration';
+import {
+  isMinor,
+  isValidEmail,
+  isValidMobile,
+  RegistrationSchema,
+  type RegistrationInput,
+} from '@/types/registration';
 import { submitRegistration } from './actions';
 
 type Category = {
@@ -36,6 +42,27 @@ const emptyGuardian = {
   legal_guardian_phone: '',
   legal_guardian_email: '',
 };
+
+const VALIDATION_MESSAGES = {
+  ca: {
+    required: "Omple el nom i els cognoms.",
+    email: "El correu electrònic no és vàlid.",
+    mobile: "El telèfon mòbil no és vàlid. Introdueix un mòbil espanyol (ex.: 612 345 678).",
+    birth: "Indica la data de naixement.",
+    emergency: "Omple el contacte d'emergència (nom i telèfon).",
+    health: "Has d'acceptar la declaració de salut.",
+    guardian: "Completa les dades del tutor legal (nom, DNI, telèfon i un correu vàlid).",
+  },
+  es: {
+    required: "Rellena el nombre y los apellidos.",
+    email: "El correo electrónico no es válido.",
+    mobile: "El teléfono móvil no es válido. Introduce un móvil español (ej.: 612 345 678).",
+    birth: "Indica la fecha de nacimiento.",
+    emergency: "Rellena el contacto de emergencia (nombre y teléfono).",
+    health: "Debes aceptar la declaración de salud.",
+    guardian: "Completa los datos del tutor legal (nombre, DNI, teléfono y un correo válido).",
+  },
+} as const;
 
 type Draft = {
   player_a: typeof emptyPlayer;
@@ -102,10 +129,12 @@ export function RegistrationWizard({
     const input: RegistrationInput = {
       player_a: {
         ...draft.player_a,
+        declared_level: draft.category_level,
         health_declaration_signed: draft.player_a.health_declaration_signed as true,
       },
       player_b: {
         ...draft.player_b,
+        declared_level: draft.category_level,
         health_declaration_signed: draft.player_b.health_declaration_signed as true,
       },
       captain: draft.captain,
@@ -156,6 +185,7 @@ export function RegistrationWizard({
         <PlayerForm
           title={t('registration.player_a_title')}
           player={draft.player_a}
+          locale={locale}
           onChange={(patch) => updatePlayer('a', patch)}
           guardian={draft.guardian_a}
           onGuardianChange={(patch) =>
@@ -172,6 +202,7 @@ export function RegistrationWizard({
         <PlayerForm
           title={t('registration.player_b_title')}
           player={draft.player_b}
+          locale={locale}
           onChange={(patch) => updatePlayer('b', patch)}
           guardian={draft.guardian_b}
           onGuardianChange={(patch) =>
@@ -256,6 +287,7 @@ function Stepper({ current }: { current: Step }) {
 function PlayerForm({
   title,
   player,
+  locale,
   onChange,
   guardian,
   onGuardianChange,
@@ -264,6 +296,7 @@ function PlayerForm({
 }: {
   title: string;
   player: typeof emptyPlayer;
+  locale: 'ca' | 'es';
   onChange: (patch: Partial<typeof emptyPlayer>) => void;
   guardian?: typeof emptyGuardian;
   onGuardianChange: (patch: Partial<typeof emptyGuardian>) => void;
@@ -271,7 +304,33 @@ function PlayerForm({
   onNext: () => void;
 }) {
   const t = useTranslations('registration');
+  const [localError, setLocalError] = useState<string | null>(null);
   const showGuardian = player.birth_date && isMinor(player.birth_date);
+  const msgs = VALIDATION_MESSAGES[locale];
+
+  function handleNext() {
+    if (!player.first_name.trim() || !player.last_name.trim()) return setLocalError(msgs.required);
+    if (!isValidEmail(player.email)) return setLocalError(msgs.email);
+    if (!isValidMobile(player.phone)) return setLocalError(msgs.mobile);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(player.birth_date)) return setLocalError(msgs.birth);
+    if (!player.emergency_contact_name.trim() || !player.emergency_contact_phone.trim())
+      return setLocalError(msgs.emergency);
+    if (!player.health_declaration_signed) return setLocalError(msgs.health);
+    if (showGuardian) {
+      const g = guardian;
+      if (
+        !g ||
+        !g.legal_guardian_name.trim() ||
+        g.legal_guardian_dni.trim().length < 8 ||
+        !g.legal_guardian_phone.trim() ||
+        !isValidEmail(g.legal_guardian_email)
+      ) {
+        return setLocalError(msgs.guardian);
+      }
+    }
+    setLocalError(null);
+    onNext();
+  }
 
   return (
     <section className="space-y-4">
@@ -304,18 +363,7 @@ function PlayerForm({
           label={t('field_birth_date')}
           value={player.birth_date}
           type="date"
-          onChange={(v) => onChange({ birth_date: v })}
-        />
-        <LabeledSelect
-          label={t('field_declared_level')}
-          value={String(player.declared_level)}
-          onChange={(v) => onChange({ declared_level: Number(v) })}
-          options={[
-            { value: '1', label: t('level_1') },
-            { value: '2', label: t('level_2') },
-            { value: '3', label: t('level_3') },
-            { value: '4', label: t('level_4') },
-          ]}
+          onChange={(value) => onChange({ birth_date: value })}
         />
       </div>
 
@@ -323,6 +371,11 @@ function PlayerForm({
         <div className="border-border space-y-3 rounded-md border p-4">
           <h3 className="text-sm font-medium">{t('guardian_title')}</h3>
           <p className="text-muted-foreground text-xs">{t('guardian_subtitle')}</p>
+          <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+            {locale === 'ca'
+              ? "El jugador és menor d'edat: el pare/mare o tutor legal haurà d'aportar una declaració signada autoritzant la seva participació al torneig."
+              : 'El jugador es menor de edad: el padre/madre o tutor legal deberá aportar una declaración firmada autorizando su participación en el torneo.'}
+          </p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <LabeledInput
               label={t('guardian_name')}
@@ -382,6 +435,8 @@ function PlayerForm({
         </label>
       </div>
 
+      {localError && <p className="text-destructive text-sm">{localError}</p>}
+
       <div className="flex justify-between pt-2">
         {onBack ? (
           <Button variant="ghost" onClick={onBack} type="button">
@@ -390,7 +445,7 @@ function PlayerForm({
         ) : (
           <span />
         )}
-        <Button onClick={onNext} type="button">
+        <Button onClick={handleNext} type="button">
           {t('next')} →
         </Button>
       </div>
@@ -659,35 +714,6 @@ function LabeledInput({
     <label className="space-y-1 text-sm">
       <span className="text-muted-foreground text-xs">{label}</span>
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
-    </label>
-  );
-}
-
-function LabeledSelect({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <label className="space-y-1 text-sm">
-      <span className="text-muted-foreground text-xs">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex h-10 w-full rounded-md border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 text-sm"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
     </label>
   );
 }
