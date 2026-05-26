@@ -63,7 +63,10 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
 
   const [{ data: players }, { data: categories }, { data: allCategories }] = await Promise.all([
     playerIds.length
-      ? supabase.from('players').select('id, first_name, last_name, email').in('id', playerIds)
+      ? supabase
+          .from('players')
+          .select('id, first_name, last_name, email, auth_user_id')
+          .in('id', playerIds)
       : Promise.resolve({ data: [] }),
     categoryIds.length
       ? supabase
@@ -190,6 +193,10 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     <PairStatusPill status={p.status} t={t} />
+                    <CaptainLinkedPill
+                      linked={Boolean(playerMap.get(p.captain_id)?.auth_user_id)}
+                      t={t}
+                    />
                     {p.status === 'pending_payment' && (
                       <AdminResendEmailButton pairId={p.id} locale={locale} />
                     )}
@@ -234,6 +241,28 @@ function EmailFeedbackBanner({ feedback, label }: { feedback: string; label: str
     ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300'
     : 'border-amber-400/60 bg-amber-400/10 text-amber-700 dark:text-amber-300';
   return <div className={`rounded-md border px-3 py-2 text-xs ${tone}`}>{label}</div>;
+}
+
+function CaptainLinkedPill({
+  linked,
+  t,
+}: {
+  linked: boolean;
+  t: Awaited<ReturnType<typeof getTranslations<'admin'>>>;
+}) {
+  const tone = linked
+    ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300'
+    : 'border-slate-400/60 bg-slate-400/10 text-slate-700 dark:text-slate-300';
+  return (
+    <span
+      className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase ${tone}`}
+      title={
+        linked ? t('registrations_captain_linked_help') : t('registrations_captain_unlinked_help')
+      }
+    >
+      {linked ? t('registrations_captain_linked') : t('registrations_captain_unlinked')}
+    </span>
+  );
 }
 
 function PairStatusPill({
