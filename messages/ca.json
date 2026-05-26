@@ -91,7 +91,13 @@
     "email_label": "Correu electrònic",
     "email_placeholder": "el-teu@correu.com",
     "send_magic_link": "Enviar enllaç màgic",
-    "magic_link_sent": "Et hem enviat un enllaç. Revisa la teva safata d'entrada.",
+    "magic_link_sent": "Et hem enviat un correu amb un enllaç i un codi de 6 dígits.",
+    "code_fallback_help": "Si l'enllaç no et funciona (passa quan el correu el llegeix Outlook o un antivirus), introdueix aquí el codi de 6 dígits que també hi ha al correu.",
+    "code_label": "Codi de 6 dígits",
+    "verify_code": "Entrar",
+    "use_different_email": "Tornar i fer servir un altre correu",
+    "email_invalid": "El correu no és vàlid.",
+    "code_invalid": "El codi ha de ser de 6 dígits numèrics.",
     "logout_success": "Has sortit correctament"
   },
   "registration": {
@@ -333,6 +339,8 @@
     "match_field_court": "Pista",
     "match_save": "Desar",
     "match_scheduled_ok": "Desat ✓",
+    "match_error_pair_double_booked": "Una de les dues parelles ja té un partit programat exactament a aquesta hora. Tria una altra hora.",
+    "match_warning_same_time": "Hi ha un altre partit programat a la mateixa hora (parelles diferents). Comprova que tens prou pistes/àrbitres.",
     "nav_disputes": "Disputes",
     "disputes_title": "Disputes i validacions",
     "disputes_subtitle": "Partits amb resultat reportat. Els disputats requereixen resolució de l'admin.",
