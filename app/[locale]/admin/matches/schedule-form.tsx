@@ -18,6 +18,7 @@ export function ScheduleForm({
   const t = useTranslations('admin');
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const localAt = scheduledAt ? new Date(scheduledAt).toISOString().slice(0, 16) : '';
@@ -26,11 +27,22 @@ export function ScheduleForm({
     e.preventDefault();
     setError(null);
     setFeedback(null);
+    setWarning(null);
     const fd = new FormData(e.currentTarget);
     startTransition(async () => {
       const res = await scheduleMatch(fd);
-      if (res.ok) setFeedback(t('match_scheduled_ok'));
-      else setError(res.error);
+      if (!res.ok) {
+        if (res.error === 'pair_double_booked') {
+          setError(t('match_error_pair_double_booked'));
+        } else {
+          setError(res.error);
+        }
+        return;
+      }
+      setFeedback(t('match_scheduled_ok'));
+      if (res.warning === 'same_time_other_match') {
+        setWarning(t('match_warning_same_time'));
+      }
     });
   }
 
@@ -65,6 +77,7 @@ export function ScheduleForm({
         {isPending ? '…' : t('match_save')}
       </Button>
       {feedback && <span className="text-xs text-green-600">{feedback}</span>}
+      {warning && <span className="text-xs text-amber-600 dark:text-amber-400">⚠ {warning}</span>}
       {error && <span className="text-destructive text-xs">{error}</span>}
     </form>
   );

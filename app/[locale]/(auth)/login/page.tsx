@@ -6,12 +6,15 @@ import type { Locale } from '@/i18n';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
+  searchParams: Promise<{ next?: string }>;
 };
 
-export default async function LoginPage({ params }: Props) {
+export default async function LoginPage({ params, searchParams }: Props) {
   const { locale } = await params;
+  const sp = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations();
+  const next = sp.next && sp.next.startsWith('/') ? sp.next : null;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6">
@@ -21,7 +24,7 @@ export default async function LoginPage({ params }: Props) {
           <p className="text-muted-foreground text-sm">{t('auth.login_subtitle')}</p>
         </div>
 
-        <LoginForm />
+        <LoginForm next={next} />
 
         <p className="text-muted-foreground text-center text-xs">
           <Link href="/" className="hover:text-foreground">

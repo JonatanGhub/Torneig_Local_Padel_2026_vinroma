@@ -2,38 +2,44 @@
 
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
 
-const schema = z.object({
-  email: z.string().email(),
-});
+const emailSchema = z.object({ email: z.string().email() });
+const codeSchema = z.object({ token: z.string().regex(/^\d{6}$/) });
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string | null }) {
   const t = useTranslations('auth');
+  const router = useRouter();
   const [email, setEmail] = useState('');
+  const [token, setToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function sendCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
-    const parsed = schema.safeParse({ email });
+    const parsed = emailSchema.safeParse({ email });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid input');
+      setError(t('email_invalid'));
       return;
     }
 
     startTransition(async () => {
       const supabase = createClient();
+      // Enviem el correu amb magic-link + codi OTP de 6 dígits a la vegada
+      // (la plantilla de Supabase inclou els dos). Així l'usuari pot escollir.
       const { error: authError } = await supabase.auth.signInWithOtp({
         email: parsed.data.email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback${
+            next ? `?next=${encodeURIComponent(next)}` : ''
+          }`,
         },
       });
 
@@ -45,16 +51,94 @@ export function LoginForm() {
     });
   }
 
+  function verifyCode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    const parsed = codeSchema.safeParse({ token });
+    if (!parsed.success) {
+      setError(t('code_invalid'));
+      return;
+    }
+
+    startTransition(async () => {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.verifyOtp({
+        email,
+        token: parsed.data.token,
+        type: 'email',
+      });
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+      // Redirigeix segons el rol llegit del client (l'app_metadata es propaga
+      // via JWT). El callback server-side ja fa el mateix per a magic-link.
+      const { data } = await supabase.auth.getUser();
+      const role = (data.user?.app_metadata?.role as string | undefined) ?? null;
+      const target = next
+        ? next
+        : role === 'admin'
+          ? '/admin'
+          : role === 'captain'
+            ? '/captain'
+            : '/';
+      router.push(target);
+      router.refresh();
+    });
+  }
+
   if (sent) {
     return (
-      <div className="bg-secondary text-secondary-foreground rounded-md p-4 text-center text-sm">
-        {t('magic_link_sent')}
+      <div className="space-y-4">
+        <div className="bg-secondary text-secondary-foreground rounded-md p-4 text-sm">
+          <p className="font-medium">{t('magic_link_sent')}</p>
+          <p className="text-muted-foreground mt-1 text-xs">{t('code_fallback_help')}</p>
+        </div>
+
+        <form onSubmit={verifyCode} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="token" className="text-sm font-medium">
+              {t('code_label')}
+            </label>
+            <Input
+              id="token"
+              name="token"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              pattern="\d{6}"
+              placeholder="123456"
+              value={token}
+              onChange={(e) => setToken(e.target.value.replace(/\D/g, ''))}
+              disabled={isPending}
+              required
+            />
+          </div>
+          {error && <p className="text-destructive text-sm">{error}</p>}
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? '…' : t('verify_code')}
+          </Button>
+        </form>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSent(false);
+            setToken('');
+            setError(null);
+          }}
+          className="text-muted-foreground hover:text-foreground text-xs underline"
+        >
+          {t('use_different_email')}
+        </button>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={sendCode} className="space-y-4">
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium">
           {t('email_label')}

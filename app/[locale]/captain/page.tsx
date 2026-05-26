@@ -1,17 +1,7 @@
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarClock,
-  Check,
-  Clock,
-  Sparkles,
-  Trophy,
-  Users,
-  Wallet,
-  X,
-} from 'lucide-react';
+import { ArrowLeft, CalendarClock, Check, Clock, Sparkles, Trophy, Users, X } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -108,12 +98,20 @@ export default async function CaptainHome({ params }: Props) {
     return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
   };
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? '';
+  // Construïm la URL del feed des de la mateixa petició, no des d'una env var
+  // (que pot quedar desincronitzada amb el domini real). Així Google/Outlook
+  // sempre apunten al mateix host que el navegador del capità.
+  const requestHeaders = await headers();
+  const host =
+    requestHeaders.get('x-forwarded-host') ??
+    requestHeaders.get('host') ??
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, '') ??
+    '';
+  const proto =
+    requestHeaders.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
   const feedPath = `/api/captain/calendar/${player.calendar_feed_token}?lang=${locale}`;
-  const feedUrl = siteUrl ? `${siteUrl}${feedPath}` : feedPath;
-  const webcalUrl = siteUrl
-    ? `webcal://${siteUrl.replace(/^https?:\/\//, '')}${feedPath}`
-    : feedPath;
+  const feedUrl = host ? `${proto}://${host}${feedPath}` : feedPath;
+  const webcalUrl = host ? `webcal://${host}${feedPath}` : feedPath;
 
   const total = matches?.length ?? 0;
   const validated = (matches ?? []).filter(
@@ -160,24 +158,6 @@ export default async function CaptainHome({ params }: Props) {
         <CalendarSubscriptionCard feedUrl={feedUrl} webcalUrl={webcalUrl} />
 
         <MyPairsCard pairs={myPairItems} locale={locale} />
-
-        <Link
-          href={`/${locale}/captain/finance`}
-          className="glass-card hover:border-crimson-400/40 group mb-6 flex items-center justify-between gap-3 rounded-2xl p-4 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="bg-crimson-500/15 text-crimson-300 inline-flex size-10 items-center justify-center rounded-xl">
-              <Wallet className="size-5" />
-            </div>
-            <div>
-              <p className="font-display text-base font-semibold text-white">
-                {t('captain.finance_card_title')}
-              </p>
-              <p className="text-xs text-white/55">{t('captain.finance_card_body')}</p>
-            </div>
-          </div>
-          <ArrowRight className="size-4 text-white/45 transition-transform group-hover:translate-x-1" />
-        </Link>
 
         <section className="mb-10 grid gap-3 sm:grid-cols-3">
           <StatCard

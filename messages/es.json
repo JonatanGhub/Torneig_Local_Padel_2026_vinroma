@@ -91,7 +91,13 @@
     "email_label": "Correo electrónico",
     "email_placeholder": "tu-correo@email.com",
     "send_magic_link": "Enviar enlace mágico",
-    "magic_link_sent": "Te hemos enviado un enlace. Revisa tu bandeja de entrada.",
+    "magic_link_sent": "Te hemos enviado un correo con un enlace y un código de 6 dígitos.",
+    "code_fallback_help": "Si el enlace no te funciona (suele pasar cuando el correo lo lee Outlook o un antivirus), introduce aquí el código de 6 dígitos que también está en el correo.",
+    "code_label": "Código de 6 dígitos",
+    "verify_code": "Entrar",
+    "use_different_email": "Volver y usar otro correo",
+    "email_invalid": "El correo no es válido.",
+    "code_invalid": "El código debe ser de 6 dígitos numéricos.",
     "logout_success": "Has salido correctamente"
   },
   "registration": {
@@ -333,6 +339,8 @@
     "match_field_court": "Pista",
     "match_save": "Guardar",
     "match_scheduled_ok": "Guardado ✓",
+    "match_error_pair_double_booked": "Una de las dos parejas ya tiene un partido programado exactamente a esa hora. Elige otra hora.",
+    "match_warning_same_time": "Hay otro partido programado a la misma hora (parejas distintas). Comprueba que tienes pistas/árbitros suficientes.",
     "nav_disputes": "Disputas",
     "disputes_title": "Disputas y validaciones",
     "disputes_subtitle": "Partidos con resultado reportado. Los disputados requieren resolución del admin.",
