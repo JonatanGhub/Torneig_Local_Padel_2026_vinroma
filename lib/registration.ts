@@ -2,7 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import { computePerPairAmount, type ActiveFee } from '@/lib/pricing';
 import {
-  isMinor,
   RegistrationSchema,
   type RegistrationInput,
   type LegalGuardianInput,
@@ -66,13 +65,6 @@ export async function createPairAndPlayers(
   }
 
   const data = parsed.data;
-
-  if (isMinor(data.player_a.birth_date) && !data.guardian_a) {
-    return { ok: false, error: 'guardian_a_required' };
-  }
-  if (isMinor(data.player_b.birth_date) && !data.guardian_b) {
-    return { ok: false, error: 'guardian_b_required' };
-  }
 
   const signedAt = new Date().toISOString();
 

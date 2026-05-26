@@ -36,13 +36,6 @@ const emptyPlayer = {
   emergency_contact_phone: '',
 };
 
-const emptyGuardian = {
-  legal_guardian_name: '',
-  legal_guardian_dni: '',
-  legal_guardian_phone: '',
-  legal_guardian_email: '',
-};
-
 const VALIDATION_MESSAGES = {
   ca: {
     required: 'Omple el nom i els cognoms.',
@@ -51,7 +44,6 @@ const VALIDATION_MESSAGES = {
     birth: 'Indica la data de naixement.',
     emergency: "Omple el contacte d'emergència (nom i telèfon).",
     health: "Has d'acceptar la declaració de salut.",
-    guardian: 'Completa les dades del tutor legal (nom, DNI, telèfon i un correu vàlid).',
   },
   es: {
     required: 'Rellena el nombre y los apellidos.',
@@ -60,8 +52,12 @@ const VALIDATION_MESSAGES = {
     birth: 'Indica la fecha de nacimiento.',
     emergency: 'Rellena el contacto de emergencia (nombre y teléfono).',
     health: 'Debes aceptar la declaración de salud.',
-    guardian: 'Completa los datos del tutor legal (nombre, DNI, teléfono y un correo válido).',
   },
+} as const;
+
+const MINOR_WARNING = {
+  ca: "Ets menor de 18 anys. Necessites el permís d'un pare, mare o tutor legal per apuntar-te a aquest torneig. Confirma-ho amb l'organització abans del primer partit.",
+  es: 'Eres menor de 18 años. Necesitas el permiso de un padre, madre o tutor legal para apuntarte a este torneo. Debes confirmarlo con la administración antes del primer partido.',
 } as const;
 
 type Draft = {
@@ -70,8 +66,6 @@ type Draft = {
   captain: 'a' | 'b';
   category_level: number;
   fee_mode: 'per_pair' | 'per_player';
-  guardian_a?: typeof emptyGuardian;
-  guardian_b?: typeof emptyGuardian;
   consent_data_processing: boolean;
   consent_results_publication: boolean;
   consent_whatsapp: boolean;
@@ -110,17 +104,11 @@ export function RegistrationWizard({
 
   function nextFromPlayerA() {
     setError(null);
-    if (isMinor(draft.player_a.birth_date) && !draft.guardian_a) {
-      setDraft((prev) => ({ ...prev, guardian_a: { ...emptyGuardian } }));
-    }
     setStep('player_b');
   }
 
   function nextFromPlayerB() {
     setError(null);
-    if (isMinor(draft.player_b.birth_date) && !draft.guardian_b) {
-      setDraft((prev) => ({ ...prev, guardian_b: { ...emptyGuardian } }));
-    }
     setStep('category');
   }
 
@@ -140,8 +128,6 @@ export function RegistrationWizard({
       captain: draft.captain,
       category_level: draft.category_level,
       fee_mode: draft.fee_mode,
-      guardian_a: draft.guardian_a,
-      guardian_b: draft.guardian_b,
       consent_data_processing: draft.consent_data_processing as true,
       consent_results_publication: draft.consent_results_publication,
       consent_whatsapp: draft.consent_whatsapp,
@@ -187,13 +173,6 @@ export function RegistrationWizard({
           player={draft.player_a}
           locale={locale}
           onChange={(patch) => updatePlayer('a', patch)}
-          guardian={draft.guardian_a}
-          onGuardianChange={(patch) =>
-            setDraft((prev) => ({
-              ...prev,
-              guardian_a: { ...(prev.guardian_a ?? emptyGuardian), ...patch },
-            }))
-          }
           onNext={nextFromPlayerA}
         />
       )}
@@ -204,13 +183,6 @@ export function RegistrationWizard({
           player={draft.player_b}
           locale={locale}
           onChange={(patch) => updatePlayer('b', patch)}
-          guardian={draft.guardian_b}
-          onGuardianChange={(patch) =>
-            setDraft((prev) => ({
-              ...prev,
-              guardian_b: { ...(prev.guardian_b ?? emptyGuardian), ...patch },
-            }))
-          }
           onBack={() => setStep('player_a')}
           onNext={nextFromPlayerB}
         />
@@ -289,8 +261,6 @@ function PlayerForm({
   player,
   locale,
   onChange,
-  guardian,
-  onGuardianChange,
   onBack,
   onNext,
 }: {
@@ -298,14 +268,12 @@ function PlayerForm({
   player: typeof emptyPlayer;
   locale: 'ca' | 'es';
   onChange: (patch: Partial<typeof emptyPlayer>) => void;
-  guardian?: typeof emptyGuardian;
-  onGuardianChange: (patch: Partial<typeof emptyGuardian>) => void;
   onBack?: () => void;
   onNext: () => void;
 }) {
   const t = useTranslations('registration');
   const [localError, setLocalError] = useState<string | null>(null);
-  const showGuardian = player.birth_date && isMinor(player.birth_date);
+  const playerIsMinor = Boolean(player.birth_date) && isMinor(player.birth_date);
   const msgs = VALIDATION_MESSAGES[locale];
 
   function handleNext() {
@@ -316,18 +284,6 @@ function PlayerForm({
     if (!player.emergency_contact_name.trim() || !player.emergency_contact_phone.trim())
       return setLocalError(msgs.emergency);
     if (!player.health_declaration_signed) return setLocalError(msgs.health);
-    if (showGuardian) {
-      const g = guardian;
-      if (
-        !g ||
-        !g.legal_guardian_name.trim() ||
-        g.legal_guardian_dni.trim().length < 8 ||
-        !g.legal_guardian_phone.trim() ||
-        !isValidEmail(g.legal_guardian_email)
-      ) {
-        return setLocalError(msgs.guardian);
-      }
-    }
     setLocalError(null);
     onNext();
   }
@@ -367,39 +323,15 @@ function PlayerForm({
         />
       </div>
 
-      {showGuardian && guardian && (
-        <div className="border-border space-y-3 rounded-md border p-4">
-          <h3 className="text-sm font-medium">{t('guardian_title')}</h3>
-          <p className="text-muted-foreground text-xs">{t('guardian_subtitle')}</p>
-          <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-            {locale === 'ca'
-              ? "El jugador és menor d'edat: el pare/mare o tutor legal haurà d'aportar una declaració signada autoritzant la seva participació al torneig."
-              : 'El jugador es menor de edad: el padre/madre o tutor legal deberá aportar una declaración firmada autorizando su participación en el torneo.'}
-          </p>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <LabeledInput
-              label={t('guardian_name')}
-              value={guardian.legal_guardian_name}
-              onChange={(v) => onGuardianChange({ legal_guardian_name: v })}
-            />
-            <LabeledInput
-              label={t('guardian_dni')}
-              value={guardian.legal_guardian_dni}
-              onChange={(v) => onGuardianChange({ legal_guardian_dni: v })}
-            />
-            <LabeledInput
-              label={t('guardian_phone')}
-              value={guardian.legal_guardian_phone}
-              type="tel"
-              onChange={(v) => onGuardianChange({ legal_guardian_phone: v })}
-            />
-            <LabeledInput
-              label={t('guardian_email')}
-              value={guardian.legal_guardian_email}
-              type="email"
-              onChange={(v) => onGuardianChange({ legal_guardian_email: v })}
-            />
-          </div>
+      {playerIsMinor && (
+        <div
+          role="alert"
+          className="space-y-1 rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/40"
+        >
+          <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+            {locale === 'ca' ? 'Avís: menor de 18 anys' : 'Aviso: menor de 18 años'}
+          </h3>
+          <p className="text-sm text-amber-800 dark:text-amber-200">{MINOR_WARNING[locale]}</p>
         </div>
       )}
 

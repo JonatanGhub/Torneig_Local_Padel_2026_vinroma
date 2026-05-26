@@ -17,6 +17,7 @@ import { CourtCarousel } from '@/components/brand/court-carousel';
 import { LogoLockup } from '@/components/brand/logo-mark';
 import { InterestSubscribe } from '@/components/public/interest-subscribe';
 import { LocaleSwitcher } from '@/components/locale-switcher';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -115,6 +116,7 @@ export default async function LandingPage({ params }: Props) {
             <NavLink href={`/${locale}/quadre`}>{t('navigation.knockout')}</NavLink>
             <NavLink href={`/${locale}/calendari`}>{t('navigation.calendar')}</NavLink>
             <LocaleSwitcher current={locale} className="ml-1" />
+            <ThemeToggle variant="dark" className="ml-1" />
             <Link
               href={`/${locale}/login`}
               className="text-ink-900 ml-2 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold transition-transform hover:scale-105"
