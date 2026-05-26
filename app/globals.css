@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 
+/* Make Tailwind's `dark:` variant react to the `.dark` class on <html>,
+   set by next-themes, rather than only to prefers-color-scheme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: var(--font-display), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

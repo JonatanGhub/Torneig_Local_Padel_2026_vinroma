@@ -17,6 +17,7 @@ import {
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { LocaleSwitcher } from '@/components/locale-switcher';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 type Props = {
   children: ReactNode;
@@ -56,6 +57,7 @@ export default async function AdminLayout({ children, params }: Props) {
             {t('sidebar_title')}
           </span>
           <LocaleSwitcher current={locale} tone="light" />
+          <ThemeToggle />
         </div>
       </header>
 
