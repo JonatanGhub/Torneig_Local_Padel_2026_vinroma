@@ -272,7 +272,7 @@ export type Database = {
     Functions: {
       current_active_fee: {
         Args: { p_tournament_id: string; p_at?: string };
-        Returns: TournamentFeeRow | null;
+        Returns: TournamentFeeRow[];
       };
       generate_payment_reference: {
         Args: { p_pair_id: string; p_payer_player_id: string; p_mode: 'per_pair' | 'per_player' };

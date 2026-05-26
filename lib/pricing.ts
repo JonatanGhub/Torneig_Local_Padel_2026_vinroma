@@ -22,7 +22,10 @@ export async function getActiveFee(tournamentId: string, at: Date = new Date()) 
   });
 
   if (error) throw error;
-  return data as ActiveFee | null;
+  // current_active_fee is `returns setof tournament_fees`; if no tier matches
+  // the supplied date the resultset is empty.
+  const rows = (data ?? []) as ActiveFee[];
+  return rows[0] ?? null;
 }
 
 export async function getTournamentFees(
