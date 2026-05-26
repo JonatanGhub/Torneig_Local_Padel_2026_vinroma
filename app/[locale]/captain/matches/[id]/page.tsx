@@ -1,11 +1,10 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Clock } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { ReportForm } from './report-form';
-import { ReschedulePanel } from './reschedule-panel';
 
 type Props = { params: Promise<{ locale: Locale; id: string }> };
 
@@ -71,15 +70,18 @@ export default async function CaptainMatchPage({ params }: Props) {
     reports?.find((r) => r.reporter_pair_side !== mySide && r.reporter_pair_side !== 'admin') ??
     null;
 
-  const { data: proposals } = await supabase
-    .from('match_reschedule_proposals')
-    .select(
-      'id, proposer_pair_side, new_scheduled_at, new_court_label, message, status, created_at',
-    )
-    .eq('match_id', matchId)
-    .order('created_at', { ascending: false });
-  const pendingProposal = proposals?.find((p) => p.status === 'pending') ?? null;
-  const historyProposals = (proposals ?? []).filter((p) => p.status !== 'pending');
+  // El resultat només es pot pujar si el partit ja s'ha jugat: la data de
+  // programació ha de ser al passat. Si no hi ha data, encara no es pot.
+  // Excepció: si el partit ja està pending_validation/disputed/validated, ja hi
+  // ha algun report registrat — sempre cal poder accedir-hi per veure'l.
+  const now = Date.now();
+  const isPlayed = match.scheduled_at ? new Date(match.scheduled_at).getTime() <= now : false;
+  const hasReportHistory =
+    match.status === 'pending_validation' ||
+    match.status === 'disputed' ||
+    match.status === 'validated' ||
+    match.status === 'walkover';
+  const canReport = isPlayed || hasReportHistory;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-8">
@@ -116,20 +118,32 @@ export default async function CaptainMatchPage({ params }: Props) {
         </p>
       )}
 
-      <ReportForm
-        matchId={match.id}
-        defaultScore={myReport?.score_json ?? rivalReport?.score_json ?? null}
-        readOnly={match.status === 'validated' || match.status === 'walkover'}
-      />
-
-      {match.status !== 'validated' && match.status !== 'walkover' && (
-        <ReschedulePanel
-          locale={locale}
+      {canReport ? (
+        <ReportForm
           matchId={match.id}
-          mySide={mySide}
-          pending={pendingProposal}
-          history={historyProposals}
+          defaultScore={myReport?.score_json ?? rivalReport?.score_json ?? null}
+          readOnly={match.status === 'validated' || match.status === 'walkover'}
         />
+      ) : (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/40">
+          <div className="flex items-start gap-3">
+            <Clock className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-300" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                {t('captain.cannot_report_yet_title')}
+              </p>
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                {match.scheduled_at
+                  ? t('captain.cannot_report_yet_body_scheduled', {
+                      date: new Date(match.scheduled_at).toLocaleString(
+                        locale === 'ca' ? 'ca-ES' : 'es-ES',
+                      ),
+                    })
+                  : t('captain.cannot_report_yet_body_unscheduled')}
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

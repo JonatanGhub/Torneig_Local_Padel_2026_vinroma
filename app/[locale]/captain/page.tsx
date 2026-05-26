@@ -211,10 +211,18 @@ export default async function CaptainHome({ params }: Props) {
             <ul className="space-y-3">
               {upcoming.map((m) => {
                 const rivalPairId = myPairIds.includes(m.pair_a_id) ? m.pair_b_id : m.pair_a_id;
+                const isPlayed = m.scheduled_at
+                  ? new Date(m.scheduled_at).getTime() <= Date.now()
+                  : false;
+                // Resultats: només es pot pujar a partir de l'hora del partit
+                // (o quan ja hi ha un report registrat).
+                const canReport =
+                  isPlayed || m.status === 'pending_validation' || m.status === 'disputed';
                 return (
                   <MatchCard
                     key={m.id}
-                    href={`/${locale}/captain/matches/${m.id}`}
+                    reportHref={`/${locale}/captain/matches/${m.id}`}
+                    rescheduleHref={`/${locale}/captain/matches/${m.id}/reschedule`}
                     locale={locale}
                     rival={pairLabel(rivalPairId)}
                     category={categoryLabel.get(m.category_id) ?? ''}
@@ -222,13 +230,16 @@ export default async function CaptainHome({ params }: Props) {
                     scheduledAt={m.scheduled_at}
                     courtLabel={m.court_label}
                     status={m.status}
-                    cta={
+                    canReport={canReport}
+                    reportCta={
                       m.status === 'pending_validation'
                         ? t('captain.review_result')
                         : m.status === 'disputed'
                           ? t('captain.disputed')
                           : t('captain.report_result')
                     }
+                    rescheduleCta={t('captain.propose_reschedule_cta')}
+                    cannotReportLabel={t('captain.report_locked_until_match')}
                     statusLabel={
                       m.status === 'pending_validation'
                         ? t('captain.match_pill_pending')
@@ -311,7 +322,8 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 function MatchCard({
-  href,
+  reportHref,
+  rescheduleHref,
   locale,
   rival,
   category,
@@ -319,10 +331,14 @@ function MatchCard({
   scheduledAt,
   courtLabel,
   status,
-  cta,
+  canReport,
+  reportCta,
+  rescheduleCta,
+  cannotReportLabel,
   statusLabel,
 }: {
-  href: string;
+  reportHref: string;
+  rescheduleHref: string;
   locale: string;
   rival: string;
   category: string;
@@ -330,7 +346,10 @@ function MatchCard({
   scheduledAt: string | null;
   courtLabel: string | null;
   status: string;
-  cta: string;
+  canReport: boolean;
+  reportCta: string;
+  rescheduleCta: string;
+  cannotReportLabel: string;
   statusLabel: string;
 }) {
   const pillTone =
@@ -342,7 +361,7 @@ function MatchCard({
 
   return (
     <li className="glass-card hover:border-crimson-400/40 group rounded-2xl p-5 transition-colors">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <Users className="text-crimson-300 size-4" />
@@ -370,12 +389,30 @@ function MatchCard({
             <span>· {courtLabel ?? '—'}</span>
           </p>
         </div>
-        <Link
-          href={href}
-          className="bg-crimson-600 hover:bg-crimson-500 inline-flex items-center gap-1.5 self-start rounded-full px-4 py-2 text-xs font-semibold text-white transition-colors sm:self-center"
-        >
-          {cta}
-        </Link>
+        <div className="flex flex-col gap-2 sm:items-end">
+          {canReport ? (
+            <Link
+              href={reportHref}
+              className="bg-crimson-600 hover:bg-crimson-500 inline-flex items-center justify-center gap-1.5 self-start rounded-full px-4 py-2 text-xs font-semibold text-white transition-colors sm:self-end"
+            >
+              {reportCta}
+            </Link>
+          ) : (
+            <span
+              className="inline-flex cursor-not-allowed items-center justify-center gap-1.5 self-start rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/45 sm:self-end"
+              title={cannotReportLabel}
+            >
+              {reportCta}
+            </span>
+          )}
+          <Link
+            href={rescheduleHref}
+            className="inline-flex items-center justify-center gap-1.5 self-start rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/85 transition-colors hover:bg-white/10 sm:self-end"
+          >
+            <CalendarClock className="size-3" />
+            {rescheduleCta}
+          </Link>
+        </div>
       </div>
     </li>
   );
