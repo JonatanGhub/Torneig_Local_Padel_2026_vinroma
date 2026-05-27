@@ -122,10 +122,12 @@ export async function GET(request: Request, { params }: Params) {
 }
 
 function icsHeaders() {
+  // Sense Content-Disposition: alguns clients (incloent Google Calendar
+  // "add by URL") rebutgen el feed quan veuen `inline; filename=...` perquè
+  // l'interpreten com a descàrrega de fitxer i no com a flux de calendari.
   return {
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': 'inline; filename="padel-vinroma.ics"',
       'Cache-Control': 'public, max-age=300',
     },
   };

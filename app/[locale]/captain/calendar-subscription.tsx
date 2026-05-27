@@ -31,9 +31,13 @@ export function CalendarSubscriptionCard({
     }
   }
 
-  // Google: subscribe-by-URL deep link. Funciona a Android, iOS web i desktop.
-  const googleUrl = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feedUrl)}`;
-  // Outlook web: addsubscription deep link.
+  // Google Calendar "add by URL" deep link. El paràmetre `cid` ha de portar
+  // la URL CRUA, sense url-encoded — si es codifiquen els `:` i `/`, Google
+  // respon "no se puede añadir el calendario, comprueba la URL". L'única
+  // cosa que cal escapar és el `?` del query string intern del feed
+  // (`?lang=...`), perquè si no Google el confon amb un paràmetre seu.
+  const googleUrl = `https://calendar.google.com/calendar/r?cid=${feedUrl.replace('?', '%3F')}`;
+  // Outlook web: el seu endpoint sí accepta url-encoded.
   const outlookUrl = `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(
     feedUrl,
   )}&name=${encodeURIComponent('Pàdel les Coves')}`;
