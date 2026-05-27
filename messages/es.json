@@ -98,6 +98,7 @@
     "use_different_email": "Volver y usar otro correo",
     "email_invalid": "El correo no es válido.",
     "code_invalid": "El código debe ser de 6 dígitos numéricos.",
+    "link_failed_use_code": "El enlace mágico no ha funcionado (puede que ya se haya abierto o haya caducado). Solicita un correo nuevo y, si vuelve a pasar, usa el código de 6 dígitos.",
     "logout_success": "Has salido correctamente"
   },
   "registration": {

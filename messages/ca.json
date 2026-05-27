@@ -98,6 +98,7 @@
     "use_different_email": "Tornar i fer servir un altre correu",
     "email_invalid": "El correu no és vàlid.",
     "code_invalid": "El codi ha de ser de 6 dígits numèrics.",
+    "link_failed_use_code": "L'enllaç màgic no ha funcionat (potser ja s'havia obert o ha caducat). Sol·licita un correu nou i, si torna a passar, utilitza el codi de 6 dígits.",
     "logout_success": "Has sortit correctament"
   },
   "registration": {
