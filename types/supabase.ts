@@ -141,6 +141,7 @@ type MatchRow = {
   pair_b_id: string;
   status: 'scheduled' | 'pending_validation' | 'validated' | 'disputed' | 'walkover';
   winner_pair_id: string | null;
+  reminder_sent_at: string | null;
   created_at: string;
   updated_at: string;
 };
