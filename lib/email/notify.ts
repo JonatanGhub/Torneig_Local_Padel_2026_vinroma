@@ -12,6 +12,7 @@ import { sendEmail } from './send';
 import RescheduleProposed from './templates/reschedule-proposed';
 import MatchValidated from './templates/match-validated';
 import MatchDisputed from './templates/match-disputed';
+import ResultPendingValidation from './templates/result-pending-validation';
 
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ?? 'https://torneigpadelvinroma-v-2026.vercel.app'
@@ -195,6 +196,74 @@ export async function notifyMatchValidated(matchId: string) {
     }
   } catch (err) {
     console.warn('[email] notifyMatchValidated failed', err);
+  }
+}
+
+// =========================================================================
+// 2b) Resultado reportado (pendiente de validar) → email al CAPITÁN RIVAL
+//     (el que aún no ha reportado) para que lo confirme en la app.
+// =========================================================================
+export async function notifyResultPendingValidation(matchId: string, reporterSide: 'a' | 'b') {
+  try {
+    const supabase = createServiceClient();
+
+    const { data: match } = await supabase
+      .from('matches')
+      .select('id, pair_a_id, pair_b_id, status')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (!match || match.status !== 'pending_validation') return;
+
+    const rivalPairId = reporterSide === 'a' ? match.pair_b_id : match.pair_a_id;
+    const reporterPairId = reporterSide === 'a' ? match.pair_a_id : match.pair_b_id;
+
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, captain_id, player_a_id, player_b_id')
+      .in('id', [match.pair_a_id, match.pair_b_id]);
+    if (!pairs) return;
+
+    const allPlayerIds = pairs.flatMap((p) => [p.captain_id, p.player_a_id, p.player_b_id]);
+    const { data: players } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, email')
+      .in('id', allPlayerIds);
+
+    const pairLabelOf = (pairId: string) => {
+      const pair = pairs.find((p) => p.id === pairId);
+      if (!pair) return '—';
+      return lastNamesPair(
+        players?.find((p) => p.id === pair.player_a_id),
+        players?.find((p) => p.id === pair.player_b_id),
+      );
+    };
+
+    const rivalPair = pairs.find((p) => p.id === rivalPairId);
+    if (!rivalPair) return;
+    const rivalCaptain = players?.find((p) => p.id === rivalPair.captain_id);
+    if (!rivalCaptain?.email) return;
+
+    const { data: report } = await supabase
+      .from('match_reports')
+      .select('score_json')
+      .eq('match_id', matchId)
+      .eq('reporter_pair_side', reporterSide)
+      .maybeSingle();
+    const scoreText = scoreToText(report?.score_json) || '—';
+
+    await sendEmail({
+      to: rivalCaptain.email,
+      subject: `Resultat per confirmar · ${pairLabelOf(reporterPairId)} vs ${pairLabelOf(rivalPairId)}`,
+      react: ResultPendingValidation({
+        rivalCaptainName: fullName(rivalCaptain),
+        reporterLabel: pairLabelOf(reporterPairId),
+        rivalLabel: pairLabelOf(rivalPairId),
+        scoreText,
+        actionUrl: `${SITE_URL}/ca/captain/matches/${matchId}`,
+      }),
+    });
+  } catch (err) {
+    console.warn('[email] notifyResultPendingValidation failed', err);
   }
 }
 

@@ -7,7 +7,14 @@ import {
   notifyMatchDisputed,
   notifyMatchValidated,
   notifyRescheduleProposed,
+  notifyResultPendingValidation,
 } from '@/lib/email/notify';
+import {
+  notifyMatchDisputedWhatsApp,
+  notifyMatchValidatedWhatsApp,
+  notifyRescheduleProposedWhatsApp,
+  notifyResultPendingValidationWhatsApp,
+} from '@/lib/whatsapp/notify';
 
 const SetSchema = z.object({
   set: z.number().int().min(1).max(3),
@@ -64,10 +71,17 @@ export async function submitReport(formData: FormData) {
     .select('status')
     .eq('id', matchId)
     .maybeSingle();
+  const reporterSide = data === 'a' || data === 'b' ? (data as 'a' | 'b') : null;
   if (matchAfter?.status === 'validated') {
     await notifyMatchValidated(matchId);
+    await notifyMatchValidatedWhatsApp(matchId);
   } else if (matchAfter?.status === 'disputed') {
     await notifyMatchDisputed(matchId);
+    await notifyMatchDisputedWhatsApp(matchId);
+  } else if (matchAfter?.status === 'pending_validation' && reporterSide) {
+    // Primer report: avisa el capità rival perquè el confirmi.
+    await notifyResultPendingValidation(matchId, reporterSide);
+    await notifyResultPendingValidationWhatsApp(matchId, reporterSide);
   }
 
   revalidatePath('/[locale]/captain', 'page');
@@ -111,6 +125,7 @@ export async function proposeReschedule(formData: FormData) {
   // Notificar al capitán rival en background (errores no rompen la mutación).
   if (typeof data === 'string') {
     await notifyRescheduleProposed(data);
+    await notifyRescheduleProposedWhatsApp(data);
   }
 
   revalidatePath('/[locale]/captain', 'page');
