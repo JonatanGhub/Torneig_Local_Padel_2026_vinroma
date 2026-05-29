@@ -1,0 +1,67 @@
+name: DB Backup
+
+# Daily logical backup of the Supabase Postgres database as a safety net on top
+# of Supabase's own managed backups. Stored as a workflow artifact (30 days).
+#
+# Requires the repository secret SUPABASE_DB_URL (Project Settings → Database →
+# Connection string / URI). If the secret is absent the job is skipped, so the
+# workflow never fails noisily before it is configured.
+
+on:
+  schedule:
+    # 03:15 UTC daily (~05:15 Europe/Madrid in summer) — low-traffic window.
+    - cron: '15 3 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  pg_dump:
+    name: pg_dump → artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Guard — secret present
+        id: guard
+        run: |
+          if [ -z "${{ secrets.SUPABASE_DB_URL }}" ]; then
+            echo "SUPABASE_DB_URL not set; skipping backup."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install postgresql-client 17
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump database (gzip, custom + plain)
+        if: steps.guard.outputs.run == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          mkdir -p backup
+          # Plain SQL (human-readable, easy partial restore) + gzipped.
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges \
+            | gzip -9 > "backup/padel-${STAMP}.sql.gz"
+          # Custom format (selective restore via pg_restore).
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -Fc \
+            -f "backup/padel-${STAMP}.dump"
+          ls -lh backup
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+
+      - name: Upload backup artifact
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ env.STAMP }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error
