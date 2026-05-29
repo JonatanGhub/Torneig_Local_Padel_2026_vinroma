@@ -16,6 +16,7 @@ import { formatCents, getTournamentFees, type PublicFee } from '@/lib/pricing';
 import { CourtCarousel } from '@/components/brand/court-carousel';
 import { LogoLockup } from '@/components/brand/logo-mark';
 import { InterestSubscribe } from '@/components/public/interest-subscribe';
+import { TodayMatches } from '@/components/public/today-matches';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 
@@ -187,6 +188,12 @@ export default async function LandingPage({ params }: Props) {
           </div>
         </div>
       </section>
+
+      <TodayMatches
+        locale={locale}
+        title={t('public.today_title')}
+        emptyLabel={t('public.today_empty')}
+      />
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-3">

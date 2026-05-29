@@ -4,6 +4,7 @@ import { ArrowLeft, Trophy } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { MatchCard } from '@/components/match/match-card';
 
 type Props = { params: Promise<{ locale: Locale; level: string }> };
 
@@ -31,6 +32,8 @@ export default async function GroupPage({ params }: Props) {
     .maybeSingle();
   if (!category) notFound();
 
+  const categoryLabel = locale === 'ca' ? category.name_ca : category.name_es;
+
   const { data: groups } = await supabase
     .from('groups')
     .select('id, label')
@@ -57,7 +60,7 @@ export default async function GroupPage({ params }: Props) {
   const { data: matches } = await supabase
     .from('matches')
     .select(
-      'id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id',
+      'id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id, category_id, phase',
     )
     .eq('category_id', category.id)
     .eq('phase', 'group')
@@ -81,7 +84,7 @@ export default async function GroupPage({ params }: Props) {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-8">
+    <main className="mx-auto flex min-h-screen max-w-4xl flex-col px-6 py-8">
       <Link
         href={`/${locale}/grups`}
         className="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-1 text-sm"
@@ -91,9 +94,7 @@ export default async function GroupPage({ params }: Props) {
       </Link>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold tracking-tight">
-          {locale === 'ca' ? category.name_ca : category.name_es}
-        </h1>
+        <h1 className="text-3xl font-bold tracking-tight">{categoryLabel}</h1>
         {hasBracket && (
           <Link
             href={`/${locale}/quadre/${category.level}`}
@@ -109,7 +110,7 @@ export default async function GroupPage({ params }: Props) {
         <p className="text-muted-foreground text-sm">{t('groups.not_drawn')}</p>
       )}
 
-      <div className="space-y-10">
+      <div className="space-y-12">
         {(groups ?? []).map((g) => {
           const groupStandings = (standings ?? [])
             .filter((s) => s.group_id === g.id)
@@ -117,7 +118,7 @@ export default async function GroupPage({ params }: Props) {
               if (a.matches_won !== b.matches_won) return b.matches_won - a.matches_won;
               if (a.sets_diff !== b.sets_diff) return b.sets_diff - a.sets_diff;
               if (a.games_diff !== b.games_diff) return b.games_diff - a.games_diff;
-              // §7: desempat final per enfrontament directe (cara a cara).
+              // §7: head-to-head tiebreaker.
               const direct = (matches ?? []).find(
                 (m) =>
                   (m.status === 'validated' || m.status === 'walkover') &&
@@ -132,35 +133,42 @@ export default async function GroupPage({ params }: Props) {
           const groupMatches = (matches ?? []).filter((m) => m.group_label === g.label);
 
           return (
-            <section key={g.id} className="space-y-4">
+            <section key={g.id} className="space-y-5">
               <h2 className="text-xl font-semibold">
                 {t('groups.group_label', { label: g.label })}
               </h2>
 
-              <div className="overflow-x-auto">
-                <table className="border-border w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-border border-b text-left">
-                      <th className="py-2 pr-3">#</th>
-                      <th className="py-2 pr-3">{t('groups.pair')}</th>
-                      <th className="py-2 pr-3 text-right">{t('groups.played')}</th>
-                      <th className="py-2 pr-3 text-right">{t('groups.won')}</th>
-                      <th className="py-2 pr-3 text-right">{t('groups.sets_diff')}</th>
-                      <th className="py-2 pr-3 text-right">{t('groups.games_diff')}</th>
+              <div className="border-border overflow-hidden rounded-xl border">
+                <table className="w-full text-sm">
+                  <thead className="bg-[hsl(var(--muted))]/40">
+                    <tr className="text-xs tracking-wide text-[hsl(var(--muted-foreground))] uppercase">
+                      <th className="px-4 py-3 text-left font-medium">#</th>
+                      <th className="px-4 py-3 text-left font-medium">{t('groups.pair')}</th>
+                      <th className="px-4 py-3 text-right font-medium">{t('groups.played')}</th>
+                      <th className="px-4 py-3 text-right font-medium">{t('groups.won')}</th>
+                      <th className="px-4 py-3 text-right font-medium">{t('groups.sets_diff')}</th>
+                      <th className="px-4 py-3 text-right font-medium">{t('groups.games_diff')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {groupStandings.map((s, idx) => (
-                      <tr key={s.pair_id} className="border-border border-b">
-                        <td className="py-2 pr-3 font-mono">{idx + 1}</td>
-                        <td className="py-2 pr-3">{pairLabel(s.pair_id)}</td>
-                        <td className="py-2 pr-3 text-right">{s.matches_played}</td>
-                        <td className="py-2 pr-3 text-right">{s.matches_won}</td>
-                        <td className="py-2 pr-3 text-right">
+                      <tr
+                        key={s.pair_id}
+                        className={`border-t border-[hsl(var(--border))] ${
+                          idx % 2 === 1 ? 'bg-[hsl(var(--muted))]/20' : ''
+                        }`}
+                      >
+                        <td className="px-4 py-3 font-mono text-[hsl(var(--muted-foreground))]">
+                          {idx + 1}
+                        </td>
+                        <td className="px-4 py-3 font-medium">{pairLabel(s.pair_id)}</td>
+                        <td className="px-4 py-3 text-right">{s.matches_played}</td>
+                        <td className="px-4 py-3 text-right">{s.matches_won}</td>
+                        <td className="px-4 py-3 text-right">
                           {s.sets_diff > 0 ? '+' : ''}
                           {s.sets_diff}
                         </td>
-                        <td className="py-2 pr-3 text-right">
+                        <td className="px-4 py-3 text-right">
                           {s.games_diff > 0 ? '+' : ''}
                           {s.games_diff}
                         </td>
@@ -170,30 +178,38 @@ export default async function GroupPage({ params }: Props) {
                 </table>
               </div>
 
-              <details className="text-sm">
-                <summary className="cursor-pointer">
-                  {t('groups.matches_label', { count: groupMatches.length })}
-                </summary>
-                <ul className="mt-3 space-y-1">
+              {groupMatches.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {groupMatches.map((m) => (
-                    <li key={m.id} className="text-muted-foreground text-xs">
-                      <span className="font-mono">
-                        {m.scheduled_at
-                          ? new Date(m.scheduled_at).toLocaleString(
-                              locale === 'ca' ? 'ca-ES' : 'es-ES',
-                              { dateStyle: 'short', timeStyle: 'short' },
-                            )
-                          : '—'}{' '}
-                        · {m.court_label ?? '—'}
-                      </span>{' '}
-                      · {pairLabel(m.pair_a_id)} vs {pairLabel(m.pair_b_id)}{' '}
-                      <span className="text-foreground">
-                        ({t(`groups.match_status_${m.status}` as 'groups.match_status_scheduled')})
-                      </span>
-                    </li>
+                    <MatchCard
+                      key={m.id}
+                      category={categoryLabel}
+                      groupLabel={m.group_label}
+                      phase="group"
+                      pairALabel={pairLabel(m.pair_a_id)}
+                      pairBLabel={pairLabel(m.pair_b_id)}
+                      scheduledAt={m.scheduled_at}
+                      courtLabel={m.court_label}
+                      status={
+                        m.status as
+                          | 'scheduled'
+                          | 'pending_validation'
+                          | 'validated'
+                          | 'disputed'
+                          | 'walkover'
+                      }
+                      winnerLabel={
+                        m.winner_pair_id === m.pair_a_id
+                          ? 'a'
+                          : m.winner_pair_id === m.pair_b_id
+                            ? 'b'
+                            : null
+                      }
+                      locale={locale}
+                    />
                   ))}
-                </ul>
-              </details>
+                </div>
+              )}
             </section>
           );
         })}
