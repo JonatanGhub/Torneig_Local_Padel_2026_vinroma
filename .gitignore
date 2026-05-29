@@ -43,6 +43,10 @@ next-env.d.ts
 # Vercel
 .vercel
 
+# Sentry (generated)
+.sentryclirc
+.env.sentry-build-plugin
+
 # Supabase local
 supabase/.branches
 supabase/.temp
