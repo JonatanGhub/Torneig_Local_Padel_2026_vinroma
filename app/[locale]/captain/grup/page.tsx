@@ -44,10 +44,7 @@ export default async function CaptainGroupPage({ params }: Props) {
           title={t('captain.group_page_title')}
           subtitle={t('captain.group_page_subtitle')}
         />
-        <EmptyState
-          title={t('captain.group_empty_title')}
-          body={t('captain.group_empty_body')}
-        />
+        <EmptyState title={t('captain.group_empty_title')} body={t('captain.group_empty_body')} />
       </main>
     );
   }
@@ -115,10 +112,7 @@ export default async function CaptainGroupPage({ params }: Props) {
     const group = (groups ?? []).find((g) => g.id === groupId);
     if (!group) {
       content[p.id] = (
-        <EmptyState
-          title={t('captain.group_empty_title')}
-          body={t('captain.group_empty_body')}
-        />
+        <EmptyState title={t('captain.group_empty_title')} body={t('captain.group_empty_body')} />
       );
       continue;
     }
@@ -274,9 +268,7 @@ function StandingsTable({
           <li
             key={s.position}
             className={`rounded-xl border p-3 text-sm ${
-              s.isMine
-                ? 'border-crimson-500/50 bg-crimson-600/10'
-                : 'border-white/10 bg-white/5'
+              s.isMine ? 'border-crimson-500/50 bg-crimson-600/10' : 'border-white/10 bg-white/5'
             }`}
           >
             <div className="flex items-center justify-between gap-2">

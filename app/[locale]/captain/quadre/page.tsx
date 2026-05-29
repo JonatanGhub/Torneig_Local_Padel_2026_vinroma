@@ -61,9 +61,7 @@ export default async function CaptainQuadrePage({ params }: Props) {
     : { data: [] };
 
   // Top up pair labels for any new pair ids in the bracket.
-  const allPairIds = Array.from(
-    new Set(koMatches.flatMap((m) => [m.pair_a_id, m.pair_b_id])),
-  );
+  const allPairIds = Array.from(new Set(koMatches.flatMap((m) => [m.pair_a_id, m.pair_b_id])));
   const missing = allPairIds.filter((id) => !pairLabels.has(id));
   if (missing.length) {
     const { data: extra } = await supabase

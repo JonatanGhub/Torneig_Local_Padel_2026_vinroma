@@ -173,9 +173,7 @@ function Segmented<T extends string>({
           onClick={() => onChange(opt.value)}
           className={cn(
             'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-            value === opt.value
-              ? 'bg-crimson-600 text-white'
-              : 'text-white/65 hover:text-white',
+            value === opt.value ? 'bg-crimson-600 text-white' : 'text-white/65 hover:text-white',
           )}
         >
           {opt.icon}

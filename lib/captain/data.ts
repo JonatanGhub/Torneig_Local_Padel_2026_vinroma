@@ -122,10 +122,7 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     new Set(myPairs.map((p) => (p.player_a_id === player.id ? p.player_b_id : p.player_a_id))),
   );
   const allPlayerIds = Array.from(
-    new Set([
-      ...(pairsData ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]),
-      ...partnerIds,
-    ]),
+    new Set([...(pairsData ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]), ...partnerIds]),
   );
   const { data: pubNames } = allPlayerIds.length
     ? await supabase.from('public_player_names').select('id, last_name').in('id', allPlayerIds)
@@ -133,10 +130,7 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
   const lastNameMap = new Map(pubNames?.map((p) => [p.id, p.last_name ?? '—']) ?? []);
 
   const { data: partnerRows } = partnerIds.length
-    ? await supabase
-        .from('players')
-        .select('id, first_name, last_name')
-        .in('id', partnerIds)
+    ? await supabase.from('players').select('id, first_name, last_name').in('id', partnerIds)
     : { data: [] };
   const partnerNameById = new Map(
     (partnerRows ?? []).map((p) => [
@@ -158,9 +152,7 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     partnerLabels.set(p.id, partnerNameById.get(partnerId) ?? '—');
   }
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, name_ca, name_es');
+  const { data: categories } = await supabase.from('categories').select('id, name_ca, name_es');
   const categoryLabels = new Map(
     (categories ?? []).map((c) => [c.id, locale === 'ca' ? c.name_ca : c.name_es]),
   );
