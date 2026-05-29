@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
 
 const emailSchema = z.object({ email: z.string().email() });
-const codeSchema = z.object({ token: z.string().regex(/^\d{6}$/) });
+const codeSchema = z.object({ token: z.string().regex(/^\d{4,8}$/) });
 
 export function LoginForm({ next }: { next?: string | null }) {
   const t = useTranslations('auth');
@@ -107,11 +107,11 @@ export function LoginForm({ next }: { next?: string | null }) {
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
-              pattern="\d{6}"
-              placeholder="123456"
+              maxLength={8}
+              pattern="\d{4,8}"
+              placeholder="12345678"
               value={token}
-              onChange={(e) => setToken(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setToken(e.target.value.replace(/\D/g, '').slice(0, 8))}
               disabled={isPending}
               required
             />
