@@ -294,6 +294,10 @@ export type Database = {
         Args: { p_match_id: string; p_scheduled_at: string; p_court_label: string };
         Returns: undefined;
       };
+      bulk_schedule_matches: {
+        Args: { p_assignments: Json };
+        Returns: number;
+      };
       submit_match_report: {
         Args: { p_match_id: string; p_score: Json };
         Returns: string;

@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { ScheduleForm } from './schedule-form';
+import { AutoScheduleButton } from './auto-schedule-button';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
@@ -85,10 +86,12 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
     <section className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{t('matches_title')}</h1>
-        <div className="flex flex-wrap gap-2 text-xs">
-          <CategoryFilter categories={categories ?? []} current={sp.category} locale={locale} />
-        </div>
+        <AutoScheduleButton />
       </header>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        <CategoryFilter categories={categories ?? []} current={sp.category} locale={locale} />
+      </div>
 
       {!matches || matches.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t('matches_empty')}</p>
