@@ -55,6 +55,7 @@ type PlayerRow = {
   legal_guardian_dni: string | null;
   legal_guardian_phone: string | null;
   legal_guardian_email: string | null;
+  pin_hash: string | null;
   is_minor: boolean;
   health_declaration_signed: boolean;
   health_declaration_signed_at: string | null;
@@ -241,6 +242,15 @@ export type InterestSubscriptionRow = {
   created_at: string;
 };
 
+export type CaptainDeviceRow = {
+  id: string;
+  player_id: string;
+  device_id: string;
+  device_label: string | null;
+  last_used_at: string | null;
+  created_at: string;
+};
+
 type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
 
 export type Database = {
@@ -262,6 +272,7 @@ export type Database = {
       audit_log: Tbl<AuditLogRow>;
       club_settings: Tbl<ClubSettingsRow>;
       interest_subscriptions: Tbl<InterestSubscriptionRow>;
+      captain_devices: Tbl<CaptainDeviceRow>;
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };

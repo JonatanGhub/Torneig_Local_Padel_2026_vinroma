@@ -36,10 +36,12 @@ export async function verifyPin(pin: string, hash: string): Promise<boolean> {
   try {
     const parts = hash.split('$');
     if (parts.length !== 4 || parts[0] !== 'pbkdf2') return false;
-    const iter = Number.parseInt(parts[1], 10);
+    const [, iterStr, saltHex, hashHex] = parts;
+    if (!iterStr || !saltHex || !hashHex) return false;
+    const iter = Number.parseInt(iterStr, 10);
     if (!Number.isFinite(iter) || iter <= 0) return false;
-    const salt = Buffer.from(parts[2], 'hex');
-    const expected = Buffer.from(parts[3], 'hex');
+    const salt = Buffer.from(saltHex, 'hex');
+    const expected = Buffer.from(hashHex, 'hex');
     if (salt.length === 0 || expected.length === 0) return false;
     const derived = pbkdf2Sync(pin, salt, iter, expected.length, DIGEST);
     if (derived.length !== expected.length) return false;

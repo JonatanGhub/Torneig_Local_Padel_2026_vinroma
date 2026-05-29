@@ -1,12 +1,12 @@
 -- =========================================================================
 -- 20260529100000_captain_pin.sql
 --
--- PIN del capità + registre de dispositius de confiança.
+-- PIN del capita + registre de dispositius de confianca.
 --
 -- - `players.pin_hash` guarda el hash PBKDF2 (sha256, 100k iter, sal 16B) del
---   PIN numèric escollit pel capità.
--- - `captain_devices` registra els dispositius (browsers) en què el capità
---   ha desbloquejat el panell. El PIN només és vàlid des d'un d'aquests
+--   PIN numeric escollit pel capita.
+-- - `captain_devices` registra els dispositius (browsers) en que el capita
+--   ha desbloquejat el panell. El PIN nomes es valid des d'un d'aquests
 --   dispositius (lligat via cookie signada `captain_device_id`).
 -- =========================================================================
 
