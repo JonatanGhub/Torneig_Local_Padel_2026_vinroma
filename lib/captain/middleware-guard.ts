@@ -9,7 +9,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { locales } from '@/i18n';
-import { UNLOCK_COOKIE, UNLOCK_TTL_SECONDS, verifyCookie } from '@/lib/captain/pin';
+import { UNLOCK_COOKIE, UNLOCK_TTL_SECONDS, verifyCookie } from '@/lib/captain/cookies-edge';
 import type { Database } from '@/types/supabase';
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
@@ -88,7 +88,7 @@ export async function captainGuardRedirect(request: NextRequest): Promise<NextRe
   }
 
   // Sessió de PIN encara vàlida (<24h)?
-  const unlockedAt = verifyCookie(request.cookies.get(UNLOCK_COOKIE)?.value);
+  const unlockedAt = await verifyCookie(request.cookies.get(UNLOCK_COOKIE)?.value);
   if (unlockedAt) {
     const ts = Number.parseInt(unlockedAt, 10);
     if (Number.isFinite(ts)) {

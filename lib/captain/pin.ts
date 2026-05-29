@@ -1,30 +1,19 @@
 // =========================================================================
-// PIN del capità — hash, verificació i cookies signades.
+// Hash i verificació de PIN del capità — només per a server actions (Node).
 //
-// - Hash: PBKDF2-SHA256, 100k iter, sal 16B, derivat 32B. Format:
-//     `pbkdf2$<iter>$<salt_hex>$<hash_hex>`
-// - Cookies: `<value>.<hmac_sha256_hex>` amb `AUTH_COOKIE_SECRET` (o fallback
-//   derivat de SUPABASE_SERVICE_ROLE_KEY perquè funcioni sense config extra).
-// - Sense dependències noves (només `node:crypto`).
+// Aquest fitxer NO és Edge-compatible (usa node:crypto pel PBKDF2). No
+// l'importis des de middleware. Per a cookies signades, fes servir
+// `lib/captain/cookies-edge.ts`.
+//
+// Hash format: `pbkdf2$<iter>$<salt_hex>$<hash_hex>`.
 // =========================================================================
 
-import {
-  createHmac,
-  pbkdf2Sync,
-  randomBytes,
-  randomUUID,
-  timingSafeEqual,
-  createHash,
-} from 'node:crypto';
+import { pbkdf2Sync, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const ITERATIONS = 100_000;
 const SALT_BYTES = 16;
 const KEY_BYTES = 32;
 const DIGEST = 'sha256';
-
-export const DEVICE_COOKIE = 'captain_device_id';
-export const UNLOCK_COOKIE = 'captain_unlocked_at';
-export const UNLOCK_TTL_SECONDS = 24 * 60 * 60; // 1 dia
 
 export async function hashPin(pin: string): Promise<string> {
   const salt = randomBytes(SALT_BYTES);
@@ -49,40 +38,4 @@ export async function verifyPin(pin: string, hash: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function getSecret(): string {
-  const direct = process.env.AUTH_COOKIE_SECRET;
-  if (direct && direct.length > 0) return direct;
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (service && service.length > 0) {
-    return createHash('sha256').update(service).digest('hex');
-  }
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-  return createHash('sha256').update(`fallback:${anon}`).digest('hex');
-}
-
-export function signCookie(value: string): string {
-  const sig = createHmac('sha256', getSecret()).update(value).digest('hex');
-  return `${value}.${sig}`;
-}
-
-export function verifyCookie(signed: string | undefined): string | null {
-  if (!signed) return null;
-  const idx = signed.lastIndexOf('.');
-  if (idx <= 0) return null;
-  const value = signed.slice(0, idx);
-  const provided = signed.slice(idx + 1);
-  const expected = createHmac('sha256', getSecret()).update(value).digest('hex');
-  if (provided.length !== expected.length) return null;
-  try {
-    const ok = timingSafeEqual(Buffer.from(provided, 'hex'), Buffer.from(expected, 'hex'));
-    return ok ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-export function newDeviceId(): string {
-  return randomUUID();
 }

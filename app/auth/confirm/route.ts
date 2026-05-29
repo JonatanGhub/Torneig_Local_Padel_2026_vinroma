@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { defaultLocale, locales, type Locale } from '@/i18n';
-import { UNLOCK_COOKIE, UNLOCK_TTL_SECONDS, signCookie } from '@/lib/captain/pin';
+import { UNLOCK_COOKIE, UNLOCK_TTL_SECONDS, signCookie } from '@/lib/captain/cookies-edge';
 
 // Flux `token_hash` recomanat per Supabase per a SSR. La plantilla d'email
 // ha d'enviar l'usuari directament a aquesta ruta, no a `supabase.co/auth/v1/verify`.
@@ -94,7 +94,8 @@ export async function GET(request: NextRequest) {
       .eq('auth_user_id', user.id)
       .maybeSingle();
     if (player) {
-      response.cookies.set(UNLOCK_COOKIE, signCookie(String(Math.floor(Date.now() / 1000))), {
+      const signed = await signCookie(String(Math.floor(Date.now() / 1000)));
+      response.cookies.set(UNLOCK_COOKIE, signed, {
         httpOnly: true,
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',

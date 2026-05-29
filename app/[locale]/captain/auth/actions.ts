@@ -4,16 +4,15 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { hashPin, verifyPin } from '@/lib/captain/pin';
 import {
   DEVICE_COOKIE,
   UNLOCK_COOKIE,
   UNLOCK_TTL_SECONDS,
-  hashPin,
   newDeviceId,
   signCookie,
   verifyCookie,
-  verifyPin,
-} from '@/lib/captain/pin';
+} from '@/lib/captain/cookies-edge';
 import { defaultLocale, locales, type Locale } from '@/i18n';
 
 type ActionResult = { ok: boolean; error?: string };
@@ -83,7 +82,7 @@ export async function setPin(formData: FormData): Promise<ActionResult> {
     }
 
     const cookieStore = await cookies();
-    const existingDeviceId = verifyCookie(cookieStore.get(DEVICE_COOKIE)?.value);
+    const existingDeviceId = await verifyCookie(cookieStore.get(DEVICE_COOKIE)?.value);
     const deviceId = existingDeviceId ?? newDeviceId();
 
     const { error: deviceErr } = await supabase.from('captain_devices').upsert(
@@ -100,10 +99,14 @@ export async function setPin(formData: FormData): Promise<ActionResult> {
       return { ok: false, error: 'device_failed' };
     }
 
-    cookieStore.set(DEVICE_COOKIE, signCookie(deviceId), buildCookieOptions(60 * 60 * 24 * 365));
+    cookieStore.set(
+      DEVICE_COOKIE,
+      await signCookie(deviceId),
+      buildCookieOptions(60 * 60 * 24 * 365),
+    );
     cookieStore.set(
       UNLOCK_COOKIE,
-      signCookie(String(nowSeconds())),
+      await signCookie(String(nowSeconds())),
       buildCookieOptions(UNLOCK_TTL_SECONDS),
     );
 
@@ -145,7 +148,7 @@ export async function verifyAndUnlock(formData: FormData): Promise<ActionResult>
     if (playerErr || !player || !player.pin_hash) return { ok: false, error: 'no_player' };
 
     const cookieStore = await cookies();
-    const deviceId = verifyCookie(cookieStore.get(DEVICE_COOKIE)?.value);
+    const deviceId = await verifyCookie(cookieStore.get(DEVICE_COOKIE)?.value);
     if (!deviceId) return { ok: false, error: 'unlock_new_device' };
 
     const { data: device } = await supabase
@@ -161,7 +164,7 @@ export async function verifyAndUnlock(formData: FormData): Promise<ActionResult>
 
     cookieStore.set(
       UNLOCK_COOKIE,
-      signCookie(String(nowSeconds())),
+      await signCookie(String(nowSeconds())),
       buildCookieOptions(UNLOCK_TTL_SECONDS),
     );
     await supabase
@@ -204,7 +207,7 @@ export async function trustThisDevice(formData: FormData): Promise<{ ok: boolean
     if (!player) return { ok: false };
 
     const cookieStore = await cookies();
-    const existingDeviceId = verifyCookie(cookieStore.get(DEVICE_COOKIE)?.value);
+    const existingDeviceId = await verifyCookie(cookieStore.get(DEVICE_COOKIE)?.value);
     const deviceId = existingDeviceId ?? newDeviceId();
 
     const { error } = await supabase.from('captain_devices').upsert(
@@ -221,7 +224,11 @@ export async function trustThisDevice(formData: FormData): Promise<{ ok: boolean
       return { ok: false };
     }
 
-    cookieStore.set(DEVICE_COOKIE, signCookie(deviceId), buildCookieOptions(60 * 60 * 24 * 365));
+    cookieStore.set(
+      DEVICE_COOKIE,
+      await signCookie(deviceId),
+      buildCookieOptions(60 * 60 * 24 * 365),
+    );
     return { ok: true };
   } catch (err) {
     console.error('[trustThisDevice] unexpected', err);

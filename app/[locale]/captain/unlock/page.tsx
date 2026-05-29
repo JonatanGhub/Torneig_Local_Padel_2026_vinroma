@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
-import { DEVICE_COOKIE, verifyCookie } from '@/lib/captain/pin';
+import { DEVICE_COOKIE, verifyCookie } from '@/lib/captain/cookies-edge';
 import { locales, type Locale } from '@/i18n';
 import { UnlockForm } from './unlock-form';
 
@@ -39,7 +39,7 @@ export default async function UnlockPage({ params, searchParams }: Props) {
   }
 
   const cookieStore = await cookies();
-  const deviceCookie = verifyCookie(cookieStore.get(DEVICE_COOKIE)?.value);
+  const deviceCookie = await verifyCookie(cookieStore.get(DEVICE_COOKIE)?.value);
   let isUnknownDevice = true;
   if (deviceCookie) {
     const { data: device } = await supabase
