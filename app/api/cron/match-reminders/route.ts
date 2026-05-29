@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { notifyMatchReminderWhatsApp } from '@/lib/whatsapp/notify';
+import { notifyMatchReminderWhatsApp, sendDailyGroupSummary } from '@/lib/whatsapp/notify';
 import { whatsappConfigured } from '@/lib/whatsapp/send';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +47,10 @@ export async function GET(request: Request) {
       .eq('id', m.id);
     processed++;
   }
+
+  // Resum diari al grup de gestió: "Avui es juga ...". Independent dels DMs.
+  // Si WHATSAPP_GROUP_JID no està definit, és no-op silenciós.
+  await sendDailyGroupSummary();
 
   return NextResponse.json({ ok: true, processed });
 }

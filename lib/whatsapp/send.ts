@@ -72,3 +72,47 @@ export async function sendWhatsApp({
     return { ok: false, skipped: false, error: String(err) };
   }
 }
+
+/**
+ * Envia un missatge al grup de gestió de WhatsApp.
+ *
+ * A Evolution API el JID d'un grup té el format `<digits>-<digits>@g.us` i
+ * NO s'ha de passar per `toWhatsAppNumber` (que esborra els caràcters no
+ * numèrics i el trencaria). Per això tenim una funció separada que envia
+ * directament el JID al camp `number` (l'API v2 accepta tant números
+ * individuals com JIDs de grup).
+ *
+ * Config:
+ *   WHATSAPP_GROUP_JID  JID del grup (p.ex. 34600000000-1700000000@g.us)
+ *
+ * No-op silenciós (ok: true, skipped) si Evolution o el JID no estan
+ * configurats. Mai llança.
+ */
+export async function sendWhatsAppToGroup(text: string): Promise<SendWhatsAppResult> {
+  const groupJid = process.env.WHATSAPP_GROUP_JID ?? null;
+  if (!whatsappConfigured()) {
+    console.warn('[whatsapp] EVOLUTION_* not set; group message NOT sent');
+    return { ok: true, skipped: true, reason: 'not_configured' };
+  }
+  if (!groupJid) {
+    console.warn('[whatsapp] WHATSAPP_GROUP_JID not set; group message NOT sent');
+    return { ok: true, skipped: true, reason: 'not_configured' };
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/message/sendText/${INSTANCE}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
+      // Evolution API v2 accepta JID de grup (`...@g.us`) al camp `number`.
+      body: JSON.stringify({ number: groupJid, text }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`Evolution API ${res.status}: ${errBody.slice(0, 200)}`);
+    }
+    return { ok: true, skipped: false };
+  } catch (err) {
+    console.warn('[whatsapp] group send failed', err);
+    return { ok: false, skipped: false, error: String(err) };
+  }
+}

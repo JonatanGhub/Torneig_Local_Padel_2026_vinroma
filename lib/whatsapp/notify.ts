@@ -5,7 +5,13 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/service';
-import { sendWhatsApp } from './send';
+import { sendWhatsApp, sendWhatsAppToGroup } from './send';
+
+// Per obtenir el JID del grup de gestió:
+//   GET <EVOLUTION_API_URL>/group/fetchAllGroups/<EVOLUTION_INSTANCE>
+//   Headers: apikey: <EVOLUTION_API_KEY>
+//   Busca el grup pel seu `subject` (nom) i agafa el camp `id`.
+//   Defineix WHATSAPP_GROUP_JID amb aquest id (format: <digits>-<digits>@g.us).
 
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ?? 'https://torneig-local-padel-2026-vinroma.vercel.app'
@@ -296,5 +302,255 @@ export async function notifyMatchReminderWhatsApp(matchId: string) {
     }
   } catch (err) {
     console.warn('[whatsapp] notifyMatchReminder failed', err);
+  }
+}
+
+// =========================================================================
+// Avisos al GRUP de gestió de WhatsApp (paral·lels als DMs als capitans).
+// Tots passen per sendWhatsAppToGroup() que ja és no-op si WHATSAPP_GROUP_JID
+// no està definit. Mai llancen.
+// =========================================================================
+
+type PlayerLite = { id: string; last_name: string | null };
+
+function lastNamesPairFromPlayers(
+  players: PlayerLite[] | null | undefined,
+  playerAId: string | null | undefined,
+  playerBId: string | null | undefined,
+): string {
+  return lastNamesPair(
+    players?.find((p) => p.id === playerAId),
+    players?.find((p) => p.id === playerBId),
+  );
+}
+
+// 6) Resultat validat → missatge al grup amb el marcador oficial.
+export async function notifyValidatedToGroup(matchId: string): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { data: match } = await supabase
+      .from('matches')
+      .select('id, pair_a_id, pair_b_id, status, winner_pair_id, category_id, group_label')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (!match || match.status !== 'validated') return;
+
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, player_a_id, player_b_id')
+      .in('id', [match.pair_a_id, match.pair_b_id]);
+    if (!pairs || pairs.length < 2) return;
+
+    const playerIds = pairs.flatMap((p) => [p.player_a_id, p.player_b_id]);
+    const { data: players } = await supabase
+      .from('players')
+      .select('id, last_name')
+      .in('id', playerIds);
+
+    const { data: sets } = await supabase
+      .from('sets')
+      .select('set_number, games_a, games_b')
+      .eq('match_id', matchId)
+      .order('set_number', { ascending: true });
+    const scoreText = (sets ?? []).map((s) => `${s.games_a}-${s.games_b}`).join(', ') || '—';
+
+    const { data: category } = await supabase
+      .from('categories')
+      .select('name_ca')
+      .eq('id', match.category_id)
+      .maybeSingle();
+
+    const pairLabelOf = (pairId: string) => {
+      const pair = pairs.find((p) => p.id === pairId);
+      if (!pair) return '—';
+      return lastNamesPairFromPlayers(players, pair.player_a_id, pair.player_b_id);
+    };
+
+    const labelA = pairLabelOf(match.pair_a_id);
+    const labelB = pairLabelOf(match.pair_b_id);
+    const winnerLabel = match.winner_pair_id ? pairLabelOf(match.winner_pair_id) : null;
+    const categoryName = category?.name_ca ?? '—';
+    const groupSuffix = match.group_label ? `  ·  Grup ${match.group_label}` : '';
+
+    const text =
+      `✅ *Resultat oficial*\n` +
+      `${labelA}  vs  ${labelB}\n` +
+      `Marcador: ${scoreText}\n` +
+      (winnerLabel ? `Guanya: ${winnerLabel}\n` : '') +
+      `Categoria: ${categoryName}${groupSuffix}`;
+
+    await sendWhatsAppToGroup(text);
+  } catch (err) {
+    console.warn('[whatsapp] notifyValidatedToGroup failed', err);
+  }
+}
+
+// 7) Canvi de partit acceptat → missatge al grup amb la nova data/pista.
+export async function notifyRescheduleAcceptedToGroup(proposalId: string): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { data: proposal } = await supabase
+      .from('match_reschedule_proposals')
+      .select('id, match_id, status, new_scheduled_at, new_court_label')
+      .eq('id', proposalId)
+      .maybeSingle();
+    if (!proposal || proposal.status !== 'accepted') return;
+
+    const { data: match } = await supabase
+      .from('matches')
+      .select('id, pair_a_id, pair_b_id')
+      .eq('id', proposal.match_id)
+      .maybeSingle();
+    if (!match) return;
+
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, player_a_id, player_b_id')
+      .in('id', [match.pair_a_id, match.pair_b_id]);
+    if (!pairs || pairs.length < 2) return;
+
+    const playerIds = pairs.flatMap((p) => [p.player_a_id, p.player_b_id]);
+    const { data: players } = await supabase
+      .from('players')
+      .select('id, last_name')
+      .in('id', playerIds);
+
+    const pairLabelOf = (pairId: string) => {
+      const pair = pairs.find((p) => p.id === pairId);
+      if (!pair) return '—';
+      return lastNamesPairFromPlayers(players, pair.player_a_id, pair.player_b_id);
+    };
+
+    const labelA = pairLabelOf(match.pair_a_id);
+    const labelB = pairLabelOf(match.pair_b_id);
+    const dateText = formatDateCA(proposal.new_scheduled_at);
+    const courtText = proposal.new_court_label ?? '—';
+
+    const text =
+      `📅 *Canvi de partit confirmat*\n` +
+      `${labelA}  vs  ${labelB}\n` +
+      `Nova data: ${dateText}  ·  ${courtText}`;
+
+    await sendWhatsAppToGroup(text);
+  } catch (err) {
+    console.warn('[whatsapp] notifyRescheduleAcceptedToGroup failed', err);
+  }
+}
+
+// 8) Resum diari "Avui es juga" → missatge al grup amb tots els partits del dia.
+//    Cridat des del cron diari (09:00 Madrid).
+const MADRID_TZ = 'Europe/Madrid';
+
+function madridYmdToday(now: Date = new Date()): { y: number; m: number; d: number } {
+  // Intl ens dona la Y-M-D en zona Europe/Madrid sense haver de càrregar tz libs.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MADRID_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  return { y: get('year'), m: get('month'), d: get('day') };
+}
+
+function madridDayWindowIso(now: Date = new Date()): { startIso: string; endIso: string } {
+  // El torneig és a l'estiu (juliol-agost) → Madrid és UTC+02:00 (CEST).
+  // Construïm la finestra [00:00, 24:00) del dia local de Madrid en ISO.
+  const { y, m, d } = madridYmdToday(now);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const startIso = `${y}-${pad(m)}-${pad(d)}T00:00:00+02:00`;
+  // Sumar 24h al moment d'inici per evitar errors d'aritmètica de calendari.
+  const endIso = new Date(new Date(startIso).getTime() + 24 * 60 * 60 * 1000).toISOString();
+  return { startIso, endIso };
+}
+
+function formatMadridDateLong(date: Date): string {
+  try {
+    return new Intl.DateTimeFormat('ca-ES', {
+      timeZone: MADRID_TZ,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+function formatMadridTime(iso: string | null): string {
+  if (!iso) return '—';
+  try {
+    return new Intl.DateTimeFormat('ca-ES', {
+      timeZone: MADRID_TZ,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(iso));
+  } catch {
+    return '—';
+  }
+}
+
+export async function sendDailyGroupSummary(): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { startIso, endIso } = madridDayWindowIso();
+
+    const { data: matches } = await supabase
+      .from('matches')
+      .select('id, scheduled_at, court_label, pair_a_id, pair_b_id, category_id, status')
+      .in('status', ['scheduled', 'pending_validation'])
+      .gte('scheduled_at', startIso)
+      .lt('scheduled_at', endIso)
+      .order('scheduled_at', { ascending: true });
+
+    if (!matches || matches.length === 0) {
+      // Sense partits avui: no enviem res per evitar soroll al grup.
+      return;
+    }
+
+    const pairIds = Array.from(new Set(matches.flatMap((m) => [m.pair_a_id, m.pair_b_id])));
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, player_a_id, player_b_id')
+      .in('id', pairIds);
+
+    const playerIds = Array.from(
+      new Set((pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id])),
+    );
+    const { data: players } = await supabase
+      .from('players')
+      .select('id, last_name')
+      .in('id', playerIds);
+
+    const categoryIds = Array.from(new Set(matches.map((m) => m.category_id)));
+    const { data: categories } = await supabase
+      .from('categories')
+      .select('id, name_ca')
+      .in('id', categoryIds);
+
+    const pairLabelOf = (pairId: string) => {
+      const pair = pairs?.find((p) => p.id === pairId);
+      if (!pair) return '—';
+      return lastNamesPairFromPlayers(players, pair.player_a_id, pair.player_b_id);
+    };
+    const categoryNameOf = (categoryId: string) =>
+      categories?.find((c) => c.id === categoryId)?.name_ca ?? '—';
+
+    const lines = matches.map((m) => {
+      const time = formatMadridTime(m.scheduled_at);
+      const court = m.court_label ?? '—';
+      const cat = categoryNameOf(m.category_id);
+      const labelA = pairLabelOf(m.pair_a_id);
+      const labelB = pairLabelOf(m.pair_b_id);
+      return `• ${time} · ${court} · ${cat} · ${labelA} vs ${labelB}`;
+    });
+
+    const day = formatMadridDateLong(new Date(startIso));
+    const text = `🎾 *Avui es juga (${day})*\n\n${lines.join('\n')}\n\nBona sort!`;
+
+    await sendWhatsAppToGroup(text);
+  } catch (err) {
+    console.warn('[whatsapp] sendDailyGroupSummary failed', err);
   }
 }

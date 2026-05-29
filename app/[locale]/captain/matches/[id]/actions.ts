@@ -12,8 +12,10 @@ import {
 import {
   notifyMatchDisputedWhatsApp,
   notifyMatchValidatedWhatsApp,
+  notifyRescheduleAcceptedToGroup,
   notifyRescheduleProposedWhatsApp,
   notifyResultPendingValidationWhatsApp,
+  notifyValidatedToGroup,
 } from '@/lib/whatsapp/notify';
 
 const SetSchema = z.object({
@@ -75,6 +77,7 @@ export async function submitReport(formData: FormData) {
   if (matchAfter?.status === 'validated') {
     await notifyMatchValidated(matchId);
     await notifyMatchValidatedWhatsApp(matchId);
+    await notifyValidatedToGroup(matchId);
   } else if (matchAfter?.status === 'disputed') {
     await notifyMatchDisputed(matchId);
     await notifyMatchDisputedWhatsApp(matchId);
@@ -145,6 +148,12 @@ export async function respondToReschedule(formData: FormData) {
     p_accept: accept === 'yes',
   });
   if (error) return { ok: false, error: error.message } as const;
+
+  // Si la proposta s'accepta, avisem el grup de gestió (canvi confirmat).
+  // Errors de WhatsApp no han de trencar la mutació principal.
+  if (data === 'accepted') {
+    await notifyRescheduleAcceptedToGroup(proposalId);
+  }
 
   revalidatePath('/[locale]/captain', 'page');
   revalidatePath('/[locale]/captain/matches/[id]', 'page');
