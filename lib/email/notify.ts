@@ -8,15 +8,14 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/service';
+import { getSiteUrl } from '@/lib/site-url';
 import { sendEmail } from './send';
 import RescheduleProposed from './templates/reschedule-proposed';
 import MatchValidated from './templates/match-validated';
 import MatchDisputed from './templates/match-disputed';
 import ResultPendingValidation from './templates/result-pending-validation';
 
-const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://torneigpadelvinroma-v-2026.vercel.app'
-).replace(/\/$/, '');
+const SITE_URL = getSiteUrl();
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL ?? 'clubpadelvinroma@gmail.com';
 

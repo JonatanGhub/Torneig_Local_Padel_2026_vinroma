@@ -514,13 +514,17 @@ Diseño técnico complementario:
 
 **RESPUESTA:** **Sin dominio propio**. Se usa subdominio gratuito de Vercel.
 
-Subdominio asignado: **`torneigpadelvinroma-v-2026.vercel.app`**.
+Subdominio asignado: **`torneig-local-padel-2026-vinroma.vercel.app`** (dominio
+por defecto del proyecto de Vercel).
 
-> Nota técnica. Vercel normaliza los subdominios a minúsculas; aunque el
-> organizador escribió "V" en mayúscula (referencia a "V edición"), la URL
-> renderiza como `...-v-2026.vercel.app`. En textos visuales (cartel, plantillas
-> de email, OpenGraph) podemos escribir "V edició — 2026" con tipografía
-> destacada para preservar la lectura numérica romana.
+> Nota técnica (corrección). Una versión previa de este documento anotaba
+> `torneigpadelvinroma-v-2026.vercel.app`, un subdominio que **nunca se llegó a
+> asignar**: los enlaces de los emails que apuntaban a él no abrían nada. El
+> dominio real servido por el proyecto es `torneig-local-padel-2026-vinroma.vercel.app`.
+> `NEXT_PUBLIC_SITE_URL` debe coincidir **exactamente** con el dominio servido;
+> el código centraliza el valor en `lib/site-url.ts` para evitar divergencias.
+> En textos visuales (cartel, plantillas de email, OpenGraph) se puede seguir
+> escribiendo "V edició — 2026" con tipografía destacada.
 
 Implicaciones:
 
@@ -677,7 +681,7 @@ organizador aportó en las 2 rondas:
 - (§12) Persona contacto operativo: **Jonatan García** (tel **620 033 053**).
 - (§13) **Modelo de pago dual** (1 Bizum por pareja recomendado, 1 Bizum por
   persona como alternativa).
-- (§27) Subdominio Vercel: **`torneigpadelvinroma-v-2026.vercel.app`**.
+- (§27) Subdominio Vercel: **`torneig-local-padel-2026-vinroma.vercel.app`**.
 
 ---
 

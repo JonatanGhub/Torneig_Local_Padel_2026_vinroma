@@ -5,6 +5,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/service';
+import { getSiteUrl } from '@/lib/site-url';
 import { sendWhatsApp, sendWhatsAppToGroup } from './send';
 
 // Per obtenir el JID del grup de gestió:
@@ -13,9 +14,7 @@ import { sendWhatsApp, sendWhatsAppToGroup } from './send';
 //   Busca el grup pel seu `subject` (nom) i agafa el camp `id`.
 //   Defineix WHATSAPP_GROUP_JID amb aquest id (format: <digits>-<digits>@g.us).
 
-const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://torneig-local-padel-2026-vinroma.vercel.app'
-).replace(/\/$/, '');
+const SITE_URL = getSiteUrl();
 
 const ADMIN_WA = process.env.WHATSAPP_ADMIN_NUMBER ?? null;
 

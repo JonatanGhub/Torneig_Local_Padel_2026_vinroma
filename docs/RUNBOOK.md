@@ -55,7 +55,7 @@ supabase db push
    - **Site URL**: temporalmente `http://localhost:3000` (en producción será tu URL de Vercel).
    - **Redirect URLs** (whitelist):
      - `http://localhost:3000/auth/callback`
-     - `https://torneigpadelvinroma-v-2026.vercel.app/auth/callback` (cuando exista)
+     - `https://torneig-local-padel-2026-vinroma.vercel.app/auth/callback` (cuando exista)
      - `https://*-jonatanghub.vercel.app/auth/callback` (previews)
 3. **Authentication → Email Templates → Magic Link**: opcional, lo podemos retocar en Sprint 2 cuando integremos Resend.
 
@@ -70,7 +70,7 @@ supabase db push
    NEXT_PUBLIC_SUPABASE_URL = (el de Supabase)
    NEXT_PUBLIC_SUPABASE_ANON_KEY = (el de Supabase)
    SUPABASE_SERVICE_ROLE_KEY = (el de Supabase, SECRETO)
-   NEXT_PUBLIC_SITE_URL = https://torneigpadelvinroma-v-2026.vercel.app
+   NEXT_PUBLIC_SITE_URL = https://torneig-local-padel-2026-vinroma.vercel.app
    NEXT_PUBLIC_DEFAULT_LOCALE = ca
    ```
    Resend, Sentry y WhatsApp los rellenamos en sus respectivos sprints.
@@ -79,7 +79,7 @@ supabase db push
 Después de desplegar, asigna el subdominio:
 
 1. **Project → Settings → Domains**.
-2. Por defecto Vercel te da `torneig-local-padel-2025-vinroma-<hash>.vercel.app`. Edítalo a `torneigpadelvinroma-v-2026.vercel.app` si está disponible.
+2. Por defecto Vercel te da `torneig-local-padel-2026-vinroma.vercel.app`. Úsalo tal cual, o asigna un dominio propio si lo hay. **Importante:** el valor de `NEXT_PUBLIC_SITE_URL` debe coincidir exactamente con el dominio servido; si no, los enlaces de los emails apuntarán a un dominio que no existe.
 
 ## 3. Configurar Resend (puedes saltarlo en Sprint 1)
 

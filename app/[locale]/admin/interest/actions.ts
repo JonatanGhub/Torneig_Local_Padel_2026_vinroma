@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email/send';
 import { getActiveFee, formatCents } from '@/lib/pricing';
+import { absoluteUrl } from '@/lib/site-url';
 import InterestAnnouncement from '@/lib/email/templates/interest-announcement';
 
 async function requireAdmin() {
@@ -48,8 +49,6 @@ export async function announceInterest() {
   const subscribers = rows ?? [];
   if (subscribers.length === 0) return { ok: false, error: 'no_subscribers' } as const;
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://torneigpadelvinroma-v-2026.vercel.app';
   const activeFee = await getActiveFee(tournament.id);
 
   let sent = 0;
@@ -74,7 +73,7 @@ export async function announceInterest() {
             : 'Inscripciones abiertas — V Torneo de Pádel les Coves',
         react: InterestAnnouncement({
           locale,
-          registrationUrl: `${baseUrl}/${locale}/inscripcio`,
+          registrationUrl: absoluteUrl(`/${locale}/inscripcio`),
           closesAtLabel,
           feeLabel,
           feeAmountLabel,

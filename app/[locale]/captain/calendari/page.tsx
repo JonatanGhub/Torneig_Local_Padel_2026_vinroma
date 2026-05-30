@@ -5,6 +5,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { MatchCard, type MatchCardPhase } from '@/components/match/match-card';
 import { loadCaptainContext } from '@/lib/captain/data';
+import { getSiteHost } from '@/lib/site-url';
 import { NoProfilePanel } from '../no-profile-panel';
 import { CalendarSubscriptionCard } from '../calendar-subscription';
 import { CaptainCalendarViews, type CalendarMatchView } from './calendar-views';
@@ -68,10 +69,7 @@ export default async function CaptainCalendariPage({ params }: Props) {
   // Build the calendar feed URL — same recipe as the captain home.
   const requestHeaders = await headers();
   const host =
-    requestHeaders.get('x-forwarded-host') ??
-    requestHeaders.get('host') ??
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, '') ??
-    '';
+    requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host') ?? getSiteHost();
   const proto =
     requestHeaders.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
   const feedPath = `/api/captain/calendar/${player.calendar_feed_token}?lang=${locale}`;

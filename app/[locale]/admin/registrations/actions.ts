@@ -8,6 +8,7 @@ import InscriptionConfirmed from '@/lib/email/templates/inscription-confirmed';
 import { getActiveFee, formatCents, computePerPairAmount } from '@/lib/pricing';
 import { createPairAndPlayers } from '@/lib/registration';
 import { isCategoryFull } from '@/lib/category-capacity';
+import { absoluteUrl } from '@/lib/site-url';
 import { RegistrationSchema, type RegistrationInput } from '@/types/registration';
 
 const AdminOptionsSchema = z.object({
@@ -103,7 +104,7 @@ export async function adminCreateRegistration(
       const amountForEmail =
         input.fee_mode === 'per_pair' ? computePerPairAmount(fee) : fee.amount_per_player_cents;
       const feeLabel = options.locale === 'ca' ? fee.label_ca : fee.label_es;
-      const paymentUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/${options.locale}/p/${primary_payment_reference}`;
+      const paymentUrl = absoluteUrl(`/${options.locale}/p/${primary_payment_reference}`);
       try {
         await sendEmail({
           to: captain.email,
