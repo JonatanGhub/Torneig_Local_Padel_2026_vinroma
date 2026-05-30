@@ -116,6 +116,7 @@ export default async function LandingPage({ params }: Props) {
             <NavLink href={`/${locale}/grups`}>{t('navigation.groups')}</NavLink>
             <NavLink href={`/${locale}/quadre`}>{t('navigation.knockout')}</NavLink>
             <NavLink href={`/${locale}/calendari`}>{t('navigation.calendar')}</NavLink>
+            <NavLink href={`/${locale}/reglament`}>{t('navigation.rules')}</NavLink>
             <LocaleSwitcher current={locale} className="ml-1" />
             <ThemeToggle variant="dark" className="ml-1" />
             <Link
