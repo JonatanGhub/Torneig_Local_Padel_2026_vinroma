@@ -18,6 +18,7 @@ import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { LogoutButton } from '@/components/logout-button';
 
 type Props = {
   children: ReactNode;
@@ -58,6 +59,7 @@ export default async function AdminLayout({ children, params }: Props) {
           </span>
           <LocaleSwitcher current={locale} tone="light" />
           <ThemeToggle />
+          <LogoutButton label={t('logout_short')} />
         </div>
       </header>
 

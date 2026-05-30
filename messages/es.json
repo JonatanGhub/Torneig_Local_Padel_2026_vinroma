@@ -266,6 +266,7 @@
   "admin": {
     "sidebar_title": "Gestor del torneo",
     "back_to_site": "Inicio",
+    "logout_short": "Salir",
     "nav_dashboard": "Resumen",
     "nav_payments": "Pagos",
     "nav_draw": "Sorteo",
