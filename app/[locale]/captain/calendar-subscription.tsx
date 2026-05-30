@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Copy, CalendarPlus } from 'lucide-react';
+import { Check, Copy, CalendarPlus, ExternalLink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 export function CalendarSubscriptionCard({
@@ -12,38 +12,77 @@ export function CalendarSubscriptionCard({
   webcalUrl: string;
 }) {
   const t = useTranslations('captain');
+  const [toast, setToast] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  async function copyToClipboard() {
+  async function copyToClipboard(): Promise<boolean> {
     try {
       await navigator.clipboard.writeText(feedUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      return true;
     } catch {
-      const fallback = document.createElement('input');
-      fallback.value = feedUrl;
-      document.body.appendChild(fallback);
-      fallback.select();
-      document.execCommand('copy');
-      document.body.removeChild(fallback);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // Fallback per a contexts on no hi ha permis de clipboard.
+      try {
+        const fallback = document.createElement('textarea');
+        fallback.value = feedUrl;
+        fallback.style.position = 'fixed';
+        fallback.style.opacity = '0';
+        document.body.appendChild(fallback);
+        fallback.select();
+        document.execCommand('copy');
+        document.body.removeChild(fallback);
+        return true;
+      } catch {
+        return false;
+      }
     }
   }
 
-  // Google Calendar "add by URL" deep link. El paràmetre `cid` ha de portar
-  // la URL CRUA, sense url-encoded — si es codifiquen els `:` i `/`, Google
-  // respon "no se puede añadir el calendario, comprueba la URL". L'única
-  // cosa que cal escapar és el `?` del query string intern del feed
-  // (`?lang=...`), perquè si no Google el confon amb un paràmetre seu.
-  const googleUrl = `https://calendar.google.com/calendar/r?cid=${feedUrl.replace('?', '%3F')}`;
-  // Outlook web: el seu endpoint sí accepta url-encoded.
-  const outlookUrl = `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(
-    feedUrl,
-  )}&name=${encodeURIComponent('Pàdel les Coves')}`;
+  function showToast(message: string) {
+    setToast(message);
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  async function handleProvider(provider: 'apple' | 'google' | 'outlook') {
+    if (provider === 'apple') {
+      // webcal:// obre Apple Calendar nadiu a iOS/macOS. Si el sistema no
+      // gestiona el scheme, l'usuari igualment veu el feed; copiem com a
+      // suport.
+      await copyToClipboard();
+      window.location.href = webcalUrl;
+      return;
+    }
+
+    // Per a Google i Outlook: el deep link "cid=" de Google és poc fiable
+    // ("Comprueba la URL"). El fluxe robust és copiar la URL al
+    // portapapers i obrir la pàgina d'"afegir per URL" del proveïdor en
+    // una nova pestanya. L'usuari només ha d'enganxar.
+    const copyOk = await copyToClipboard();
+    const url =
+      provider === 'google'
+        ? 'https://calendar.google.com/calendar/u/0/r/settings/addbyurl'
+        : 'https://outlook.live.com/calendar/0/addfromweb';
+    window.open(url, '_blank', 'noopener,noreferrer');
+
+    const providerLabel = provider === 'google' ? 'Google Calendar' : 'Outlook';
+    showToast(
+      copyOk
+        ? t('calendar_toast_paste', { provider: providerLabel })
+        : t('calendar_toast_copy_failed'),
+    );
+  }
+
+  async function handleCopyButton() {
+    const ok = await copyToClipboard();
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      showToast(t('calendar_toast_copy_failed'));
+    }
+  }
 
   return (
-    <section className="glass-card mb-6 rounded-2xl p-5">
+    <section className="glass-card relative mb-6 rounded-2xl p-5">
       <div className="flex items-start gap-3">
         <div className="bg-crimson-500/15 text-crimson-300 inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
           <CalendarPlus className="size-5" />
@@ -58,19 +97,19 @@ export function CalendarSubscriptionCard({
 
       <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <ProviderButton
-          href={googleUrl}
-          label="Google Calendar"
-          hint={t('calendar_provider_google_hint')}
-        />
-        <ProviderButton
-          href={webcalUrl}
+          onClick={() => handleProvider('apple')}
           label={t('calendar_provider_apple')}
           hint={t('calendar_provider_apple_hint')}
         />
         <ProviderButton
-          href={outlookUrl}
+          onClick={() => handleProvider('google')}
+          label="Google Calendar"
+          hint={t('calendar_provider_google_hint_paste')}
+        />
+        <ProviderButton
+          onClick={() => handleProvider('outlook')}
           label="Outlook"
-          hint={t('calendar_provider_outlook_hint')}
+          hint={t('calendar_provider_outlook_hint_paste')}
         />
       </div>
 
@@ -83,7 +122,7 @@ export function CalendarSubscriptionCard({
         />
         <button
           type="button"
-          onClick={copyToClipboard}
+          onClick={handleCopyButton}
           className="bg-crimson-600 hover:bg-crimson-500 inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold text-white transition-colors"
         >
           {copied ? (
@@ -99,21 +138,58 @@ export function CalendarSubscriptionCard({
           )}
         </button>
       </div>
-      <p className="mt-3 text-xs text-white/45">{t('calendar_card_hint')}</p>
+
+      <details className="mt-3 text-xs text-white/60">
+        <summary className="cursor-pointer text-white/75 hover:text-white">
+          {t('calendar_instructions_summary')}
+        </summary>
+        <div className="mt-2 space-y-2 pl-1">
+          <p>
+            <strong className="text-white/85">{t('calendar_provider_apple')}:</strong>{' '}
+            {t('calendar_instr_apple')}
+          </p>
+          <p>
+            <strong className="text-white/85">Google Calendar:</strong> {t('calendar_instr_google')}
+          </p>
+          <p>
+            <strong className="text-white/85">Outlook:</strong> {t('calendar_instr_outlook')}
+          </p>
+        </div>
+      </details>
+
+      {toast && (
+        <div
+          role="status"
+          className="bg-crimson-600 fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-md px-4 py-3 text-sm font-medium text-white shadow-lg"
+        >
+          <Check className="size-4 shrink-0" />
+          <span>{toast}</span>
+        </div>
+      )}
     </section>
   );
 }
 
-function ProviderButton({ href, label, hint }: { href: string; label: string; hint: string }) {
+function ProviderButton({
+  onClick,
+  label,
+  hint,
+}: {
+  onClick: () => void;
+  label: string;
+  hint: string;
+}) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="hover:border-crimson-400/40 flex flex-col gap-0.5 rounded-md border border-white/15 bg-white/5 px-3 py-2 text-left transition-colors hover:bg-white/10"
+    <button
+      type="button"
+      onClick={onClick}
+      className="hover:border-crimson-400/40 group flex flex-col gap-0.5 rounded-md border border-white/15 bg-white/5 px-3 py-2 text-left transition-colors hover:bg-white/10"
     >
-      <span className="text-sm font-semibold text-white">{label}</span>
+      <span className="flex items-center gap-1.5 text-sm font-semibold text-white">
+        {label}
+        <ExternalLink className="size-3 text-white/40 group-hover:text-white/70" />
+      </span>
       <span className="text-[11px] text-white/55">{hint}</span>
-    </a>
+    </button>
   );
 }
