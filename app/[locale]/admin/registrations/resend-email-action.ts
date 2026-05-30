@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email/send';
 import InscriptionConfirmed from '@/lib/email/templates/inscription-confirmed';
 import { formatCents, computePerPairAmount, type ActiveFee } from '@/lib/pricing';
+import { absoluteUrl } from '@/lib/site-url';
 
 const InputSchema = z.object({
   pairId: z.string().uuid(),
@@ -82,7 +83,7 @@ export async function adminResendPaymentEmail(rawInput: unknown): Promise<Resend
       ? computePerPairAmount(activeFee)
       : activeFee.amount_per_player_cents;
   const feeLabel = locale === 'ca' ? activeFee.label_ca : activeFee.label_es;
-  const paymentUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/${locale}/p/${payment.reference_code}`;
+  const paymentUrl = absoluteUrl(`/${locale}/p/${payment.reference_code}`);
 
   try {
     await sendEmail({

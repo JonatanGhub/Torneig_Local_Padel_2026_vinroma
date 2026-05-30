@@ -15,8 +15,8 @@
 > Mapa de cierres:
 > §1, §2, §4, §7, §9, §10, §11, §15, §16, §18, §19, §20-premios, §21.3, §21.4,
 > §21.5, §21.6, §21.7, §21.8, §22, §23, §24, §25, §26, §28, §29 — **cerradas**.
-> §3 — **en votación de capitanes** (ver `docs/PROPUESTA_FORMATOS.md`).
-> §5, §6 — **bloqueadas hasta cerrar §3**.
+> §3 — **CERRADA (2026-05-29): Grupos + Eliminatorias (opción A).** Ver §3.
+> §5, §6 — **desbloqueadas** tras cerrar §3 (valores por defecto fijados).
 > §8 — **reformulada** respecto al borrador original (ya no se juega super tie-break).
 > §17 — **descartada** (no se usa Stripe, ver §16).
 > §12, §13, §14 (fecha X), §20-sponsors, §21.1-21.2 (datos club), §27 — **pendientes**
@@ -51,17 +51,26 @@ versión catalana es traducción no vinculante de cortesía.
 
 ## §3. Formato de competición
 
-**Estado.** **En votación de capitanes** — el comité organizador no decide
-unilateralmente. Las 4 opciones (Grupos+KO, Liga, Liga+Playoff, Americana) se
-someten a votación mediante el procedimiento descrito en `docs/PROPUESTA_FORMATOS.md`.
+**Estado.** **CERRADA (2026-05-29).**
 
-**RESPUESTA:** pendiente del resultado del voto. Recuento por método Borda;
-desempate técnico a cargo del comité organizador si la diferencia < 5 %.
+**RESPUESTA:** **Opción A — Fase de grupos + Eliminatorias (cuadro KO).**
+Es el formato que la base de código ya implementa de extremo a extremo (sorteo
+de grupos `run_draw`, vista `category_standings`, motor de cuadro KO, walkover,
+auto-scheduling). Se descartan B (Liga), C (Liga + Playoff) y D (Americana).
 
-> Implicación. Las §5 y §6 quedan **bloqueadas** hasta que el formato esté
-> cerrado. Sprint 1 (infra base + auth + modelo de datos) puede arrancar en
-> paralelo, ya que las tablas `pairs`, `matches`, `match_results`, `players`,
-> `tournaments`, `categories` son comunes a las 4 opciones.
+Reglas asociadas que quedan fijadas como valor por defecto (editables por el
+comité en `admin/settings` y en `PROPUESTA_FORMATOS.md` si cambian):
+
+- **Avanzan 2 parejas por grupo** a la fase eliminatoria (§5).
+- **Desempate de grupo:** partidos ganados → diferencia de sets → diferencia de
+  juegos → enfrentamiento directo (head-to-head) → juegos a favor (§7, ya
+  implementado en la vista y en `grups/[level]`).
+- **Cuadro KO** sembrado por posición de grupo; tamaño redondeado a la siguiente
+  potencia de 2 con byes para los mejores cabezas de serie.
+
+> Cierre del proceso de votación: el comité organizador adopta la opción A por
+> ser la alineada con el producto ya construido y con el calendario de 3 pistas.
+> Esto desbloquea §5 y §6.
 
 ---
 
@@ -75,19 +84,20 @@ declarado por la pareja + histórico conocido por la organización.
 
 ## §5. Tamaño de los grupos y nº de clasificados
 
-**RESPUESTA:** **BLOQUEADA hasta cierre de §3**. Se redacta tras conocer la
-opción ganadora. Si gana A: probablemente grupos de 4, clasifican 2.
-Si gana B: no aplica fase de grupos.
-Si gana C: liga regular de 5 jornadas + top-4 al playoff (provisional).
+**RESPUESTA:** **CERRADA tras §3 (opción A).** Grupos de 3-4 parejas según
+inscripción; **clasifican las 2 primeras de cada grupo** a la fase eliminatoria.
+El nº exacto de grupos por categoría lo fija el sorteo (`run_draw`) en función
+de las parejas confirmadas.
 
 ---
 
 ## §6. Capacidad por categoría y total
 
-**RESPUESTA:** **BLOQUEADA hasta cierre de §3**. Orientativa: 28-32 parejas
-totales repartidas en 4 categorías (~7-8 parejas/categoría). El techo definitivo
-depende del formato ganador y del cálculo de partidos vs. capacidad de pista (3
-pistas, ~14 partidos/día entre semana, ~27/día en finde).
+**RESPUESTA:** **CERRADA tras §3 (opción A).** Techo por defecto: 28-32 parejas
+totales repartidas en 4 categorías (~7-8 parejas/categoría), configurable por
+categoría en `admin/settings` (`categories.max_pairs`). El cálculo de partidos
+vs. capacidad de pista (3 pistas, ~14 partidos/día entre semana, ~27/día en
+finde) sigue siendo la restricción operativa.
 
 ---
 
@@ -504,13 +514,17 @@ Diseño técnico complementario:
 
 **RESPUESTA:** **Sin dominio propio**. Se usa subdominio gratuito de Vercel.
 
-Subdominio asignado: **`torneigpadelvinroma-v-2026.vercel.app`**.
+Subdominio asignado: **`torneig-local-padel-2026-vinroma.vercel.app`** (dominio
+por defecto del proyecto de Vercel).
 
-> Nota técnica. Vercel normaliza los subdominios a minúsculas; aunque el
-> organizador escribió "V" en mayúscula (referencia a "V edición"), la URL
-> renderiza como `...-v-2026.vercel.app`. En textos visuales (cartel, plantillas
-> de email, OpenGraph) podemos escribir "V edició — 2026" con tipografía
-> destacada para preservar la lectura numérica romana.
+> Nota técnica (corrección). Una versión previa de este documento anotaba
+> `torneigpadelvinroma-v-2026.vercel.app`, un subdominio que **nunca se llegó a
+> asignar**: los enlaces de los emails que apuntaban a él no abrían nada. El
+> dominio real servido por el proyecto es `torneig-local-padel-2026-vinroma.vercel.app`.
+> `NEXT_PUBLIC_SITE_URL` debe coincidir **exactamente** con el dominio servido;
+> el código centraliza el valor en `lib/site-url.ts` para evitar divergencias.
+> En textos visuales (cartel, plantillas de email, OpenGraph) se puede seguir
+> escribiendo "V edició — 2026" con tipografía destacada.
 
 Implicaciones:
 
@@ -667,7 +681,7 @@ organizador aportó en las 2 rondas:
 - (§12) Persona contacto operativo: **Jonatan García** (tel **620 033 053**).
 - (§13) **Modelo de pago dual** (1 Bizum por pareja recomendado, 1 Bizum por
   persona como alternativa).
-- (§27) Subdominio Vercel: **`torneigpadelvinroma-v-2026.vercel.app`**.
+- (§27) Subdominio Vercel: **`torneig-local-padel-2026-vinroma.vercel.app`**.
 
 ---
 
