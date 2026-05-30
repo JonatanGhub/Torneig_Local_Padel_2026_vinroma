@@ -115,7 +115,13 @@
     "unlock_button": "Entrar",
     "unlock_wrong_pin": "PIN incorrecto.",
     "unlock_forgot": "He olvidado el PIN",
-    "unlock_new_device_warning": "Este dispositivo no está registrado. Pide un nuevo enlace mágico desde /login para reconfigurar el PIN."
+    "unlock_new_device_warning": "Este dispositivo no está registrado. Pide un nuevo enlace mágico desde /login para reconfigurar el PIN.",
+    "login_pin_title": "Entrar con PIN",
+    "login_pin_subtitle_short": "Este dispositivo ya tiene un PIN configurado.",
+    "login_pin_welcome": "Hola, <strong>{name}</strong>",
+    "login_pin_welcome_anon": "Hola de nuevo",
+    "login_pin_subtitle": "Introduce tu PIN de 4 dígitos para entrar al panel.",
+    "login_use_email_instead": "Quiero entrar con correo electrónico"
   },
   "registration": {
     "title": "Inscripción al torneo",

@@ -115,7 +115,13 @@
     "unlock_button": "Entrar",
     "unlock_wrong_pin": "PIN incorrecte.",
     "unlock_forgot": "He oblidat el PIN",
-    "unlock_new_device_warning": "Aquest dispositiu no està registrat. Demana un nou enllaç màgic des de /login per tornar a configurar el PIN."
+    "unlock_new_device_warning": "Aquest dispositiu no està registrat. Demana un nou enllaç màgic des de /login per tornar a configurar el PIN.",
+    "login_pin_title": "Entrar amb PIN",
+    "login_pin_subtitle_short": "Aquest dispositiu ja té un PIN configurat.",
+    "login_pin_welcome": "Hola, <strong>{name}</strong>",
+    "login_pin_welcome_anon": "Hola de nou",
+    "login_pin_subtitle": "Introdueix el teu PIN de 4 dígits per entrar al panell.",
+    "login_use_email_instead": "Vull entrar amb correu electrònic"
   },
   "registration": {
     "title": "Inscripció al torneig",
