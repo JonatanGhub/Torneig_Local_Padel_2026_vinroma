@@ -47,8 +47,12 @@ export default async function CaptainMatchPage({ params }: Props) {
   const rivalPair = (pairs ?? []).find((p) => p.id !== myPair.id);
 
   const allPlayerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
+  // Cal `public_player_names` (vista pública amb només id+last_name) perquè la
+  // RLS de `players` només deixa el capità llegir el seu propi registre, no el
+  // del company ni el dels rivals. Si féssim servir `from('players')`, els
+  // noms sortirien tots com a "—".
   const { data: players } = allPlayerIds.length
-    ? await supabase.from('players').select('id, first_name, last_name').in('id', allPlayerIds)
+    ? await supabase.from('public_player_names').select('id, last_name').in('id', allPlayerIds)
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
   const pairLabel = (pairId: string) => {

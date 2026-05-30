@@ -50,8 +50,11 @@ export default async function CaptainRescheduleMatchPage({ params }: Props) {
   const rivalPair = (pairs ?? []).find((p) => p.id !== myPair.id);
 
   const allPlayerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
+  // Vista pública: la RLS de `players` només deixa el capità veure el seu
+  // propi registre; `public_player_names` exposa id+last_name a tothom per a
+  // les etiquetes de parella.
   const { data: players } = allPlayerIds.length
-    ? await supabase.from('players').select('id, first_name, last_name').in('id', allPlayerIds)
+    ? await supabase.from('public_player_names').select('id, last_name').in('id', allPlayerIds)
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
   const pairLabel = (pairId: string) => {
