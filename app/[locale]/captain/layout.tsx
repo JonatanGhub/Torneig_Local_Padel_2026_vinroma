@@ -5,6 +5,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { LogoLockup } from '@/components/brand/logo-mark';
+import { LogoutButton } from '@/components/logout-button';
 import { CaptainTabs } from './captain-tabs';
 
 type Props = {
@@ -37,13 +38,16 @@ export default async function CaptainLayout({ children, params }: Props) {
       <div className="bg-ink-950/85 sticky top-0 z-40 border-b border-white/10 backdrop-blur-md">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
           <LogoLockup />
-          <Link
-            href={`/${locale}`}
-            className="inline-flex items-center gap-1 text-xs text-white/65 hover:text-white"
-          >
-            <ArrowLeft className="size-3.5" />
-            {t('common.back')}
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/${locale}`}
+              className="inline-flex items-center gap-1 text-xs text-white/65 hover:text-white"
+            >
+              <ArrowLeft className="size-3.5" />
+              {t('common.back')}
+            </Link>
+            <LogoutButton label={t('admin.logout_short')} variant="dark" />
+          </div>
         </div>
       </div>
 

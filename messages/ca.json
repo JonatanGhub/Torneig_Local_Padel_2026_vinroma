@@ -266,6 +266,7 @@
   "admin": {
     "sidebar_title": "Gestor del torneig",
     "back_to_site": "Inici",
+    "logout_short": "Sortir",
     "nav_dashboard": "Resum",
     "nav_payments": "Pagaments",
     "nav_draw": "Sorteig",

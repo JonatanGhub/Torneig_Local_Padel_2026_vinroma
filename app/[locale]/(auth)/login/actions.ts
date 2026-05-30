@@ -20,6 +20,34 @@ type LoginResult = { ok: boolean; error?: string };
 const pinSchema = z.string().regex(/^\d{4}$/);
 const nextSchema = z.string().regex(/^\/[A-Za-z0-9_\-/?&=.%:]*$/);
 
+/**
+ * Tanca la sessió de Supabase i porta a /login?mode=email perquè l'usuari
+ * pugui entrar amb un altre correu (típicament per saltar entre el seu
+ * compte personal de capità i el compte admin compartit del club).
+ *
+ * IMPORTANT: NO esborrem `DEVICE_COOKIE` per defecte — el dispositiu
+ * segueix sent de confiança i la propera vegada el capità entrarà amb PIN.
+ * Sí esborrem `UNLOCK_COOKIE` perquè la propera entrada exigeixi PIN o
+ * magic-link explícit.
+ */
+export async function signOutAndSwitchAccount(): Promise<void> {
+  const supabase = await createClient();
+  try {
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.warn('[signOut] failed', err);
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.delete(UNLOCK_COOKIE);
+
+  const fromCookie = cookieStore.get('NEXT_LOCALE')?.value;
+  const locale = (locales as readonly string[]).includes(fromCookie ?? '')
+    ? (fromCookie as Locale)
+    : defaultLocale;
+  redirect(`/${locale}/login?mode=email`);
+}
+
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
