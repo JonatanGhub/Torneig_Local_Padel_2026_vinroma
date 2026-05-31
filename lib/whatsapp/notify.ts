@@ -355,7 +355,7 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
 
     const { data: category } = await supabase
       .from('categories')
-      .select('name_ca')
+      .select('name_ca, level')
       .eq('id', match.category_id)
       .maybeSingle();
 
@@ -370,13 +370,17 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
     const winnerLabel = match.winner_pair_id ? pairLabelOf(match.winner_pair_id) : null;
     const categoryName = category?.name_ca ?? '—';
     const groupSuffix = match.group_label ? `  ·  Grup ${match.group_label}` : '';
+    const standingsUrl = category?.level
+      ? `${SITE_URL}/ca/grups/${category.level}`
+      : `${SITE_URL}/ca/grups`;
 
     const text =
       `✅ *Resultat oficial*\n` +
       `${labelA}  vs  ${labelB}\n` +
       `Marcador: ${scoreText}\n` +
       (winnerLabel ? `Guanya: ${winnerLabel}\n` : '') +
-      `Categoria: ${categoryName}${groupSuffix}`;
+      `Categoria: ${categoryName}${groupSuffix}\n\n` +
+      `📊 Classificació actualitzada:\n${standingsUrl}`;
 
     await sendWhatsAppToGroup(text);
   } catch (err) {
@@ -428,7 +432,8 @@ export async function notifyRescheduleAcceptedToGroup(proposalId: string): Promi
     const text =
       `📅 *Canvi de partit confirmat*\n` +
       `${labelA}  vs  ${labelB}\n` +
-      `Nova data: ${dateText}  ·  ${courtText}`;
+      `Nova data: ${dateText}  ·  ${courtText}\n\n` +
+      `🗓️ Calendari complet:\n${SITE_URL}/ca/calendari`;
 
     await sendWhatsAppToGroup(text);
   } catch (err) {
@@ -546,7 +551,10 @@ export async function sendDailyGroupSummary(): Promise<void> {
     });
 
     const day = formatMadridDateLong(new Date(startIso));
-    const text = `🎾 *Avui es juga (${day})*\n\n${lines.join('\n')}\n\nBona sort!`;
+    const text =
+      `🎾 *Avui es juga (${day})*\n\n${lines.join('\n')}\n\n` +
+      `🗓️ Calendari complet:\n${SITE_URL}/ca/calendari\n` +
+      `Bona sort!`;
 
     await sendWhatsAppToGroup(text);
   } catch (err) {
