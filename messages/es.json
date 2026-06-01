@@ -656,6 +656,7 @@
     "cannot_report_yet_body_unscheduled": "El partido aún no tiene fecha asignada. Cuando la organización la ponga y llegue el momento, podrás introducir el resultado.",
     "mypairs_title": "Mis parejas",
     "mypairs_body": "Estado de la inscripción. Puedes retirar la pareja si aún no se ha hecho el sorteo.",
+    "mypairs_view_group": "Ver el grupo y los partidos",
     "mypairs_withdrawn_reason": "Motivo de baja",
     "mypairs_cannot_withdraw_hint": "Ya hay partidos programados. Contacta con la organización para retirarte.",
     "mypairs_withdraw_cta": "Retirar la pareja",

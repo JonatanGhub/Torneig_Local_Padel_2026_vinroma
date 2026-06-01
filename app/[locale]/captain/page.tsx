@@ -38,6 +38,7 @@ export default async function CaptainHome({ params }: Props) {
     partnerLabel: partnerLabels.get(p.id) ?? '—',
     withdrawnReason: p.withdrawal_reason,
     hasMatches: pairsWithMatches.has(p.id),
+    hasGroup: !!p.group_id,
   }));
 
   const validated = matches.filter((m) => m.status === 'validated' || m.status === 'walkover');

@@ -7,7 +7,10 @@ import { loadCaptainContext } from '@/lib/captain/data';
 import { NoProfilePanel } from '../no-profile-panel';
 import { CaptainGroupTabs } from './group-tabs';
 
-type Props = { params: Promise<{ locale: Locale }> };
+type Props = {
+  params: Promise<{ locale: Locale }>;
+  searchParams: Promise<{ pair?: string }>;
+};
 
 const PHASE_MAP: Record<string, MatchCardPhase> = {
   group: 'group',
@@ -20,8 +23,9 @@ const PHASE_MAP: Record<string, MatchCardPhase> = {
   cons_2: 'final',
 };
 
-export default async function CaptainGroupPage({ params }: Props) {
+export default async function CaptainGroupPage({ params, searchParams }: Props) {
   const { locale } = await params;
+  const { pair: requestedPair } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations();
 
@@ -201,7 +205,14 @@ export default async function CaptainGroupPage({ params }: Props) {
         title={t('captain.group_page_title')}
         subtitle={t('captain.group_page_subtitle')}
       />
-      <CaptainGroupTabs pairs={pairTabs}>{content}</CaptainGroupTabs>
+      <CaptainGroupTabs
+        pairs={pairTabs}
+        initialPairId={
+          requestedPair && pairTabs.some((p) => p.id === requestedPair) ? requestedPair : undefined
+        }
+      >
+        {content}
+      </CaptainGroupTabs>
     </main>
   );
 }

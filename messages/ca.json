@@ -656,6 +656,7 @@
     "cannot_report_yet_body_unscheduled": "El partit encara no té data assignada. Quan l'organització la posi i arribi el moment, podràs entrar el resultat.",
     "mypairs_title": "Les meves parelles",
     "mypairs_body": "Estat de la inscripció. Pots retirar la parella si encara no s'ha fet el sorteig.",
+    "mypairs_view_group": "Veure el grup i els partits",
     "mypairs_withdrawn_reason": "Motiu de baixa",
     "mypairs_cannot_withdraw_hint": "Ja hi ha partits programats. Contacta amb l'organització per retirar-te.",
     "mypairs_withdraw_cta": "Retirar la parella",
