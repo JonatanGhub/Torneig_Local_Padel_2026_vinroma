@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { formatMatchTime, madridDateKey } from '@/lib/format-date';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -50,10 +51,12 @@ export default async function CalendariPage({ params }: Props) {
     return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
   };
 
+  // Agrupem per dia en hora de Madrid (no UTC), si no els partits de nit poden
+  // caure al dia equivocat.
   const byDay = new Map<string, typeof matches>();
   for (const m of matches ?? []) {
     if (!m.scheduled_at) continue;
-    const day = new Date(m.scheduled_at).toISOString().slice(0, 10);
+    const day = madridDateKey(m.scheduled_at);
     const list = byDay.get(day) ?? [];
     list.push(m);
     byDay.set(day, list);
@@ -78,7 +81,8 @@ export default async function CalendariPage({ params }: Props) {
       {Array.from(byDay.entries()).map(([day, dayMatches]) => (
         <section key={day} className="mb-8">
           <h2 className="text-muted-foreground mb-3 text-sm font-medium tracking-wider uppercase">
-            {new Date(day).toLocaleDateString(locale === 'ca' ? 'ca-ES' : 'es-ES', {
+            {new Date(`${day}T12:00:00Z`).toLocaleDateString(locale === 'ca' ? 'ca-ES' : 'es-ES', {
+              timeZone: 'Europe/Madrid',
               weekday: 'long',
               day: 'numeric',
               month: 'long',
@@ -91,14 +95,7 @@ export default async function CalendariPage({ params }: Props) {
                 className="flex flex-col gap-1 p-3 text-sm md:flex-row md:items-center md:justify-between"
               >
                 <span className="text-muted-foreground font-mono text-xs">
-                  {new Date(m.scheduled_at!).toLocaleTimeString(
-                    locale === 'ca' ? 'ca-ES' : 'es-ES',
-                    {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    },
-                  )}{' '}
-                  · {m.court_label ?? '—'}
+                  {formatMatchTime(m.scheduled_at, locale)} · {m.court_label ?? '—'}
                 </span>
                 <span>
                   {pairLabel(m.pair_a_id)} vs {pairLabel(m.pair_b_id)}

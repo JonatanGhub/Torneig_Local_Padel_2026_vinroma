@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toMadridInputValue } from '@/lib/format-date';
 import { updateTournamentDates } from './actions';
 
 type Tournament = {
@@ -15,13 +16,6 @@ type Tournament = {
   final_at: string;
   is_published: boolean;
 };
-
-function toLocalInputValue(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export function TournamentDatesForm({ tournament }: { tournament: Tournament }) {
   const t = useTranslations('admin');
@@ -59,27 +53,27 @@ export function TournamentDatesForm({ tournament }: { tournament: Tournament }) 
           <DateField
             name="registration_opens_at"
             label={t('tournament_date_registration_opens')}
-            defaultValue={toLocalInputValue(tournament.registration_opens_at)}
+            defaultValue={toMadridInputValue(tournament.registration_opens_at)}
           />
           <DateField
             name="registration_closes_at"
             label={t('tournament_date_registration_closes')}
-            defaultValue={toLocalInputValue(tournament.registration_closes_at)}
+            defaultValue={toMadridInputValue(tournament.registration_closes_at)}
           />
           <DateField
             name="draw_at"
             label={t('tournament_date_draw')}
-            defaultValue={toLocalInputValue(tournament.draw_at)}
+            defaultValue={toMadridInputValue(tournament.draw_at)}
           />
           <DateField
             name="first_match_at"
             label={t('tournament_date_first_match')}
-            defaultValue={toLocalInputValue(tournament.first_match_at)}
+            defaultValue={toMadridInputValue(tournament.first_match_at)}
           />
           <DateField
             name="final_at"
             label={t('tournament_date_final')}
-            defaultValue={toLocalInputValue(tournament.final_at)}
+            defaultValue={toMadridInputValue(tournament.final_at)}
           />
         </div>
 

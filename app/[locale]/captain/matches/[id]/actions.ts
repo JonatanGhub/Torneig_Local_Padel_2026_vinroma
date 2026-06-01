@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { madridInputToISO } from '@/lib/format-date';
 import {
   notifyMatchDisputed,
   notifyMatchValidated,
@@ -111,15 +112,17 @@ export async function proposeReschedule(formData: FormData) {
   });
   if (!parsed.success) return { ok: false, error: 'invalid_input' } as const;
 
-  const when = new Date(parsed.data.newScheduledAt);
-  if (when.getTime() <= Date.now()) {
+  // El valor ve d'un <input datetime-local> (hora de paret de Madrid). El
+  // convertim a instant UTC tenint en compte el fus, no com a UTC directe.
+  const whenISO = madridInputToISO(parsed.data.newScheduledAt);
+  if (new Date(whenISO).getTime() <= Date.now()) {
     return { ok: false, error: 'new_date_must_be_future' } as const;
   }
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('propose_reschedule', {
     p_match_id: parsed.data.matchId,
-    p_new_scheduled_at: when.toISOString(),
+    p_new_scheduled_at: whenISO,
     p_new_court_label: parsed.data.newCourtLabel ?? null,
     p_message: parsed.data.message ?? null,
   });

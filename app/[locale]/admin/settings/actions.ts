@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { madridInputToISO } from '@/lib/format-date';
 
 const SettingsUpdateSchema = z.object({
   id: z.string().uuid(),
@@ -144,12 +145,14 @@ export async function updateTournamentDates(formData: FormData) {
     return { ok: false, error: 'forbidden' } as const;
 
   const { tournamentId, is_published, ...dates } = parsed.data;
+  // Els valors venen de <input datetime-local> (hora de paret de Madrid). Es
+  // converteixen a instant UTC tenint en compte el fus.
   const update = {
-    registration_opens_at: new Date(dates.registration_opens_at).toISOString(),
-    registration_closes_at: new Date(dates.registration_closes_at).toISOString(),
-    draw_at: new Date(dates.draw_at).toISOString(),
-    first_match_at: new Date(dates.first_match_at).toISOString(),
-    final_at: new Date(dates.final_at).toISOString(),
+    registration_opens_at: madridInputToISO(dates.registration_opens_at),
+    registration_closes_at: madridInputToISO(dates.registration_closes_at),
+    draw_at: madridInputToISO(dates.draw_at),
+    first_match_at: madridInputToISO(dates.first_match_at),
+    final_at: madridInputToISO(dates.final_at),
     ...(typeof is_published === 'boolean' ? { is_published } : {}),
   };
 
@@ -216,8 +219,8 @@ export async function createFee(formData: FormData) {
     tournament_id: tournamentId,
     label_ca: rest.label_ca,
     label_es: rest.label_es,
-    starts_at: new Date(rest.starts_at).toISOString(),
-    ends_at: new Date(rest.ends_at).toISOString(),
+    starts_at: madridInputToISO(rest.starts_at),
+    ends_at: madridInputToISO(rest.ends_at),
     amount_per_player_cents: Math.round(amount_eur * 100),
     is_default_open: rest.is_default_open ?? false,
   });
@@ -244,9 +247,10 @@ export async function updateFee(formData: FormData) {
     const issue = parsed.error.issues[0];
     return { ok: false, error: issue?.message ?? 'validation' } as const;
   }
-  const starts = new Date(parsed.data.starts_at);
-  const ends = new Date(parsed.data.ends_at);
-  if (starts >= ends) return { ok: false, error: 'ends_before_starts' } as const;
+  const startsISO = madridInputToISO(parsed.data.starts_at);
+  const endsISO = madridInputToISO(parsed.data.ends_at);
+  if (new Date(startsISO) >= new Date(endsISO))
+    return { ok: false, error: 'ends_before_starts' } as const;
 
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
@@ -256,8 +260,8 @@ export async function updateFee(formData: FormData) {
     .update({
       label_ca: parsed.data.label_ca,
       label_es: parsed.data.label_es,
-      starts_at: starts.toISOString(),
-      ends_at: ends.toISOString(),
+      starts_at: startsISO,
+      ends_at: endsISO,
       amount_per_player_cents: Math.round(parsed.data.amount_eur * 100),
       is_default_open: parsed.data.is_default_open ?? false,
     })

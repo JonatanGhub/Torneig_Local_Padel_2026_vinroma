@@ -4,6 +4,7 @@ import { ArrowLeft, Clock } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { getCaptainPlayerIds } from '@/lib/captain/data';
 import { formatMatchDateTime, formatMatchDateTimeLong } from '@/lib/format-date';
 import { ReportForm } from './report-form';
 
@@ -15,17 +16,9 @@ export default async function CaptainMatchPage({ params }: Props) {
   const t = await getTranslations();
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, playerIds } = await getCaptainPlayerIds();
   if (!user) redirect(`/${locale}/login?next=/${locale}/captain/matches/${matchId}`);
-
-  const { data: player } = await supabase
-    .from('players')
-    .select('id')
-    .eq('auth_user_id', user.id)
-    .maybeSingle();
-  if (!player) redirect(`/${locale}/captain`);
+  if (playerIds.length === 0) redirect(`/${locale}/captain`);
 
   const { data: match } = await supabase
     .from('matches')
@@ -39,7 +32,7 @@ export default async function CaptainMatchPage({ params }: Props) {
     .select('id, player_a_id, player_b_id, captain_id')
     .in('id', [match.pair_a_id, match.pair_b_id]);
 
-  const myPair = (pairs ?? []).find((p) => p.captain_id === player.id);
+  const myPair = (pairs ?? []).find((p) => playerIds.includes(p.captain_id));
   if (!myPair) {
     redirect(`/${locale}/captain`);
   }

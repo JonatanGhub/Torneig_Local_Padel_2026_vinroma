@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { getCaptainPlayerIds } from '@/lib/captain/data';
 import { withdrawPair } from '@/lib/withdraw';
 
 const InputSchema = z.object({
@@ -33,17 +34,9 @@ export async function captainWithdrawPair(raw: unknown): Promise<CaptainWithdraw
   const { pairId, reason, locale } = parsed.data;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, playerIds } = await getCaptainPlayerIds();
   if (!user) return { ok: false, error: 'unauthenticated' };
-
-  const { data: player } = await supabase
-    .from('players')
-    .select('id')
-    .eq('auth_user_id', user.id)
-    .maybeSingle();
-  if (!player) return { ok: false, error: 'no_player_profile' };
+  if (playerIds.length === 0) return { ok: false, error: 'no_player_profile' };
 
   const { data: pair } = await supabase
     .from('pairs')
@@ -51,7 +44,7 @@ export async function captainWithdrawPair(raw: unknown): Promise<CaptainWithdraw
     .eq('id', pairId)
     .maybeSingle();
   if (!pair) return { ok: false, error: 'pair_not_found' };
-  if (pair.captain_id !== player.id) {
+  if (!playerIds.includes(pair.captain_id)) {
     return { ok: false, error: 'not_captain_of_pair' };
   }
 
