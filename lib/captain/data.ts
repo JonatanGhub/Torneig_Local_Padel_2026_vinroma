@@ -58,6 +58,33 @@ const emptyCtx = (): CaptainContext => ({
   partnerLabels: new Map(),
 });
 
+/**
+ * Resol totes les files `players` que pertanyen a l'usuari autenticat, fent
+ * servir el CORREU (no només `auth_user_id`). Una persona pot tenir-ne més
+ * d'una (una per inscripció) i només una queda vinculada a auth_user_id.
+ *
+ * Cal per a totes les accions de capità (veure/reportar/reprogramar/retirar)
+ * que abans miraven només el player vinculat i bloquejaven les parelles de
+ * categories addicionals.
+ */
+export async function getCaptainPlayerIds(): Promise<{
+  user: { id: string; email?: string | null } | null;
+  playerIds: string[];
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return { user: user ?? null, playerIds: [] };
+
+  const service = createServiceClient();
+  const { data } = await service
+    .from('players')
+    .select('id')
+    .filter('email', 'ilike', user.email.toLowerCase());
+  return { user, playerIds: (data ?? []).map((p) => p.id) };
+}
+
 export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainContext> {
   const supabase = await createClient();
   const {

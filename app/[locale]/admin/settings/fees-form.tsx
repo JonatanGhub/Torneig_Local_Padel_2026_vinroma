@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toMadridInputValue } from '@/lib/format-date';
 import { createFee, updateFee, deleteFee } from './actions';
 
 export type Fee = {
@@ -16,13 +17,6 @@ export type Fee = {
   amount_per_player_cents: number;
   is_default_open: boolean;
 };
-
-function toLocalInputValue(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export function FeesForm({ tournamentId, fees }: { tournamentId: string; fees: Fee[] }) {
   const t = useTranslations('admin');
@@ -100,13 +94,13 @@ function FeeRow({ fee, tournamentId }: { fee: Fee; tournamentId: string }) {
           name="starts_at"
           label={t('fees_starts_at')}
           type="datetime-local"
-          defaultValue={toLocalInputValue(fee.starts_at)}
+          defaultValue={toMadridInputValue(fee.starts_at)}
         />
         <LabeledInput
           name="ends_at"
           label={t('fees_ends_at')}
           type="datetime-local"
-          defaultValue={toLocalInputValue(fee.ends_at)}
+          defaultValue={toMadridInputValue(fee.ends_at)}
         />
         <LabeledInput
           name="amount_eur"
