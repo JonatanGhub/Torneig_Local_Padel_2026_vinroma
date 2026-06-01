@@ -650,3 +650,48 @@ export async function sendDailyGroupSummary(): Promise<void> {
     console.warn('[whatsapp] sendDailyGroupSummary failed', err);
   }
 }
+
+// 9) Sorteig de grups fet → WhatsApp a tots els capitans de la categoria.
+export async function notifyDrawDoneWhatsApp(categoryId: string) {
+  try {
+    const supabase = createServiceClient();
+
+    const { data: category } = await supabase
+      .from('categories')
+      .select('id, name_ca')
+      .eq('id', categoryId)
+      .maybeSingle();
+
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, captain_id, group_id')
+      .eq('category_id', categoryId)
+      .eq('status', 'confirmed')
+      .not('group_id', 'is', null);
+    if (!pairs || pairs.length === 0) return;
+
+    const groupIds = Array.from(new Set(pairs.map((p) => p.group_id).filter(Boolean) as string[]));
+    const { data: groups } = await supabase.from('groups').select('id, label').in('id', groupIds);
+    const groupLabelById = new Map((groups ?? []).map((g) => [g.id, g.label]));
+
+    const captainIds = Array.from(new Set(pairs.map((p) => p.captain_id)));
+    const { data: captains } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
+      .in('id', captainIds);
+    const captainById = new Map((captains ?? []).map((c) => [c.id, c as Captain]));
+
+    for (const pair of pairs) {
+      const captain = captainById.get(pair.captain_id);
+      if (!canWhatsApp(captain)) continue;
+      const groupLabel = pair.group_id ? (groupLabelById.get(pair.group_id) ?? '—') : '—';
+      const text =
+        `🎲 *Sorteig fet!*\n` +
+        `${category?.name_ca ?? ''} — has quedat al *grup ${groupLabel}*.\n\n` +
+        `Veu els teus rivals i partits:\n${SITE_URL}/ca/captain/grup`;
+      await sendWhatsApp({ to: captain!.phone, text });
+    }
+  } catch (err) {
+    console.warn('[whatsapp] notifyDrawDone failed', err);
+  }
+}

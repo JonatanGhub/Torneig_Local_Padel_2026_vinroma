@@ -65,7 +65,9 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
     playerIds.length
       ? supabase
           .from('players')
-          .select('id, first_name, last_name, email, auth_user_id')
+          .select(
+            'id, first_name, last_name, email, phone, birth_date, declared_level, emergency_contact_name, emergency_contact_phone, consent_whatsapp, auth_user_id',
+          )
           .in('id', playerIds)
       : Promise.resolve({ data: [] }),
     categoryIds.length
@@ -90,6 +92,33 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
       .toLowerCase();
     return hay.includes(search);
   });
+
+  // Detecció de duplicats: una mateixa persona (per correu) que apareix en més
+  // d'una parella ACTIVA (no retirada/desqualificada) dins de la MATEIXA
+  // categoria. No bloqueja res; només avisa l'organització.
+  const activePairs = (pairs ?? []).filter(
+    (p) => p.status !== 'withdrawn' && p.status !== 'disqualified',
+  );
+  const emailCategoryCount = new Map<string, { count: number; email: string; category: string }>();
+  for (const p of activePairs) {
+    if (!p.category_id) continue;
+    const catName =
+      (locale === 'ca'
+        ? categoryMap.get(p.category_id)?.name_ca
+        : categoryMap.get(p.category_id)?.name_es) ?? '';
+    for (const pid of [p.player_a_id, p.player_b_id]) {
+      const email = playerMap.get(pid)?.email?.toLowerCase();
+      if (!email) continue;
+      const key = `${email}|${p.category_id}`;
+      const prev = emailCategoryCount.get(key);
+      emailCategoryCount.set(key, {
+        count: (prev?.count ?? 0) + 1,
+        email,
+        category: catName,
+      });
+    }
+  }
+  const duplicates = Array.from(emailCategoryCount.values()).filter((d) => d.count > 1);
 
   return (
     <section className="space-y-6">
@@ -154,6 +183,23 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
         />
       )}
 
+      {duplicates.length > 0 && (
+        <div className="rounded-md border border-amber-400/60 bg-amber-400/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+          <p className="font-semibold">{t('registrations_duplicate_warning_title')}</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            {duplicates.map((d) => (
+              <li key={`${d.email}-${d.category}`}>
+                {t('registrations_duplicate_warning_item', {
+                  email: d.email,
+                  category: d.category,
+                  count: d.count,
+                })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <p className="text-muted-foreground text-xs">
         {t('registrations_count', { count: filtered.length })}
       </p>
@@ -190,6 +236,15 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
                         {t('registrations_withdrawn_label')}: {p.withdrawal_reason}
                       </p>
                     )}
+                    <details className="mt-2 text-xs">
+                      <summary className="text-muted-foreground hover:text-foreground cursor-pointer">
+                        {t('registrations_detail_toggle')}
+                      </summary>
+                      <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <PlayerDetail label={t('registrations_player_a')} player={a} t={t} />
+                        <PlayerDetail label={t('registrations_player_b')} player={b} t={t} />
+                      </div>
+                    </details>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     <PairStatusPill status={p.status} t={t} />
@@ -215,6 +270,55 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
         </ul>
       )}
     </section>
+  );
+}
+
+function PlayerDetail({
+  label,
+  player,
+  t,
+}: {
+  label: string;
+  player:
+    | {
+        first_name: string | null;
+        last_name: string | null;
+        email: string | null;
+        phone?: string | null;
+        birth_date?: string | null;
+        declared_level?: number | null;
+        emergency_contact_name?: string | null;
+        emergency_contact_phone?: string | null;
+        consent_whatsapp?: boolean | null;
+      }
+    | undefined;
+  t: Awaited<ReturnType<typeof getTranslations<'admin'>>>;
+}) {
+  if (!player) return null;
+  const row = (k: string, v: string | null | undefined) =>
+    v ? (
+      <div className="flex justify-between gap-2">
+        <span className="text-muted-foreground">{k}</span>
+        <span className="text-right font-medium">{v}</span>
+      </div>
+    ) : null;
+  return (
+    <div className="border-border space-y-1 rounded-md border p-2">
+      <p className="font-semibold">{label}</p>
+      {row(t('registrations_detail_email'), player.email)}
+      {row(t('registrations_detail_phone'), player.phone)}
+      {row(t('registrations_detail_birth'), player.birth_date)}
+      {row(
+        t('registrations_detail_level'),
+        player.declared_level ? `${player.declared_level}ª` : null,
+      )}
+      {row(t('registrations_detail_emergency'), player.emergency_contact_name)}
+      {row(t('registrations_detail_emergency_phone'), player.emergency_contact_phone)}
+      {row(
+        t('registrations_detail_whatsapp'),
+        player.consent_whatsapp ? t('registrations_detail_yes') : t('registrations_detail_no'),
+      )}
+    </div>
   );
 }
 
