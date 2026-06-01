@@ -8,11 +8,13 @@ type PairTab = { id: string; label: string };
 export function CaptainGroupTabs({
   pairs,
   children,
+  initialPairId,
 }: {
   pairs: PairTab[];
   children: Record<string, React.ReactNode>;
+  initialPairId?: string;
 }) {
-  const [active, setActive] = useState<string>(pairs[0]?.id ?? '');
+  const [active, setActive] = useState<string>(initialPairId ?? pairs[0]?.id ?? '');
   if (pairs.length === 0) return null;
 
   return (

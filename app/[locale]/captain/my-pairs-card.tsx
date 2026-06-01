@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Users, AlertTriangle } from 'lucide-react';
+import { Users, AlertTriangle, ChevronRight } from 'lucide-react';
 import { captainWithdrawPair } from './withdraw-actions';
 
 export type CaptainPairItem = {
@@ -13,6 +13,7 @@ export type CaptainPairItem = {
   partnerLabel: string;
   withdrawnReason: string | null;
   hasMatches: boolean;
+  hasGroup: boolean;
 };
 
 export function MyPairsCard({ pairs, locale }: { pairs: CaptainPairItem[]; locale: 'ca' | 'es' }) {
@@ -72,8 +73,10 @@ function PairRow({ pair, locale }: { pair: CaptainPairItem; locale: 'ca' | 'es' 
     });
   }
 
-  return (
-    <li className="rounded-lg border border-white/10 bg-white/5 p-4">
+  const navigable = pair.hasGroup && !isWithdrawn;
+
+  const body = (
+    <>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-white">
@@ -91,9 +94,31 @@ function PairRow({ pair, locale }: { pair: CaptainPairItem; locale: 'ca' | 'es' 
               {t('mypairs_cannot_withdraw_hint')}
             </p>
           )}
+          {navigable && (
+            <p className="text-crimson-300/80 mt-1 flex items-center gap-1 text-xs">
+              <ChevronRight className="size-3" />
+              {t('mypairs_view_group')}
+            </p>
+          )}
         </div>
         <StatusPill status={pair.status} t={t} />
       </div>
+    </>
+  );
+
+  return (
+    <li className="rounded-lg border border-white/10 bg-white/5 p-4">
+      {navigable ? (
+        <button
+          type="button"
+          onClick={() => router.push(`/${locale}/captain/grup?pair=${pair.id}`)}
+          className="hover:border-crimson-500/30 -m-4 mb-0 block w-[calc(100%+2rem)] rounded-lg border border-transparent p-4 text-left transition-colors hover:bg-white/[0.03]"
+        >
+          {body}
+        </button>
+      ) : (
+        body
+      )}
 
       {canWithdraw && (
         <div className="mt-3">
