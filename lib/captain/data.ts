@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export type CaptainPlayer = {
   id: string;
@@ -64,20 +65,38 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
   } = await supabase.auth.getUser();
   if (!user) return emptyCtx();
 
-  const { data: player } = await supabase
-    .from('players')
-    .select('id, first_name, last_name, calendar_feed_token')
-    .eq('auth_user_id', user.id)
-    .maybeSingle();
+  // Per identificar el capità i les seves parelles fem servir el CORREU de
+  // l'usuari autenticat, no només `auth_user_id`. Motiu: cada inscripció crea
+  // un row nou a `players` (no es reutilitza); per tant una mateixa persona
+  // pot tenir múltiples players amb el mateix correu (un per parella) i només
+  // un d'ells té auth_user_id vinculat (la columna és UNIQUE).
+  const userEmail = (user.email ?? '').toLowerCase();
+  if (!userEmail) return { ...emptyCtx(), user };
 
-  if (!player) return { ...emptyCtx(), user };
+  // Tots els player rows amb aquest correu (pot ser-ne més d'un).
+  // Cal service client per saltar la RLS de `players` (només deixa veure el
+  // propi registre per auth_user_id; els altres records del mateix email
+  // queden invisibles).
+  const service = createServiceClient();
+  const { data: myPlayerRows } = await service
+    .from('players')
+    .select('id, first_name, last_name, calendar_feed_token, auth_user_id, email')
+    .filter('email', 'ilike', userEmail);
+  if (!myPlayerRows || myPlayerRows.length === 0) {
+    return { ...emptyCtx(), user };
+  }
+  const myPlayerIds = myPlayerRows.map((p) => p.id);
+  // El "principal" l'agafem del player ja vinculat a auth_user_id (per
+  // mantenir cohesió amb la resta del codi); si no n'hi ha cap vinculat,
+  // fem servir el primer.
+  const player = myPlayerRows.find((p) => p.auth_user_id === user.id) ?? myPlayerRows[0];
 
   const { data: myPairsRaw } = await supabase
     .from('pairs')
     .select(
       'id, status, category_id, group_id, player_a_id, player_b_id, captain_id, withdrawn_at, withdrawal_reason',
     )
-    .eq('captain_id', player.id);
+    .in('captain_id', myPlayerIds);
   const myPairs: CaptainPair[] = (myPairsRaw ?? []) as CaptainPair[];
   const myPairIds = myPairs.map((p) => p.id);
 
@@ -118,8 +137,11 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
         .in('id', Array.from(allPairIds))
     : { data: [] };
 
+  // El "company" de cada parella és el jugador que NO és cap dels meus
+  // (perquè jo puc ser-hi com a player_a o player_b).
+  const myPlayerIdSet = new Set(myPlayerIds);
   const partnerIds = Array.from(
-    new Set(myPairs.map((p) => (p.player_a_id === player.id ? p.player_b_id : p.player_a_id))),
+    new Set(myPairs.map((p) => (myPlayerIdSet.has(p.player_a_id) ? p.player_b_id : p.player_a_id))),
   );
   const allPlayerIds = Array.from(
     new Set([...(pairsData ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]), ...partnerIds]),
@@ -129,8 +151,10 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     : { data: [] };
   const lastNameMap = new Map(pubNames?.map((p) => [p.id, p.last_name ?? '—']) ?? []);
 
+  // Cal service client per llegir noms de companys d'altres parelles (la RLS
+  // de `players` només deixa veure el propi). Sense això sortirien com a '—'.
   const { data: partnerRows } = partnerIds.length
-    ? await supabase.from('players').select('id, first_name, last_name').in('id', partnerIds)
+    ? await service.from('players').select('id, first_name, last_name').in('id', partnerIds)
     : { data: [] };
   const partnerNameById = new Map(
     (partnerRows ?? []).map((p) => [
@@ -148,7 +172,7 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
 
   const partnerLabels = new Map<string, string>();
   for (const p of myPairs) {
-    const partnerId = p.player_a_id === player.id ? p.player_b_id : p.player_a_id;
+    const partnerId = myPlayerIdSet.has(p.player_a_id) ? p.player_b_id : p.player_a_id;
     partnerLabels.set(p.id, partnerNameById.get(partnerId) ?? '—');
   }
 

@@ -12,7 +12,16 @@ const ScheduleSchema = z.object({
 
 export type ScheduleMatchResult =
   | { ok: true; warning?: string }
-  | { ok: false; error: string; conflictWith?: string };
+  | {
+      ok: false;
+      error:
+        | 'pair_double_booked'
+        | 'court_double_booked'
+        | 'invalid_input'
+        | 'match_not_found'
+        | string;
+      conflictWith?: string;
+    };
 
 export async function scheduleMatch(formData: FormData): Promise<ScheduleMatchResult> {
   const parsed = ScheduleSchema.safeParse({
@@ -35,13 +44,15 @@ export async function scheduleMatch(formData: FormData): Promise<ScheduleMatchRe
     return { ok: false, error: thisErr?.message ?? 'match_not_found' };
   }
 
-  // 1) Bloqueig dur: alguna de les dues parelles ja té un partit a la mateixa
-  //    hora exacta. No es pot jugar dos partits simultanis amb la mateixa parella.
+  // Carrega tots els partits del mateix slot horari (excloent ell mateix).
   const { data: pairConflicts } = await supabase
     .from('matches')
     .select('id, pair_a_id, pair_b_id, court_label')
     .eq('scheduled_at', isoAt)
     .neq('id', parsed.data.matchId);
+
+  // 1) Bloqueig dur: alguna de les dues parelles ja té un partit a la mateixa
+  //    hora exacta. No es pot jugar dos partits simultanis amb la mateixa parella.
   const pairClash = (pairConflicts ?? []).find(
     (m) =>
       m.pair_a_id === thisMatch.pair_a_id ||
@@ -53,8 +64,17 @@ export async function scheduleMatch(formData: FormData): Promise<ScheduleMatchRe
     return { ok: false, error: 'pair_double_booked', conflictWith: pairClash.id };
   }
 
-  // 2) Advertència tova: ja hi ha algun altre partit a la mateixa data/hora
-  //    (parelles diferents). Es permet però es retorna warning.
+  // 2) Bloqueig dur: ja hi ha un partit a la mateixa pista i a la mateixa
+  //    hora. Una pista no pot tenir dos partits simultanis.
+  const courtClash = (pairConflicts ?? []).find(
+    (m) => m.court_label && m.court_label === parsed.data.courtLabel,
+  );
+  if (courtClash) {
+    return { ok: false, error: 'court_double_booked', conflictWith: courtClash.id };
+  }
+
+  // 3) Advertència tova: ja hi ha algun altre partit a la mateixa data/hora
+  //    (parelles i pistes diferents). Es permet però es retorna warning.
   const sameSlotCount = (pairConflicts ?? []).length;
 
   const { error } = await supabase.rpc('schedule_match', {

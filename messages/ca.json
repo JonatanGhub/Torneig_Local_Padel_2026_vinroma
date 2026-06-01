@@ -372,6 +372,7 @@
     "match_save": "Desar",
     "match_scheduled_ok": "Desat ✓",
     "match_error_pair_double_booked": "Una de les dues parelles ja té un partit programat exactament a aquesta hora. Tria una altra hora.",
+    "match_error_court_double_booked": "Aquesta pista ja té un partit programat a aquesta hora. Tria una altra pista o hora.",
     "match_warning_same_time": "Hi ha un altre partit programat a la mateixa hora (parelles diferents). Comprova que tens prou pistes/àrbitres.",
     "nav_disputes": "Disputes",
     "disputes_title": "Disputes i validacions",

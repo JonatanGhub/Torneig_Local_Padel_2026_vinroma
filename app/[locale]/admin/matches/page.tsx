@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { formatMatchDateTime } from '@/lib/format-date';
 import { ScheduleForm } from './schedule-form';
 import { AutoScheduleButton } from './auto-schedule-button';
 
@@ -113,7 +114,7 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
                 </div>
                 <p className="text-muted-foreground text-xs">
                   {m.scheduled_at
-                    ? new Date(m.scheduled_at).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES')
+                    ? formatMatchDateTime(m.scheduled_at, locale)
                     : t('match_not_scheduled')}{' '}
                   · {m.court_label ?? t('match_no_court')}
                 </p>
