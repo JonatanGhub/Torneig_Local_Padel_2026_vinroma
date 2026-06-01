@@ -283,11 +283,22 @@ export function AdminRegistrationForm({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  error,
+}: {
+  label: string;
+  children: React.ReactNode;
+  error?: string;
+}) {
   return (
     <label className="block">
       <span className="text-muted-foreground mb-1 block text-xs">{label}</span>
-      {children}
+      <div className={error ? '[&_input]:border-destructive [&_select]:border-destructive' : ''}>
+        {children}
+      </div>
+      {error && <FieldError msg={error} />}
     </label>
   );
 }
@@ -305,37 +316,32 @@ function PlayerFields({
   fieldErrors: Record<string, string>;
   t: ReturnType<typeof useTranslations<'admin'>>;
 }) {
+  const err = (field: string) => fieldErrors[`${errorPrefix}.${field}`];
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-      <Field label={t('registrations_field_first_name')}>
+      <Field label={t('registrations_field_first_name')} error={err('first_name')}>
         <Input
           value={value.first_name}
           onChange={(e) => onChange({ ...value, first_name: e.target.value })}
           required
         />
-        {fieldErrors[`${errorPrefix}.first_name`] && (
-          <FieldError msg={fieldErrors[`${errorPrefix}.first_name`]!} />
-        )}
       </Field>
-      <Field label={t('registrations_field_last_name')}>
+      <Field label={t('registrations_field_last_name')} error={err('last_name')}>
         <Input
           value={value.last_name}
           onChange={(e) => onChange({ ...value, last_name: e.target.value })}
           required
         />
       </Field>
-      <Field label={t('registrations_field_email')}>
+      <Field label={t('registrations_field_email')} error={err('email')}>
         <Input
           type="email"
           value={value.email}
           onChange={(e) => onChange({ ...value, email: e.target.value })}
           required
         />
-        {fieldErrors[`${errorPrefix}.email`] && (
-          <FieldError msg={fieldErrors[`${errorPrefix}.email`]!} />
-        )}
       </Field>
-      <Field label={t('registrations_field_phone')}>
+      <Field label={t('registrations_field_phone')} error={err('phone')}>
         <Input
           type="tel"
           value={value.phone}
@@ -343,7 +349,7 @@ function PlayerFields({
           required
         />
       </Field>
-      <Field label={t('registrations_field_birth_date')}>
+      <Field label={t('registrations_field_birth_date')} error={err('birth_date')}>
         <Input
           type="date"
           value={value.birth_date}
@@ -351,7 +357,7 @@ function PlayerFields({
           required
         />
       </Field>
-      <Field label={t('registrations_field_declared_level')}>
+      <Field label={t('registrations_field_declared_level')} error={err('declared_level')}>
         <select
           value={value.declared_level}
           onChange={(e) => onChange({ ...value, declared_level: Number(e.target.value) })}
@@ -364,14 +370,17 @@ function PlayerFields({
           ))}
         </select>
       </Field>
-      <Field label={t('registrations_field_emergency_name')}>
+      <Field label={t('registrations_field_emergency_name')} error={err('emergency_contact_name')}>
         <Input
           value={value.emergency_contact_name}
           onChange={(e) => onChange({ ...value, emergency_contact_name: e.target.value })}
           required
         />
       </Field>
-      <Field label={t('registrations_field_emergency_phone')}>
+      <Field
+        label={t('registrations_field_emergency_phone')}
+        error={err('emergency_contact_phone')}
+      >
         <Input
           type="tel"
           value={value.emergency_contact_phone}
