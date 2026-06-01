@@ -89,16 +89,16 @@ export default async function SponsorsPage({ params }: Props) {
                           href={s.website_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="glass-card hover:border-crimson-400/40 group flex aspect-[3/2] items-center justify-center rounded-2xl p-6 transition-colors"
+                          className="glass-card hover:border-crimson-400/40 group flex aspect-square items-center justify-center rounded-2xl p-3 transition-colors"
                         >
-                          <SponsorLogo src={s.logo_url} alt={s.name} tier={tier} />
+                          <SponsorLogo src={s.logo_url} alt={s.name} />
                           <span className="sr-only">
                             {s.name} <ExternalLink className="ml-1 inline size-3" />
                           </span>
                         </a>
                       ) : (
-                        <div className="glass-card flex aspect-[3/2] items-center justify-center rounded-2xl p-6">
-                          <SponsorLogo src={s.logo_url} alt={s.name} tier={tier} />
+                        <div className="glass-card flex aspect-square items-center justify-center rounded-2xl p-3">
+                          <SponsorLogo src={s.logo_url} alt={s.name} />
                         </div>
                       )}
                       <div className="text-center">
@@ -124,32 +124,18 @@ function tierGrid(tier: string): string {
   return 'grid grid-cols-2 gap-4 sm:grid-cols-4';
 }
 
-function SponsorLogo({
-  src,
-  alt,
-  tier,
-}: {
-  src: string;
-  alt: string;
-  tier: 'gold' | 'silver' | 'bronze' | 'collaborator';
-}) {
+function SponsorLogo({ src, alt }: { src: string; alt: string }) {
   // Logos externos: usar <img> normal para no requerir whitelist de dominios
   // en next.config. La página es liviana porque hay pocos sponsors.
-  const sizeClass =
-    tier === 'gold'
-      ? 'max-h-32'
-      : tier === 'silver'
-        ? 'max-h-24'
-        : tier === 'bronze'
-          ? 'max-h-20'
-          : 'max-h-16';
+  // El logo ocupa todo el cuadrado (object-contain mantiene la proporción y lo
+  // centra) para que se vea lo más grande posible dentro de la tarjeta.
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       alt={alt}
       loading="lazy"
-      className={`${sizeClass} w-auto object-contain opacity-90 transition-opacity group-hover:opacity-100`}
+      className="h-full w-full rounded-lg object-contain opacity-90 transition-opacity group-hover:opacity-100"
     />
   );
 }
