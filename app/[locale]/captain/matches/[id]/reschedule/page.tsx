@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { formatMatchDateTime } from '@/lib/format-date';
 import { ReschedulePanel } from '../reschedule-panel';
 
 type Props = { params: Promise<{ locale: Locale; id: string }> };
@@ -92,7 +93,7 @@ export default async function CaptainRescheduleMatchPage({ params }: Props) {
         </h1>
         <p className="text-muted-foreground text-sm">
           {match.scheduled_at
-            ? new Date(match.scheduled_at).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES')
+            ? formatMatchDateTime(match.scheduled_at, locale)
             : t('captain.not_scheduled')}{' '}
           · {match.court_label ?? '—'}
         </p>

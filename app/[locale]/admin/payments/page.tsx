@@ -92,7 +92,9 @@ export default async function PaymentsAdminPage({ params, searchParams }: Props)
                       : ''}
                   </p>
                   <p className="text-muted-foreground text-xs">
-                    {new Date(p.created_at).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES')}
+                    {new Date(p.created_at).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES', {
+                      timeZone: 'Europe/Madrid',
+                    })}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import { ArrowLeft, Clock } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { formatMatchDateTime, formatMatchDateTimeLong } from '@/lib/format-date';
 import { ReportForm } from './report-form';
 
 type Props = { params: Promise<{ locale: Locale; id: string }> };
@@ -104,7 +105,7 @@ export default async function CaptainMatchPage({ params }: Props) {
         </h1>
         <p className="text-muted-foreground text-sm">
           {match.scheduled_at
-            ? new Date(match.scheduled_at).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES')
+            ? formatMatchDateTime(match.scheduled_at, locale)
             : t('captain.not_scheduled')}{' '}
           · {match.court_label ?? '—'}
         </p>
@@ -139,9 +140,7 @@ export default async function CaptainMatchPage({ params }: Props) {
               <p className="text-sm text-amber-800 dark:text-amber-200">
                 {match.scheduled_at
                   ? t('captain.cannot_report_yet_body_scheduled', {
-                      date: new Date(match.scheduled_at).toLocaleString(
-                        locale === 'ca' ? 'ca-ES' : 'es-ES',
-                      ),
+                      date: formatMatchDateTimeLong(match.scheduled_at, locale),
                     })
                   : t('captain.cannot_report_yet_body_unscheduled')}
               </p>

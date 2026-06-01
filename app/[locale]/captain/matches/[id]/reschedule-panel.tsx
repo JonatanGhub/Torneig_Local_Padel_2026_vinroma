@@ -39,6 +39,7 @@ export function ReschedulePanel({
     new Date(iso).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES', {
       dateStyle: 'medium',
       timeStyle: 'short',
+      timeZone: 'Europe/Madrid',
     });
 
   function submitPropose(formData: FormData) {

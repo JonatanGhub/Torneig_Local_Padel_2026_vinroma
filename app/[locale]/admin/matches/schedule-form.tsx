@@ -34,6 +34,8 @@ export function ScheduleForm({
       if (!res.ok) {
         if (res.error === 'pair_double_booked') {
           setError(t('match_error_pair_double_booked'));
+        } else if (res.error === 'court_double_booked') {
+          setError(t('match_error_court_double_booked'));
         } else {
           setError(res.error);
         }

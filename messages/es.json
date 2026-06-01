@@ -372,6 +372,7 @@
     "match_save": "Guardar",
     "match_scheduled_ok": "Guardado ✓",
     "match_error_pair_double_booked": "Una de las dos parejas ya tiene un partido programado exactamente a esa hora. Elige otra hora.",
+    "match_error_court_double_booked": "Esta pista ya tiene un partido programado a esa hora. Elige otra pista u hora.",
     "match_warning_same_time": "Hay otro partido programado a la misma hora (parejas distintas). Comprueba que tienes pistas/árbitros suficientes.",
     "nav_disputes": "Disputas",
     "disputes_title": "Disputas y validaciones",
