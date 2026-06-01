@@ -14,6 +14,9 @@ import RescheduleProposed from './templates/reschedule-proposed';
 import MatchValidated from './templates/match-validated';
 import MatchDisputed from './templates/match-disputed';
 import ResultPendingValidation from './templates/result-pending-validation';
+import MatchScheduled from './templates/match-scheduled';
+import PaymentReceived from './templates/payment-received';
+import { formatMatchDateTimeLong } from '@/lib/format-date';
 
 const SITE_URL = getSiteUrl();
 
@@ -319,5 +322,126 @@ export async function notifyMatchDisputed(matchId: string) {
     });
   } catch (err) {
     console.warn('[email] notifyMatchDisputed failed', err);
+  }
+}
+
+// =========================================================================
+// 4) Partit programat/reprogramat per l'admin → email als dos capitans.
+// =========================================================================
+export async function notifyMatchScheduled(matchId: string, isChange: boolean) {
+  try {
+    const supabase = createServiceClient();
+
+    const { data: match } = await supabase
+      .from('matches')
+      .select('id, pair_a_id, pair_b_id, scheduled_at, court_label')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (!match || !match.scheduled_at) return;
+
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, captain_id, player_a_id, player_b_id')
+      .in('id', [match.pair_a_id, match.pair_b_id]);
+    if (!pairs || pairs.length < 2) return;
+
+    const allPlayerIds = pairs.flatMap((p) => [p.captain_id, p.player_a_id, p.player_b_id]);
+    const { data: players } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, email')
+      .in('id', allPlayerIds);
+
+    const pairLabelOf = (pairId: string) => {
+      const pair = pairs.find((p) => p.id === pairId);
+      if (!pair) return '—';
+      return lastNamesPair(
+        players?.find((p) => p.id === pair.player_a_id),
+        players?.find((p) => p.id === pair.player_b_id),
+      );
+    };
+
+    const dateText = formatMatchDateTimeLong(match.scheduled_at, 'ca');
+    for (const pair of pairs) {
+      const captain = players?.find((p) => p.id === pair.captain_id);
+      if (!captain?.email) continue;
+      const rivalPairId = pair.id === match.pair_a_id ? match.pair_b_id : match.pair_a_id;
+      await sendEmail({
+        to: captain.email,
+        subject: isChange
+          ? `Canvi d'horari · ${pairLabelOf(pair.id)} vs ${pairLabelOf(rivalPairId)}`
+          : `Nou partit programat · ${pairLabelOf(pair.id)} vs ${pairLabelOf(rivalPairId)}`,
+        react: MatchScheduled({
+          recipientName: fullName(captain),
+          pairLabel: pairLabelOf(pair.id),
+          rivalLabel: pairLabelOf(rivalPairId),
+          dateText,
+          courtLabel: match.court_label ?? '—',
+          isChange,
+          actionUrl: `${SITE_URL}/ca/captain/calendari`,
+        }),
+      });
+    }
+  } catch (err) {
+    console.warn('[email] notifyMatchScheduled failed', err);
+  }
+}
+
+// =========================================================================
+// 5) Pagament conciliat per l'admin → email al capità de la parella.
+// =========================================================================
+export async function notifyPaymentReconciled(paymentId: string) {
+  try {
+    const supabase = createServiceClient();
+
+    const { data: payment } = await supabase
+      .from('payments')
+      .select('id, pair_id, amount_cents')
+      .eq('id', paymentId)
+      .maybeSingle();
+    if (!payment) return;
+
+    const { data: pair } = await supabase
+      .from('pairs')
+      .select('id, captain_id, category_id')
+      .eq('id', payment.pair_id)
+      .maybeSingle();
+    if (!pair) return;
+
+    const { data: captain } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, email')
+      .eq('id', pair.captain_id)
+      .maybeSingle();
+    if (!captain?.email) return;
+
+    const { data: category } = pair.category_id
+      ? await supabase.from('categories').select('name_ca').eq('id', pair.category_id).maybeSingle()
+      : { data: null };
+
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('draw_at')
+      .eq('edition', 5)
+      .maybeSingle();
+
+    const amountLabel = new Intl.NumberFormat('ca-ES', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format((payment.amount_cents ?? 0) / 100);
+
+    await sendEmail({
+      to: captain.email,
+      subject: 'Pagament confirmat — V Torneig Pàdel les Coves',
+      react: PaymentReceived({
+        recipientName: fullName(captain),
+        categoryLabel: category?.name_ca ?? '—',
+        amountLabel,
+        drawDateLabel: tournament?.draw_at
+          ? formatMatchDateTimeLong(tournament.draw_at, 'ca')
+          : 'per confirmar',
+      }),
+    });
+  } catch (err) {
+    console.warn('[email] notifyPaymentReconciled failed', err);
   }
 }

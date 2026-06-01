@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { notifyMatchScheduled } from '@/lib/email/notify';
+import { notifyMatchScheduledWhatsApp } from '@/lib/whatsapp/notify';
 
 const ScheduleSchema = z.object({
   matchId: z.string().uuid(),
@@ -37,7 +39,7 @@ export async function scheduleMatch(formData: FormData): Promise<ScheduleMatchRe
   // Carrega el match per saber les parelles implicades.
   const { data: thisMatch, error: thisErr } = await supabase
     .from('matches')
-    .select('id, pair_a_id, pair_b_id')
+    .select('id, pair_a_id, pair_b_id, scheduled_at')
     .eq('id', parsed.data.matchId)
     .maybeSingle();
   if (thisErr || !thisMatch) {
@@ -77,12 +79,19 @@ export async function scheduleMatch(formData: FormData): Promise<ScheduleMatchRe
   //    (parelles i pistes diferents). Es permet però es retorna warning.
   const sameSlotCount = (pairConflicts ?? []).length;
 
+  // Si el partit ja tenia data, és un canvi (notifiquem com a reprogramació).
+  const isChange = Boolean(thisMatch.scheduled_at);
+
   const { error } = await supabase.rpc('schedule_match', {
     p_match_id: parsed.data.matchId,
     p_scheduled_at: isoAt,
     p_court_label: parsed.data.courtLabel,
   });
   if (error) return { ok: false, error: error.message };
+
+  // Avisa els dos capitans (email + WhatsApp). Errors no bloquegen la mutació.
+  await notifyMatchScheduled(parsed.data.matchId, isChange);
+  await notifyMatchScheduledWhatsApp(parsed.data.matchId, isChange);
 
   revalidatePath('/[locale]/admin/matches', 'page');
   revalidatePath('/[locale]/calendari', 'page');
