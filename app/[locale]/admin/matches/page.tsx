@@ -3,7 +3,8 @@ import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { formatMatchDateTime } from '@/lib/format-date';
 import { ScheduleForm } from './schedule-form';
-import { AutoScheduleButton } from './auto-schedule-button';
+import { AutoScheduleControls } from './auto-schedule-button';
+import { SchedulerProvider } from './scheduler-context';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
@@ -84,51 +85,53 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
   );
 
   return (
-    <section className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{t('matches_title')}</h1>
-        <AutoScheduleButton />
-      </header>
+    <SchedulerProvider>
+      <section className="space-y-6">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold">{t('matches_title')}</h1>
+          <AutoScheduleControls />
+        </header>
 
-      <div className="flex flex-wrap gap-2 text-xs">
-        <CategoryFilter categories={categories ?? []} current={sp.category} locale={locale} />
-      </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <CategoryFilter categories={categories ?? []} current={sp.category} locale={locale} />
+        </div>
 
-      {!matches || matches.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{t('matches_empty')}</p>
-      ) : (
-        <ul className="divide-border divide-y rounded-md border border-[hsl(var(--border))]">
-          {matches.map((m) => (
-            <li key={m.id} className="space-y-2 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <div>
-                  <p className="font-medium">
-                    {pairLabel(m.pair_a_id)} <span className="text-muted-foreground">vs</span>{' '}
-                    {pairLabel(m.pair_b_id)}
-                  </p>
+        {!matches || matches.length === 0 ? (
+          <p className="text-muted-foreground text-sm">{t('matches_empty')}</p>
+        ) : (
+          <ul className="divide-border divide-y rounded-md border border-[hsl(var(--border))]">
+            {matches.map((m) => (
+              <li key={m.id} className="space-y-2 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <div>
+                    <p className="font-medium">
+                      {pairLabel(m.pair_a_id)} <span className="text-muted-foreground">vs</span>{' '}
+                      {pairLabel(m.pair_b_id)}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {categoriesById.get(m.category_id) ?? ''} · {m.phase}{' '}
+                      {m.group_label ? `(${m.group_label})` : ''} ·{' '}
+                      {t(`match_status_${m.status}` as 'match_status_scheduled')}
+                    </p>
+                  </div>
                   <p className="text-muted-foreground text-xs">
-                    {categoriesById.get(m.category_id) ?? ''} · {m.phase}{' '}
-                    {m.group_label ? `(${m.group_label})` : ''} ·{' '}
-                    {t(`match_status_${m.status}` as 'match_status_scheduled')}
+                    {m.scheduled_at
+                      ? formatMatchDateTime(m.scheduled_at, locale)
+                      : t('match_not_scheduled')}{' '}
+                    · {m.court_label ?? t('match_no_court')}
                   </p>
                 </div>
-                <p className="text-muted-foreground text-xs">
-                  {m.scheduled_at
-                    ? formatMatchDateTime(m.scheduled_at, locale)
-                    : t('match_not_scheduled')}{' '}
-                  · {m.court_label ?? t('match_no_court')}
-                </p>
-              </div>
-              <ScheduleForm
-                matchId={m.id}
-                scheduledAt={m.scheduled_at}
-                courtLabel={m.court_label}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+                <ScheduleForm
+                  matchId={m.id}
+                  scheduledAt={m.scheduled_at}
+                  courtLabel={m.court_label}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </SchedulerProvider>
   );
 }
 
