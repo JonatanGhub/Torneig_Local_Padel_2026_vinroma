@@ -256,6 +256,95 @@ export async function notifyResultPendingValidationWhatsApp(
 }
 
 // 5) Recordatori de partit → WhatsApp als dos capitans (cridat des del cron)
+// 4b) Partit programat/reprogramat per l'admin → WhatsApp als dos capitans.
+export async function notifyMatchScheduledWhatsApp(matchId: string, isChange: boolean) {
+  try {
+    const supabase = createServiceClient();
+    const { data: match } = await supabase
+      .from('matches')
+      .select('id, pair_a_id, pair_b_id, scheduled_at, court_label')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (!match || !match.scheduled_at) return;
+
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, captain_id, player_a_id, player_b_id')
+      .in('id', [match.pair_a_id, match.pair_b_id]);
+    if (!pairs || pairs.length < 2) return;
+
+    const allPlayerIds = pairs.flatMap((p) => [p.captain_id, p.player_a_id, p.player_b_id]);
+    const { data: players } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
+      .in('id', allPlayerIds);
+
+    const pairLabelOf = (pairId: string) => {
+      const pair = pairs.find((p) => p.id === pairId);
+      if (!pair) return '—';
+      return lastNamesPair(
+        players?.find((p) => p.id === pair.player_a_id),
+        players?.find((p) => p.id === pair.player_b_id),
+      );
+    };
+
+    for (const pair of pairs) {
+      const captain = players?.find((p) => p.id === pair.captain_id) as Captain | undefined;
+      if (!canWhatsApp(captain)) continue;
+      const rivalPairId = pair.id === match.pair_a_id ? match.pair_b_id : match.pair_a_id;
+      const text =
+        `${isChange ? '🔁 *Canvi d horari*' : '🗓️ *Nou partit programat*'}\n` +
+        `${pairLabelOf(pair.id)} vs ${pairLabelOf(rivalPairId)}\n` +
+        `📅 ${formatDateCA(match.scheduled_at)}\n` +
+        (match.court_label ? `📍 ${match.court_label}\n` : '') +
+        `\nEl teu calendari:\n${SITE_URL}/ca/captain/calendari`;
+      await sendWhatsApp({ to: captain.phone, text });
+    }
+  } catch (err) {
+    console.warn('[whatsapp] notifyMatchScheduled failed', err);
+  }
+}
+
+// 4c) Pagament conciliat per l'admin → WhatsApp al capità.
+export async function notifyPaymentReconciledWhatsApp(paymentId: string) {
+  try {
+    const supabase = createServiceClient();
+    const { data: payment } = await supabase
+      .from('payments')
+      .select('id, pair_id, amount_cents')
+      .eq('id', paymentId)
+      .maybeSingle();
+    if (!payment) return;
+
+    const { data: pair } = await supabase
+      .from('pairs')
+      .select('id, captain_id')
+      .eq('id', payment.pair_id)
+      .maybeSingle();
+    if (!pair) return;
+
+    const { data: captain } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
+      .eq('id', pair.captain_id)
+      .maybeSingle();
+    if (!canWhatsApp(captain as Captain | null)) return;
+
+    const amountLabel = new Intl.NumberFormat('ca-ES', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format((payment.amount_cents ?? 0) / 100);
+
+    const text =
+      `💸 *Pagament confirmat*\n` +
+      `Hem rebut el teu pagament de ${amountLabel}. La teva parella ja està confirmada!\n\n` +
+      `${SITE_URL}/ca/captain`;
+    await sendWhatsApp({ to: captain!.phone, text });
+  } catch (err) {
+    console.warn('[whatsapp] notifyPaymentReconciled failed', err);
+  }
+}
+
 export async function notifyMatchReminderWhatsApp(matchId: string) {
   try {
     const supabase = createServiceClient();
