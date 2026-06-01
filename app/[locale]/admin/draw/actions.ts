@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { notifyDrawDone } from '@/lib/email/notify';
+import { notifyDrawDoneWhatsApp } from '@/lib/whatsapp/notify';
 
 const DrawSchema = z.object({
   categoryId: z.string().uuid(),
@@ -25,6 +27,10 @@ export async function runDraw(formData: FormData) {
   });
 
   if (error) return { ok: false, error: error.message } as const;
+
+  // Avisa tots els capitans de la categoria que ja tenen grup.
+  await notifyDrawDone(parsed.data.categoryId);
+  await notifyDrawDoneWhatsApp(parsed.data.categoryId);
 
   revalidatePath('/[locale]/admin/draw', 'page');
   revalidatePath('/[locale]/grups', 'page');

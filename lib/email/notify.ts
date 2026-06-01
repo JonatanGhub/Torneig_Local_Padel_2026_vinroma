@@ -16,6 +16,7 @@ import MatchDisputed from './templates/match-disputed';
 import ResultPendingValidation from './templates/result-pending-validation';
 import MatchScheduled from './templates/match-scheduled';
 import PaymentReceived from './templates/payment-received';
+import DrawDone from './templates/draw-done';
 import { formatMatchDateTimeLong } from '@/lib/format-date';
 
 const SITE_URL = getSiteUrl();
@@ -443,5 +444,57 @@ export async function notifyPaymentReconciled(paymentId: string) {
     });
   } catch (err) {
     console.warn('[email] notifyPaymentReconciled failed', err);
+  }
+}
+
+// =========================================================================
+// 6) Sorteig de grups fet → email a tots els capitans de la categoria.
+// =========================================================================
+export async function notifyDrawDone(categoryId: string) {
+  try {
+    const supabase = createServiceClient();
+
+    const { data: category } = await supabase
+      .from('categories')
+      .select('id, name_ca')
+      .eq('id', categoryId)
+      .maybeSingle();
+
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, captain_id, group_id, player_a_id, player_b_id')
+      .eq('category_id', categoryId)
+      .eq('status', 'confirmed')
+      .not('group_id', 'is', null);
+    if (!pairs || pairs.length === 0) return;
+
+    const groupIds = Array.from(new Set(pairs.map((p) => p.group_id).filter(Boolean) as string[]));
+    const { data: groups } = await supabase.from('groups').select('id, label').in('id', groupIds);
+    const groupLabelById = new Map((groups ?? []).map((g) => [g.id, g.label]));
+
+    const captainIds = Array.from(new Set(pairs.map((p) => p.captain_id)));
+    const { data: captains } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, email')
+      .in('id', captainIds);
+    const captainById = new Map((captains ?? []).map((c) => [c.id, c]));
+
+    for (const pair of pairs) {
+      const captain = captainById.get(pair.captain_id);
+      if (!captain?.email) continue;
+      const groupLabel = pair.group_id ? (groupLabelById.get(pair.group_id) ?? '—') : '—';
+      await sendEmail({
+        to: captain.email,
+        subject: `Sorteig fet · ${category?.name_ca ?? ''} (grup ${groupLabel})`,
+        react: DrawDone({
+          recipientName: fullName(captain),
+          categoryLabel: category?.name_ca ?? '—',
+          groupLabel,
+          actionUrl: `${SITE_URL}/ca/captain/grup`,
+        }),
+      });
+    }
+  } catch (err) {
+    console.warn('[email] notifyDrawDone failed', err);
   }
 }
