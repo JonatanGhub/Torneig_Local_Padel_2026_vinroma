@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { notifyMatchScheduled } from '@/lib/email/notify';
 import { notifyMatchScheduledWhatsApp } from '@/lib/whatsapp/notify';
+import { madridInputToISO, madridDateKey } from '@/lib/format-date';
 
 const ScheduleSchema = z.object({
   matchId: z.string().uuid(),
@@ -33,7 +34,9 @@ export async function scheduleMatch(formData: FormData): Promise<ScheduleMatchRe
   });
   if (!parsed.success) return { ok: false, error: 'invalid_input' };
 
-  const isoAt = new Date(parsed.data.scheduledAt).toISOString();
+  // El valor ve d'un <input datetime-local> que representa l'hora de paret de
+  // Madrid. El convertim a UTC tenint en compte el fus (no com a UTC directe).
+  const isoAt = madridInputToISO(parsed.data.scheduledAt);
   const supabase = await createClient();
 
   // Carrega el match per saber les parelles implicades.
@@ -99,31 +102,44 @@ export async function scheduleMatch(formData: FormData): Promise<ScheduleMatchRe
 }
 
 // =========================================================================
-// Assignació automàtica d'horaris de fase de grups.
+// Proposta automàtica d'horaris de fase de grups.
 // Repartiment aleatori sobre dies dilluns–dijous del rang [first_match_at,
 // final_at], a les pistes 2 i 3 (la 1 queda lliure), a les 19:00 i 20:30
-// (i 22:00 només si no caben). Cap parella juga dos partits el mateix dia.
-// Només toca partits de grup sense data (no sobreescriu res ja programat).
+// (i 22:00 només si no caben). Cap parella juga dos partits el mateix dia, i
+// mai es proposa un slot (data+hora+pista) que ja estigui ocupat per un altre
+// partit ja programat.
+//
+// IMPORTANT: aquesta acció NO desa res a la base de dades. Només calcula una
+// proposta que omple els formularis del panell; l'admin ha de prémer "Desar"
+// (per partit o "Desar tots els proposats") per confirmar les dates.
 // =========================================================================
 
-export type AutoScheduleResult =
-  | { ok: true; assigned: number; unplaced: number; total: number }
+export type ProposedSlot = {
+  matchId: string;
+  // Valor per a <input datetime-local>: hora de paret de Madrid `YYYY-MM-DDTHH:mm`.
+  scheduledAtInput: string;
+  courtLabel: string;
+};
+
+export type ProposeAutoScheduleResult =
+  | { ok: true; proposals: ProposedSlot[]; unplaced: number; total: number }
   | { ok: false; error: 'dates_not_set' | 'no_match_days' | 'nothing_to_schedule' | string };
 
 const PRIMARY_TIMES = ['19:00', '20:30'] as const;
 const OVERFLOW_TIME = '22:00';
 const COURTS = ['Pista 2', 'Pista 3'] as const;
-// Offset d'estiu a Espanya (CEST). El torneig es juga al juliol/agost.
+// Offset d'estiu a Espanya (CEST). El torneig es juga al juny/juliol/agost.
 const SUMMER_OFFSET = '+02:00';
 
 function matchDaysMonToThu(startISO: string, endISO: string): string[] {
-  const start = new Date(startISO);
-  const end = new Date(endISO);
   const days: string[] = [];
-  const cur = new Date(
-    Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate(), 12),
-  );
-  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate(), 12));
+  // Treballem amb la data de paret de Madrid per evitar desfasaments de dia.
+  const startKey = madridDateKey(startISO);
+  const endKey = madridDateKey(endISO);
+  const [sy, sm, sd] = startKey.split('-').map(Number);
+  const [ey, em, ed] = endKey.split('-').map(Number);
+  const cur = new Date(Date.UTC(sy!, sm! - 1, sd!, 12));
+  const last = new Date(Date.UTC(ey!, em! - 1, ed!, 12));
   while (cur <= last) {
     const dow = cur.getUTCDay(); // 0=diu … 6=dis
     if (dow >= 1 && dow <= 4) {
@@ -146,7 +162,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export async function autoScheduleGroupMatches(): Promise<AutoScheduleResult> {
+export async function proposeAutoSchedule(): Promise<ProposeAutoScheduleResult> {
   const supabase = await createClient();
 
   const { data: tournament } = await supabase
@@ -172,6 +188,28 @@ export async function autoScheduleGroupMatches(): Promise<AutoScheduleResult> {
     return { ok: false, error: 'nothing_to_schedule' };
   }
 
+  // Partits ja programats (qualsevol fase): ens diuen quins slots (data+hora+
+  // pista) estan ocupats i quines parelles ja juguen un dia concret, perquè la
+  // proposta no xoqui amb res existent.
+  const { data: booked } = await supabase
+    .from('matches')
+    .select('pair_a_id, pair_b_id, scheduled_at, court_label')
+    .eq('tournament_id', tournament.id)
+    .not('scheduled_at', 'is', null);
+
+  const occupied = new Set<string>(); // `${instantUTC}|${court}`
+  const playedByDay = new Map<string, Set<string>>();
+  for (const b of booked ?? []) {
+    if (!b.scheduled_at) continue;
+    const instant = new Date(b.scheduled_at).toISOString();
+    if (b.court_label) occupied.add(`${instant}|${b.court_label}`);
+    const dayKey = madridDateKey(b.scheduled_at);
+    const set = playedByDay.get(dayKey) ?? new Set<string>();
+    set.add(b.pair_a_id);
+    set.add(b.pair_b_id);
+    playedByDay.set(dayKey, set);
+  }
+
   type Slot = { day: string; iso: string; court: string };
   const primary: Slot[] = [];
   const overflow: Slot[] = [];
@@ -189,34 +227,85 @@ export async function autoScheduleGroupMatches(): Promise<AutoScheduleResult> {
   const slots = [...primary, ...overflow];
 
   const pool = shuffle(matches);
-  const playedByDay = new Map<string, Set<string>>();
-  const assignments: { match_id: string; scheduled_at: string; court_label: string }[] = [];
+  const proposals: ProposedSlot[] = [];
 
   for (const slot of slots) {
     if (pool.length === 0) break;
+    // Salta slots ja ocupats per partits programats.
+    const instant = new Date(slot.iso).toISOString();
+    if (occupied.has(`${instant}|${slot.court}`)) continue;
+
     const played = playedByDay.get(slot.day) ?? new Set<string>();
     const idx = pool.findIndex((m) => !played.has(m.pair_a_id) && !played.has(m.pair_b_id));
     if (idx === -1) continue;
     const [m] = pool.splice(idx, 1);
-    assignments.push({ match_id: m!.id, scheduled_at: slot.iso, court_label: slot.court });
+
+    // Marca aquest slot com a ocupat dins la mateixa proposta.
+    occupied.add(`${instant}|${slot.court}`);
+    const [, time] = slot.iso.split('T');
+    proposals.push({
+      matchId: m!.id,
+      scheduledAtInput: `${slot.day}T${(time ?? '').slice(0, 5)}`,
+      courtLabel: slot.court,
+    });
     played.add(m!.pair_a_id);
     played.add(m!.pair_b_id);
     playedByDay.set(slot.day, played);
   }
 
-  if (assignments.length > 0) {
-    const { error } = await supabase.rpc('bulk_schedule_matches', {
-      p_assignments: assignments,
-    });
-    if (error) return { ok: false, error: error.message };
-  }
-
-  revalidatePath('/[locale]/admin/matches', 'page');
-  revalidatePath('/[locale]/calendari', 'page');
   return {
     ok: true,
-    assigned: assignments.length,
+    proposals,
     unplaced: pool.length,
     total: matches.length,
   };
+}
+
+// Confirma (desa) un conjunt de propostes d'horari d'una sola vegada. Les
+// propostes ja venen sense conflictes entre elles ni amb partits existents,
+// però fem servir el mateix RPC de desat i avisem tots els capitans afectats.
+const ConfirmSchema = z.object({
+  assignments: z
+    .array(
+      z.object({
+        matchId: z.string().uuid(),
+        scheduledAtInput: z.string().min(1),
+        courtLabel: z.string().min(1).max(40),
+      }),
+    )
+    .min(1)
+    .max(200),
+});
+
+export type ConfirmSchedulesResult =
+  | { ok: true; saved: number }
+  | { ok: false; error: 'invalid_input' | string };
+
+export async function confirmSchedules(
+  assignmentsInput: { matchId: string; scheduledAtInput: string; courtLabel: string }[],
+): Promise<ConfirmSchedulesResult> {
+  const parsed = ConfirmSchema.safeParse({ assignments: assignmentsInput });
+  if (!parsed.success) return { ok: false, error: 'invalid_input' };
+
+  const supabase = await createClient();
+  const assignments = parsed.data.assignments.map((a) => ({
+    match_id: a.matchId,
+    scheduled_at: madridInputToISO(a.scheduledAtInput),
+    court_label: a.courtLabel,
+  }));
+
+  const { error } = await supabase.rpc('bulk_schedule_matches', { p_assignments: assignments });
+  if (error) return { ok: false, error: error.message };
+
+  // Avisa els capitans (email + WhatsApp) en paral·lel; els errors no bloquegen.
+  await Promise.allSettled(
+    parsed.data.assignments.flatMap((a) => [
+      notifyMatchScheduled(a.matchId, false),
+      notifyMatchScheduledWhatsApp(a.matchId, false),
+    ]),
+  );
+
+  revalidatePath('/[locale]/admin/matches', 'page');
+  revalidatePath('/[locale]/calendari', 'page');
+  return { ok: true, saved: assignments.length };
 }
