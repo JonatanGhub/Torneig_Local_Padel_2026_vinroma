@@ -81,3 +81,112 @@ export async function deleteSponsor(formData: FormData) {
   revalidatePath('/[locale]/admin/sponsors', 'page');
   return { ok: true } as const;
 }
+
+// =========================================================================
+// Peticions de patrocini (taula `sponsor_requests`).
+// =========================================================================
+
+const RequestActionSchema = z.object({
+  id: z.string().uuid(),
+  adminNotes: z.string().max(1000).nullable().optional(),
+});
+
+async function requireAdmin() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, error: 'unauthenticated' as const };
+  if ((user.app_metadata?.role as string | undefined) !== 'admin')
+    return { ok: false as const, error: 'forbidden' as const };
+  return { ok: true as const, supabase, userId: user.id };
+}
+
+/**
+ * Aprova una petició: crea l'entrada definitiva a `sponsors` (`is_active=true`)
+ * amb les dades de la petició i marca la petició com a `approved`.
+ */
+export async function approveSponsorRequest(formData: FormData) {
+  const parsed = RequestActionSchema.safeParse({
+    id: formData.get('id'),
+    adminNotes: (formData.get('adminNotes') as string | null) || null,
+  });
+  if (!parsed.success) return { ok: false, error: 'invalid_input' } as const;
+
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const { data: req, error: readErr } = await auth.supabase
+    .from('sponsor_requests')
+    .select('*')
+    .eq('id', parsed.data.id)
+    .maybeSingle();
+  if (readErr || !req)
+    return { ok: false, error: readErr?.message ?? 'request_not_found' } as const;
+  if (req.status !== 'pending') return { ok: false, error: 'already_reviewed' } as const;
+
+  const { error: insErr } = await auth.supabase.from('sponsors').insert({
+    name: req.name,
+    logo_url: req.logo_url,
+    website_url: req.website_url,
+    tier: req.tier,
+    role_ca: req.role_ca,
+    role_es: req.role_es,
+    display_order: 0,
+    is_active: true,
+  });
+  if (insErr) return { ok: false, error: insErr.message } as const;
+
+  const { error: updErr } = await auth.supabase
+    .from('sponsor_requests')
+    .update({
+      status: 'approved',
+      admin_notes: parsed.data.adminNotes ?? null,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: auth.userId,
+    })
+    .eq('id', parsed.data.id);
+  if (updErr) return { ok: false, error: updErr.message } as const;
+
+  revalidatePath('/[locale]/sponsors', 'page');
+  revalidatePath('/[locale]/admin/sponsors', 'page');
+  return { ok: true } as const;
+}
+
+/** Rebutja una petició (no crea res a `sponsors`). */
+export async function rejectSponsorRequest(formData: FormData) {
+  const parsed = RequestActionSchema.safeParse({
+    id: formData.get('id'),
+    adminNotes: (formData.get('adminNotes') as string | null) || null,
+  });
+  if (!parsed.success) return { ok: false, error: 'invalid_input' } as const;
+
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const { error } = await auth.supabase
+    .from('sponsor_requests')
+    .update({
+      status: 'rejected',
+      admin_notes: parsed.data.adminNotes ?? null,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: auth.userId,
+    })
+    .eq('id', parsed.data.id)
+    .eq('status', 'pending');
+  if (error) return { ok: false, error: error.message } as const;
+
+  revalidatePath('/[locale]/admin/sponsors', 'page');
+  return { ok: true } as const;
+}
+
+export async function deleteSponsorRequest(formData: FormData) {
+  const id = formData.get('id');
+  if (typeof id !== 'string') return { ok: false, error: 'invalid_input' } as const;
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  const { error } = await auth.supabase.from('sponsor_requests').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message } as const;
+  revalidatePath('/[locale]/admin/sponsors', 'page');
+  return { ok: true } as const;
+}
