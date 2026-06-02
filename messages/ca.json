@@ -778,7 +778,7 @@
     "issue_thanks_title": "Rebut!",
     "issue_thanks_body": "Gràcies. L'organització ho revisarà tan aviat com pugui.",
     "issue_thanks_close": "Tancar",
-    "issue_rate_limited": "Has enviat massa reports recentment. Prova-ho de nou demà.",
+    "issue_rate_limited": "Ja has enviat 2 reports avui. Si us plau, espera 24 hores per enviar-ne més.",
     "issue_must_login": "Has de tornar a iniciar sessió per enviar reports.",
     "issue_invalid": "Revisa els camps: el títol i la descripció són massa curts.",
     "issue_generic_error": "No s'ha pogut enviar. Torna-ho a provar.",

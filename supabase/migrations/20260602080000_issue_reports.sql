@@ -86,9 +86,8 @@ create trigger issue_reports_set_updated
   before update on issue_reports
   for each row execute function issue_reports_touch_updated();
 
--- Anti-spam suau: límit de 5 reports per usuari en 24h. La interacció normal
--- d'un capità no s'hi acosta. Si el sistema està caigut i veuen problemes
--- múltiples, també n'hi ha prou amb 5 per cobrir-ho.
+-- Anti-spam suau: límit de 2 reports per usuari en 24h. La interacció normal
+-- d'un capità no s'hi acosta. L'admin igualment rep avís de cadascun.
 create or replace function issue_reports_rate_limit()
 returns trigger language plpgsql as $$
 declare
@@ -101,7 +100,7 @@ begin
   from issue_reports
   where reporter_user_id = new.reporter_user_id
     and created_at > now() - interval '24 hours';
-  if v_count >= 5 then
+  if v_count >= 2 then
     raise exception 'rate_limited' using errcode = 'P0001';
   end if;
   return new;

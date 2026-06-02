@@ -778,7 +778,7 @@
     "issue_thanks_title": "¡Recibido!",
     "issue_thanks_body": "Gracias. La organización lo revisará lo antes posible.",
     "issue_thanks_close": "Cerrar",
-    "issue_rate_limited": "Has enviado demasiados reports recientemente. Pruébalo mañana.",
+    "issue_rate_limited": "Ya has enviado 2 reports hoy. Por favor, espera 24 horas para enviar más.",
     "issue_must_login": "Debes iniciar sesión de nuevo para enviar reports.",
     "issue_invalid": "Revisa los campos: el título y la descripción son demasiado cortos.",
     "issue_generic_error": "No se ha podido enviar. Inténtalo de nuevo.",
