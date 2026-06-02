@@ -270,6 +270,32 @@ export type SponsorRequestRow = {
   created_at: string;
 };
 
+export type BudgetEntryKind = 'income' | 'expense';
+export type BudgetEntryCategory =
+  | 'sponsorship'
+  | 'donation'
+  | 'other_income'
+  | 'prizes'
+  | 'snacks'
+  | 'venue'
+  | 'materials'
+  | 'services'
+  | 'other_expense';
+
+export type TournamentBudgetEntryRow = {
+  id: string;
+  tournament_id: string;
+  kind: BudgetEntryKind;
+  category: BudgetEntryCategory;
+  label: string;
+  amount_cents: number;
+  occurred_on: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
 
 export type Database = {
@@ -293,6 +319,7 @@ export type Database = {
       interest_subscriptions: Tbl<InterestSubscriptionRow>;
       captain_devices: Tbl<CaptainDeviceRow>;
       sponsor_requests: Tbl<SponsorRequestRow>;
+      tournament_budget_entries: Tbl<TournamentBudgetEntryRow>;
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };
@@ -367,6 +394,8 @@ export type Database = {
       finance_entry_kind: 'income' | 'expense';
       sponsor_tier: 'gold' | 'silver' | 'bronze' | 'collaborator';
       sponsor_request_status: 'pending' | 'approved' | 'rejected';
+      budget_entry_kind: BudgetEntryKind;
+      budget_entry_category: BudgetEntryCategory;
     };
     CompositeTypes: Record<string, never>;
   };
