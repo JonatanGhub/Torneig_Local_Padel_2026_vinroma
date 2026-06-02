@@ -251,6 +251,25 @@ export type CaptainDeviceRow = {
   created_at: string;
 };
 
+export type SponsorRequestRow = {
+  id: string;
+  name: string;
+  logo_url: string;
+  website_url: string | null;
+  tier: 'gold' | 'silver' | 'bronze' | 'collaborator';
+  role_ca: string | null;
+  role_es: string | null;
+  submitter_name: string;
+  submitter_email: string;
+  submitter_phone: string | null;
+  message: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_notes: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  created_at: string;
+};
+
 type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
 
 export type Database = {
@@ -273,6 +292,7 @@ export type Database = {
       club_settings: Tbl<ClubSettingsRow>;
       interest_subscriptions: Tbl<InterestSubscriptionRow>;
       captain_devices: Tbl<CaptainDeviceRow>;
+      sponsor_requests: Tbl<SponsorRequestRow>;
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };
@@ -346,6 +366,7 @@ export type Database = {
       reschedule_status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
       finance_entry_kind: 'income' | 'expense';
       sponsor_tier: 'gold' | 'silver' | 'bronze' | 'collaborator';
+      sponsor_request_status: 'pending' | 'approved' | 'rejected';
     };
     CompositeTypes: Record<string, never>;
   };

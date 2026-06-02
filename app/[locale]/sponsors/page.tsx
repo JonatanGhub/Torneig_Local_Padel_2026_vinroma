@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Plus } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -79,17 +79,22 @@ export default async function SponsorsPage({ params }: Props) {
               <h2 className="font-display text-crimson-400 mb-6 text-center text-sm font-medium tracking-widest uppercase">
                 {t(`tier_${tier}` as 'tier_gold')}
               </h2>
-              <ul className={tierGrid(tier)}>
+              {/*
+                Servim les targetes amb flex+wrap+justify-center perquè, si en
+                un tier hi ha menys patrocinadors que columnes, quedin
+                centrades horitzontalment (un grid les deixaria a l'esquerra).
+              */}
+              <ul className="flex flex-wrap justify-center gap-5">
                 {list.map((s) => {
                   const role = locale === 'ca' ? s.role_ca : s.role_es;
                   return (
-                    <li key={s.id} className="space-y-2">
+                    <li key={s.id} className={`flex flex-col items-center ${tierCardWidth(tier)}`}>
                       {s.website_url ? (
                         <a
                           href={s.website_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="glass-card hover:border-crimson-400/40 group flex aspect-square items-center justify-center rounded-2xl p-3 transition-colors"
+                          className="glass-card hover:border-crimson-400/40 group flex aspect-square w-full items-center justify-center rounded-2xl p-3 transition-colors"
                         >
                           <SponsorLogo src={s.logo_url} alt={s.name} />
                           <span className="sr-only">
@@ -97,11 +102,11 @@ export default async function SponsorsPage({ params }: Props) {
                           </span>
                         </a>
                       ) : (
-                        <div className="glass-card flex aspect-square items-center justify-center rounded-2xl p-3">
+                        <div className="glass-card flex aspect-square w-full items-center justify-center rounded-2xl p-3">
                           <SponsorLogo src={s.logo_url} alt={s.name} />
                         </div>
                       )}
-                      <div className="text-center">
+                      <div className="mt-2 text-center">
                         <p className="text-sm font-medium text-white/90">{s.name}</p>
                         {role && <p className="text-crimson-300 text-xs">{role}</p>}
                       </div>
@@ -112,16 +117,32 @@ export default async function SponsorsPage({ params }: Props) {
             </section>
           );
         })}
+
+        <section className="mt-16 text-center">
+          <h2 className="font-display text-xl font-semibold">{t('propose_title')}</h2>
+          <p className="text-muted-foreground mx-auto mt-2 max-w-xl text-sm text-white/65">
+            {t('propose_body')}
+          </p>
+          <Link
+            href={`/${locale}/sponsors/proposar`}
+            className="bg-crimson-600 hover:bg-crimson-500 mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-colors"
+          >
+            <Plus className="size-4" />
+            {t('propose_cta')}
+          </Link>
+        </section>
       </main>
     </div>
   );
 }
 
-function tierGrid(tier: string): string {
-  // Más espacio para tiers altos.
-  if (tier === 'gold') return 'grid grid-cols-1 gap-6 sm:grid-cols-2 max-w-3xl mx-auto';
-  if (tier === 'silver') return 'grid grid-cols-2 gap-5 sm:grid-cols-3 max-w-3xl mx-auto';
-  return 'grid grid-cols-2 gap-4 sm:grid-cols-4';
+function tierCardWidth(tier: string): string {
+  // Amplada de la targeta segons importància del tier. La targeta és quadrada,
+  // així que l'amplada determina el tamany del logo.
+  if (tier === 'gold') return 'w-56 sm:w-64';
+  if (tier === 'silver') return 'w-44 sm:w-52';
+  if (tier === 'bronze') return 'w-36 sm:w-44';
+  return 'w-32 sm:w-40';
 }
 
 function SponsorLogo({ src, alt }: { src: string; alt: string }) {
