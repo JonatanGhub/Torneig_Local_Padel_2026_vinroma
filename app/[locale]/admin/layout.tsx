@@ -13,6 +13,7 @@ import {
   UserPlus,
   Mail,
   Home,
+  Coins,
 } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -74,6 +75,9 @@ export default async function AdminLayout({ children, params }: Props) {
             </NavLink>
             <NavLink href={`/${locale}/admin/payments`} icon={<Wallet className="size-5" />}>
               {t('nav_payments')}
+            </NavLink>
+            <NavLink href={`/${locale}/admin/budget`} icon={<Coins className="size-5" />}>
+              {t('nav_budget')}
             </NavLink>
             <NavLink href={`/${locale}/admin/draw`} icon={<Shuffle className="size-5" />}>
               {t('nav_draw')}
