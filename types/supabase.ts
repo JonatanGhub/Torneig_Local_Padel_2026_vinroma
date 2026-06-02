@@ -296,6 +296,29 @@ export type TournamentBudgetEntryRow = {
   updated_at: string;
 };
 
+export type IssueReportSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type IssueReportStatus = 'new' | 'triaged' | 'accepted' | 'rejected' | 'fixed';
+
+export type IssueReportRow = {
+  id: string;
+  reporter_user_id: string | null;
+  reporter_email: string;
+  reporter_name: string | null;
+  title: string;
+  description: string;
+  severity: IssueReportSeverity;
+  page_url: string | null;
+  user_agent: string | null;
+  locale: 'ca' | 'es' | null;
+  status: IssueReportStatus;
+  admin_notes: string | null;
+  pr_url: string | null;
+  triaged_at: string | null;
+  triaged_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
 
 export type Database = {
@@ -320,6 +343,7 @@ export type Database = {
       captain_devices: Tbl<CaptainDeviceRow>;
       sponsor_requests: Tbl<SponsorRequestRow>;
       tournament_budget_entries: Tbl<TournamentBudgetEntryRow>;
+      issue_reports: Tbl<IssueReportRow>;
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };
@@ -396,6 +420,8 @@ export type Database = {
       sponsor_request_status: 'pending' | 'approved' | 'rejected';
       budget_entry_kind: BudgetEntryKind;
       budget_entry_category: BudgetEntryCategory;
+      issue_report_severity: IssueReportSeverity;
+      issue_report_status: IssueReportStatus;
     };
     CompositeTypes: Record<string, never>;
   };
