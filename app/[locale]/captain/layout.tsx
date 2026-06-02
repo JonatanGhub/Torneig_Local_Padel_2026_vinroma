@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import { LogoLockup } from '@/components/brand/logo-mark';
 import { LogoutButton } from '@/components/logout-button';
 import { CaptainTabs } from './captain-tabs';
+import { ReportIssueButton } from './report-issue-button';
 
 type Props = {
   children: React.ReactNode;
@@ -54,6 +55,8 @@ export default async function CaptainLayout({ children, params }: Props) {
       <CaptainTabs tabs={tabs} />
 
       {children}
+
+      <ReportIssueButton locale={locale} />
     </div>
   );
 }
