@@ -14,6 +14,7 @@ const validPlayer = (over: Record<string, unknown> = {}) => ({
   phone: '600123456',
   birth_date: '1990-05-01',
   declared_level: 2,
+  tshirt_size: 'M',
   health_declaration_signed: true,
   emergency_contact_name: 'Pere',
   emergency_contact_phone: '600999888',
