@@ -66,7 +66,7 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
       ? supabase
           .from('players')
           .select(
-            'id, first_name, last_name, email, phone, birth_date, declared_level, emergency_contact_name, emergency_contact_phone, consent_whatsapp, auth_user_id',
+            'id, first_name, last_name, email, phone, birth_date, declared_level, tshirt_size, emergency_contact_name, emergency_contact_phone, consent_whatsapp, auth_user_id',
           )
           .in('id', playerIds)
       : Promise.resolve({ data: [] }),
@@ -287,6 +287,7 @@ function PlayerDetail({
         phone?: string | null;
         birth_date?: string | null;
         declared_level?: number | null;
+        tshirt_size?: string | null;
         emergency_contact_name?: string | null;
         emergency_contact_phone?: string | null;
         consent_whatsapp?: boolean | null;
@@ -312,6 +313,7 @@ function PlayerDetail({
         t('registrations_detail_level'),
         player.declared_level ? `${player.declared_level}ª` : null,
       )}
+      {row(t('registrations_detail_tshirt'), player.tshirt_size)}
       {row(t('registrations_detail_emergency'), player.emergency_contact_name)}
       {row(t('registrations_detail_emergency_phone'), player.emergency_contact_phone)}
       {row(
