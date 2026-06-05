@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Landmark } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { formatCents } from '@/lib/pricing';
 import { CopyButton } from './copy-button';
 
@@ -16,7 +16,12 @@ export default async function PaymentPage({ params }: Props) {
   setRequestLocale(locale);
   const t = await getTranslations('payment');
 
-  const supabase = await createClient();
+  // Pàgina pública de pagament: el reference_code de la URL és el "token"
+  // d'accés (equival a un magic-link). La consulta s'ha de fer amb service
+  // client perquè la RLS de `payments` només deixa veure la fila al capità
+  // o a l'admin, i l'usuari arriba aquí des de l'enllaç del correu sense
+  // estar autenticat (si no, dóna 404).
+  const supabase = createServiceClient();
 
   const { data: payment } = await supabase
     .from('payments')
