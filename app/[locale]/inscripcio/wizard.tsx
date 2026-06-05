@@ -24,6 +24,9 @@ type Category = {
 
 type Step = 'player_a' | 'player_b' | 'category' | 'review';
 
+const TSHIRT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
+type TshirtSize = (typeof TSHIRT_SIZES)[number];
+
 const emptyPlayer = {
   first_name: '',
   last_name: '',
@@ -31,6 +34,7 @@ const emptyPlayer = {
   phone: '',
   birth_date: '',
   declared_level: 2,
+  tshirt_size: '' as TshirtSize | '',
   health_declaration_signed: false as boolean,
   emergency_contact_name: '',
   emergency_contact_phone: '',
@@ -42,6 +46,7 @@ const VALIDATION_MESSAGES = {
     email: 'El correu electrònic no és vàlid.',
     mobile: 'El telèfon mòbil no és vàlid. Introdueix un mòbil espanyol (ex.: 612 345 678).',
     birth: 'Indica la data de naixement.',
+    tshirt: 'Tria la talla de la samarreta.',
     emergency: "Omple el contacte d'emergència (nom i telèfon).",
     health: "Has d'acceptar la declaració de salut.",
   },
@@ -50,6 +55,7 @@ const VALIDATION_MESSAGES = {
     email: 'El correo electrónico no es válido.',
     mobile: 'El teléfono móvil no es válido. Introduce un móvil español (ej.: 612 345 678).',
     birth: 'Indica la fecha de nacimiento.',
+    tshirt: 'Elige la talla de la camiseta.',
     emergency: 'Rellena el contacto de emergencia (nombre y teléfono).',
     health: 'Debes aceptar la declaración de salud.',
   },
@@ -114,15 +120,19 @@ export function RegistrationWizard({
 
   function submit() {
     setError(null);
+    // tshirt_size is validated by per-step validator before reaching here;
+    // zod re-checks server-side. Cast away the '' transient state.
     const input: RegistrationInput = {
       player_a: {
         ...draft.player_a,
         declared_level: draft.category_level,
+        tshirt_size: draft.player_a.tshirt_size as TshirtSize,
         health_declaration_signed: draft.player_a.health_declaration_signed as true,
       },
       player_b: {
         ...draft.player_b,
         declared_level: draft.category_level,
+        tshirt_size: draft.player_b.tshirt_size as TshirtSize,
         health_declaration_signed: draft.player_b.health_declaration_signed as true,
       },
       captain: draft.captain,
@@ -281,6 +291,7 @@ function PlayerForm({
     if (!isValidEmail(player.email)) return setLocalError(msgs.email);
     if (!isValidMobile(player.phone)) return setLocalError(msgs.mobile);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(player.birth_date)) return setLocalError(msgs.birth);
+    if (!player.tshirt_size) return setLocalError(msgs.tshirt);
     if (!player.emergency_contact_name.trim() || !player.emergency_contact_phone.trim())
       return setLocalError(msgs.emergency);
     if (!player.health_declaration_signed) return setLocalError(msgs.health);
@@ -320,6 +331,15 @@ function PlayerForm({
           value={player.birth_date}
           type="date"
           onChange={(value) => onChange({ birth_date: value })}
+        />
+        <LabeledSelect
+          label={t('field_tshirt_size')}
+          value={player.tshirt_size}
+          options={[
+            { value: '', label: t('field_tshirt_size_placeholder') },
+            ...TSHIRT_SIZES.map((s) => ({ value: s, label: s })),
+          ]}
+          onChange={(value) => onChange({ tshirt_size: value as TshirtSize | '' })}
         />
       </div>
 
@@ -646,6 +666,35 @@ function LabeledInput({
     <label className="space-y-1 text-sm">
       <span className="text-muted-foreground text-xs">{label}</span>
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
+}
+
+function LabeledSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="space-y-1 text-sm">
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="border-input bg-background flex h-10 w-full rounded-md border px-3 text-sm"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

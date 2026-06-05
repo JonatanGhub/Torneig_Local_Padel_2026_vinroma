@@ -51,6 +51,7 @@ type PlayerRow = {
   phone: string | null;
   birth_date: string | null;
   declared_level: number | null;
+  tshirt_size: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | null;
   legal_guardian_name: string | null;
   legal_guardian_dni: string | null;
   legal_guardian_phone: string | null;
@@ -422,6 +423,7 @@ export type Database = {
       budget_entry_category: BudgetEntryCategory;
       issue_report_severity: IssueReportSeverity;
       issue_report_status: IssueReportStatus;
+      tshirt_size: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
     };
     CompositeTypes: Record<string, never>;
   };

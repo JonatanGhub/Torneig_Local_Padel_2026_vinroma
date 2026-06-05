@@ -10,6 +10,9 @@ import { adminCreateRegistration } from './actions';
 
 type Category = { id: string; level: number; label: string };
 
+const ADMIN_TSHIRT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
+type AdminTshirtSize = (typeof ADMIN_TSHIRT_SIZES)[number];
+
 type PlayerDraft = {
   first_name: string;
   last_name: string;
@@ -17,6 +20,7 @@ type PlayerDraft = {
   phone: string;
   birth_date: string;
   declared_level: number;
+  tshirt_size: AdminTshirtSize | '';
   health_declaration_signed: boolean;
   emergency_contact_name: string;
   emergency_contact_phone: string;
@@ -36,6 +40,7 @@ const emptyPlayer: PlayerDraft = {
   phone: '',
   birth_date: '',
   declared_level: 2,
+  tshirt_size: '',
   health_declaration_signed: false,
   emergency_contact_name: '',
   emergency_contact_phone: '',
@@ -94,10 +99,12 @@ export function AdminRegistrationForm({
     const input: RegistrationInput = {
       player_a: {
         ...playerA,
+        tshirt_size: playerA.tshirt_size as AdminTshirtSize,
         health_declaration_signed: playerA.health_declaration_signed as true,
       },
       player_b: {
         ...playerB,
+        tshirt_size: playerB.tshirt_size as AdminTshirtSize,
         health_declaration_signed: playerB.health_declaration_signed as true,
       },
       captain,
@@ -366,6 +373,23 @@ function PlayerFields({
           {[1, 2, 3, 4].map((n) => (
             <option key={n} value={n}>
               {n}ª
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label={t('registrations_field_tshirt_size')} error={err('tshirt_size')}>
+        <select
+          value={value.tshirt_size}
+          onChange={(e) =>
+            onChange({ ...value, tshirt_size: e.target.value as AdminTshirtSize | '' })
+          }
+          required
+          className="w-full rounded-md border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm"
+        >
+          <option value="">—</option>
+          {ADMIN_TSHIRT_SIZES.map((s) => (
+            <option key={s} value={s}>
+              {s}
             </option>
           ))}
         </select>

@@ -17,6 +17,9 @@ export function isValidMobile(v: string) {
 
 const mobileSchema = z.string().refine(isValidMobile, { message: 'mobile_invalid' });
 
+export const TshirtSizeSchema = z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL']);
+export type TshirtSize = z.infer<typeof TshirtSizeSchema>;
+
 export const PlayerSchema = z.object({
   first_name: z.string().min(1).max(80),
   last_name: z.string().min(1).max(120),
@@ -24,6 +27,7 @@ export const PlayerSchema = z.object({
   phone: mobileSchema,
   birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'date_invalid' }),
   declared_level: z.coerce.number().int().min(1).max(4),
+  tshirt_size: TshirtSizeSchema,
   health_declaration_signed: z.literal(true, {
     errorMap: () => ({ message: 'health_declaration_required' }),
   }),
