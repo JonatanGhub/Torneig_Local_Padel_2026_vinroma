@@ -252,6 +252,12 @@ export default async function RegistrationsAdminPage({ params, searchParams }: P
                       linked={Boolean(playerMap.get(p.captain_id)?.auth_user_id)}
                       t={t}
                     />
+                    <Link
+                      href={`/${locale}/admin/registrations/${p.id}/edit`}
+                      className="border-input hover:bg-accent inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium"
+                    >
+                      {t('registrations_edit_button')}
+                    </Link>
                     {p.status === 'pending_payment' && (
                       <AdminResendEmailButton pairId={p.id} locale={locale} />
                     )}
