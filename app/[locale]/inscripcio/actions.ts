@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email/send';
 import InscriptionConfirmed from '@/lib/email/templates/inscription-confirmed';
+import { notifyInscriptionReceivedWhatsApp } from '@/lib/whatsapp/notify';
 import { getActiveFee, formatCents, computePerPairAmount } from '@/lib/pricing';
 import { createPairAndPlayers } from '@/lib/registration';
 import { createServiceClient } from '@/lib/supabase/service';
@@ -101,6 +102,15 @@ export async function submitRegistration(
   } catch (err) {
     console.error('[registration] confirmation email failed', err);
   }
+
+  // WhatsApp paral·lel al capità (amb consent_whatsapp). No bloqueja la mutació.
+  await notifyInscriptionReceivedWhatsApp({
+    pairId: pair_id,
+    paymentReference: primary_payment_reference,
+    amountLabel: formatCents(amountForEmail, options.locale),
+    categoryLabel: `Categoria ${input.category_level}ª`,
+    locale: options.locale,
+  });
 
   return { ok: true, pair_id, primary_payment_reference };
 }

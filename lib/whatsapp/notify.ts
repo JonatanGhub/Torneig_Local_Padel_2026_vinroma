@@ -691,7 +691,70 @@ export async function notifyDrawDoneWhatsApp(categoryId: string) {
         `Veu els teus rivals i partits:\n${SITE_URL}/ca/captain/grup`;
       await sendWhatsApp({ to: captain!.phone, text });
     }
+
+    // Avís també al grup del torneig amb el resum.
+    const { data: level } = await supabase
+      .from('categories')
+      .select('level')
+      .eq('id', categoryId)
+      .maybeSingle();
+    const standingsUrl = level?.level
+      ? `${SITE_URL}/ca/grups/${level.level}`
+      : `${SITE_URL}/ca/grups`;
+    const groupText =
+      `🎲 *Sorteig fet — ${category?.name_ca ?? ''}*\n` +
+      `${pairs.length} parelles repartides en ${groupIds.length} grup${groupIds.length === 1 ? '' : 's'}.\n\n` +
+      `Veu els grups i el calendari:\n${standingsUrl}`;
+    await sendWhatsAppToGroup(groupText);
   } catch (err) {
     console.warn('[whatsapp] notifyDrawDone failed', err);
+  }
+}
+
+// 9) Inscripció rebuda → WhatsApp al capità amb l'enllaç de pagament.
+// És el complement del correu "Inscripció rebuda". S'envia just després de
+// crear la parella i el `payments` pendent. La URL és la mateixa que la del
+// correu (`/{locale}/p/{reference_code}`) i actua com a token d'accés.
+export async function notifyInscriptionReceivedWhatsApp(params: {
+  pairId: string;
+  paymentReference: string;
+  amountLabel: string;
+  categoryLabel: string;
+  locale: 'ca' | 'es';
+}) {
+  try {
+    const supabase = createServiceClient();
+    const { data: pair } = await supabase
+      .from('pairs')
+      .select('id, captain_id, player_a_id, player_b_id')
+      .eq('id', params.pairId)
+      .maybeSingle();
+    if (!pair) return;
+
+    const { data: players } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
+      .in('id', [pair.captain_id, pair.player_a_id, pair.player_b_id]);
+
+    const captain = (players ?? []).find((p) => p.id === pair.captain_id) as Captain | undefined;
+    if (!canWhatsApp(captain)) return;
+
+    const partnerId = pair.captain_id === pair.player_a_id ? pair.player_b_id : pair.player_a_id;
+    const partner = (players ?? []).find((p) => p.id === partnerId);
+    const paymentUrl = `${SITE_URL}/${params.locale}/p/${params.paymentReference}`;
+    const partnerName = partner?.first_name ?? '';
+    const greeting = captain!.first_name ? `Hola ${captain!.first_name}!` : 'Hola!';
+
+    const text =
+      `📝 *Inscripció rebuda — V Torneig Pàdel les Coves*\n` +
+      `${greeting}\n` +
+      `Has inscrit la parella amb *${partnerName}* a ${params.categoryLabel}.\n\n` +
+      `💶 Import: *${params.amountLabel}*\n` +
+      `Per completar la inscripció, fes el pagament aquí:\n${paymentUrl}\n\n` +
+      `T'avisarem quan rebem el pagament.`;
+
+    await sendWhatsApp({ to: captain!.phone, text });
+  } catch (err) {
+    console.warn('[whatsapp] notifyInscriptionReceived failed', err);
   }
 }
