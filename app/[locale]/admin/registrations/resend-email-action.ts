@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email/send';
 import InscriptionConfirmed from '@/lib/email/templates/inscription-confirmed';
+import { notifyInscriptionReceivedWhatsApp } from '@/lib/whatsapp/notify';
 import { formatCents, computePerPairAmount, type ActiveFee } from '@/lib/pricing';
 import { absoluteUrl } from '@/lib/site-url';
 
@@ -102,6 +103,15 @@ export async function adminResendPaymentEmail(rawInput: unknown): Promise<Resend
     console.error('[admin-resend-email] failed', err);
     return { ok: false, error: 'send_failed' };
   }
+
+  // WhatsApp paral·lel al capità (si té consent_whatsapp). No bloqueja el OK.
+  await notifyInscriptionReceivedWhatsApp({
+    pairId: pair.id,
+    paymentReference: payment.reference_code,
+    amountLabel: formatCents(amountForEmail, locale),
+    categoryLabel: category ? `Categoria ${category.level}ª` : 'Categoria',
+    locale,
+  });
 
   revalidatePath(`/${locale}/admin/registrations`);
   return { ok: true };
