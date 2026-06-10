@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/service';
-import { notifyMatchReminderWhatsApp, sendDailyGroupSummary } from '@/lib/whatsapp/notify';
+import { sendDailyGroupSummary, notifyFeePhaseChangeToGroup } from '@/lib/whatsapp/notify';
 import { whatsappConfigured } from '@/lib/whatsapp/send';
 
 export const dynamic = 'force-dynamic';
 
-// Cron diari (Vercel Cron). Envia recordatori de WhatsApp dels partits
-// programats a les pròximes 24 h que encara no s'hagin recordat.
-// Com que el cron corre al matí (09:00 Madrid) i els partits són de tarda
-// (19:00+), la finestra de 24 h equival a "partits d'avui".
+// Cron diari (Vercel Cron, 09:00 Madrid). Avisos al GRUP de WhatsApp:
+//  1. Resum dels partits que es juguen avui ("Avui es juga ...").
+//  2. Si demà canvia el tram de preu de la inscripció, avís d'últim dia.
+//
+// Els capitans NO reben DM de recordatori diari: el resum del grup ja ho
+// cobreix. Els DMs als capitans queden per als events dels SEUS partits
+// (programació, canvis d'horari, resultats per validar...).
+//
 // Protegit amb CRON_SECRET (Vercel envia Authorization: Bearer <CRON_SECRET>).
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -17,40 +20,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  // Si WhatsApp no està configurat, no "consumim" els recordatoris (no marquem
-  // reminder_sent_at), perquè s'enviïn quan s'activi Evolution.
   if (!whatsappConfigured()) {
-    return NextResponse.json({ ok: true, processed: 0, reason: 'whatsapp_not_configured' });
+    return NextResponse.json({ ok: true, reason: 'whatsapp_not_configured' });
   }
 
-  const supabase = createServiceClient();
-  const now = new Date();
-  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-  const { data: matches, error } = await supabase
-    .from('matches')
-    .select('id')
-    .eq('status', 'scheduled')
-    .is('reminder_sent_at', null)
-    .not('scheduled_at', 'is', null)
-    .gte('scheduled_at', now.toISOString())
-    .lte('scheduled_at', in24h.toISOString());
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  let processed = 0;
-  for (const m of matches ?? []) {
-    await notifyMatchReminderWhatsApp(m.id);
-    await supabase
-      .from('matches')
-      .update({ reminder_sent_at: new Date().toISOString() })
-      .eq('id', m.id);
-    processed++;
-  }
-
-  // Resum diari al grup de gestió: "Avui es juga ...". Independent dels DMs.
-  // Si WHATSAPP_GROUP_JID no està definit, és no-op silenciós.
+  // Resum diari al grup: "Avui es juga ...". No-op si no hi ha partits avui
+  // o si WHATSAPP_GROUP_JID no està definit.
   await sendDailyGroupSummary();
 
-  return NextResponse.json({ ok: true, processed });
+  // Últim dia al preu actual (si demà comença un tram nou de tarifa).
+  await notifyFeePhaseChangeToGroup();
+
+  return NextResponse.json({ ok: true });
 }
