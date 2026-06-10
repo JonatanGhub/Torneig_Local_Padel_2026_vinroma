@@ -345,54 +345,6 @@ export async function notifyPaymentReconciledWhatsApp(paymentId: string) {
   }
 }
 
-export async function notifyMatchReminderWhatsApp(matchId: string) {
-  try {
-    const supabase = createServiceClient();
-    const { data: match } = await supabase
-      .from('matches')
-      .select('id, pair_a_id, pair_b_id, scheduled_at, court_label')
-      .eq('id', matchId)
-      .maybeSingle();
-    if (!match) return;
-
-    const { data: pairs } = await supabase
-      .from('pairs')
-      .select('id, captain_id, player_a_id, player_b_id')
-      .in('id', [match.pair_a_id, match.pair_b_id]);
-    if (!pairs || pairs.length < 2) return;
-
-    const allPlayerIds = pairs.flatMap((p) => [p.captain_id, p.player_a_id, p.player_b_id]);
-    const { data: players } = await supabase
-      .from('players')
-      .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
-      .in('id', allPlayerIds);
-
-    const pairLabelOf = (pairId: string) => {
-      const pair = pairs.find((p) => p.id === pairId);
-      if (!pair) return '—';
-      return lastNamesPair(
-        players?.find((p) => p.id === pair.player_a_id),
-        players?.find((p) => p.id === pair.player_b_id),
-      );
-    };
-
-    for (const pair of pairs) {
-      const captain = players?.find((p) => p.id === pair.captain_id) as Captain | undefined;
-      if (!canWhatsApp(captain)) continue;
-      const rivalPairId = pair.id === match.pair_a_id ? match.pair_b_id : match.pair_a_id;
-      const text =
-        `⏰ *Recordatori de partit*\n` +
-        `${pairLabelOf(pair.id)} vs ${pairLabelOf(rivalPairId)}\n` +
-        `🗓️ ${formatDateCA(match.scheduled_at)}\n` +
-        (match.court_label ? `📍 Pista: ${match.court_label}\n` : '') +
-        `\nBona sort! ${SITE_URL}/ca/captain`;
-      await sendWhatsApp({ to: captain.phone, text });
-    }
-  } catch (err) {
-    console.warn('[whatsapp] notifyMatchReminder failed', err);
-  }
-}
-
 // =========================================================================
 // Avisos al GRUP de gestió de WhatsApp (paral·lels als DMs als capitans).
 // Tots passen per sendWhatsAppToGroup() que ja és no-op si WHATSAPP_GROUP_JID
@@ -756,5 +708,61 @@ export async function notifyInscriptionReceivedWhatsApp(params: {
     await sendWhatsApp({ to: captain!.phone, text });
   } catch (err) {
     console.warn('[whatsapp] notifyInscriptionReceived failed', err);
+  }
+}
+
+// 10) Canvi de tram de preu → avís al grup quan falten <24h.
+// El cron diari (09:00 Madrid) crida aquesta funció: si algun tram de tarifa
+// comença dins de les pròximes 24 hores, avisa el grup que és l'últim dia al
+// preu actual. Com que el cron corre cada 24h, el missatge s'envia exactament
+// una vegada per tram.
+export async function notifyFeePhaseChangeToGroup(): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('id')
+      .eq('edition', 5)
+      .maybeSingle();
+    if (!tournament) return;
+
+    const now = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const { data: fees } = await supabase
+      .from('tournament_fees')
+      .select('id, label_ca, starts_at, ends_at, amount_per_player_cents')
+      .eq('tournament_id', tournament.id)
+      .order('starts_at', { ascending: true });
+    if (!fees || fees.length === 0) return;
+
+    // Tram que comença dins de les pròximes 24h.
+    const upcoming = fees.find((f) => {
+      const start = new Date(f.starts_at).getTime();
+      return start > now.getTime() && start <= in24h.getTime();
+    });
+    if (!upcoming) return;
+
+    // Tram actiu ara (per mostrar el preu actual).
+    const current = fees.find(
+      (f) =>
+        new Date(f.starts_at).getTime() <= now.getTime() &&
+        now.getTime() < new Date(f.ends_at).getTime(),
+    );
+
+    const eur = (cents: number) =>
+      (cents / 100).toLocaleString('ca-ES', { style: 'currency', currency: 'EUR' });
+
+    const text =
+      `⏰ *Últim dia al preu actual!*\n` +
+      (current
+        ? `Avui encara pots inscriure't per *${eur(current.amount_per_player_cents)}/jugador* (${current.label_ca}).\n`
+        : '') +
+      `A partir de demà, el preu passa a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
+      `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
+
+    await sendWhatsAppToGroup(text);
+  } catch (err) {
+    console.warn('[whatsapp] notifyFeePhaseChangeToGroup failed', err);
   }
 }
