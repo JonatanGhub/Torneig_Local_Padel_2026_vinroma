@@ -6,6 +6,7 @@
 
 import { createServiceClient } from '@/lib/supabase/service';
 import { getSiteUrl } from '@/lib/site-url';
+import { formatMatchTime, madridDateKey } from '@/lib/format-date';
 import { sendWhatsApp, sendWhatsAppToGroup } from './send';
 
 // Per obtenir el JID del grup de gestió:
@@ -727,19 +728,26 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     if (!tournament) return;
 
     const now = new Date();
-    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Finestra de mirada endavant. El cron corre cada dia a les 09:00 Madrid;
+    // amb 24h, l'avís cau exactament al matí del dia en què canvia el preu
+    // (p.ex. canvi a les 19:00 → avís el mateix dia a les 09:00, ~10h abans).
+    // No es fa servir una finestra de 10h "exacta" perquè un cron diari mai
+    // coincideix amb les 10h justes; 24h garanteix que el matí del dia del
+    // canvi sempre l'atrapa, i la marca d'enviat evita repeticions.
+    const WARNING_WINDOW_HOURS = 24;
+    const windowEnd = new Date(now.getTime() + WARNING_WINDOW_HOURS * 60 * 60 * 1000);
 
     const { data: fees } = await supabase
       .from('tournament_fees')
-      .select('id, label_ca, starts_at, ends_at, amount_per_player_cents')
+      .select('id, label_ca, starts_at, ends_at, amount_per_player_cents, phase_change_warned_at')
       .eq('tournament_id', tournament.id)
       .order('starts_at', { ascending: true });
     if (!fees || fees.length === 0) return;
 
-    // Tram que comença dins de les pròximes 24h.
+    // Tram que comença dins de la finestra i del qual encara NO s'ha avisat.
     const upcoming = fees.find((f) => {
       const start = new Date(f.starts_at).getTime();
-      return start > now.getTime() && start <= in24h.getTime();
+      return !f.phase_change_warned_at && start > now.getTime() && start <= windowEnd.getTime();
     });
     if (!upcoming) return;
 
@@ -753,15 +761,39 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     const eur = (cents: number) =>
       (cents / 100).toLocaleString('ca-ES', { style: 'currency', currency: 'EUR' });
 
-    const text =
-      `⏰ *Últim dia al preu actual!*\n` +
-      (current
-        ? `Avui encara pots inscriure't per *${eur(current.amount_per_player_cents)}/jugador* (${current.label_ca}).\n`
-        : '') +
-      `A partir de demà, el preu passa a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
-      `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
+    // Moment exacte del canvi en hora de Madrid. El cron salta el matí del dia
+    // del canvi, així que normalment és "avui a les HH:mm" (no "demà").
+    const changeTime = formatMatchTime(upcoming.starts_at, 'ca');
+    const isToday = madridDateKey(upcoming.starts_at) === madridDateKey(now.toISOString());
+    const whenLabel = isToday ? `avui a les ${changeTime}` : `demà a les ${changeTime}`;
+
+    // És l'últim tram? (cap altre tram comença després). Si ho és, és el
+    // tram "fora de termini" i el missatge avisa del tancament d'inscripcions.
+    const isLastTram = !fees.some(
+      (f) => new Date(f.starts_at).getTime() > new Date(upcoming.starts_at).getTime(),
+    );
+
+    const currentLine = current
+      ? `Fins ${whenLabel} encara pots inscriure't per *${eur(current.amount_per_player_cents)}/jugador* (${current.label_ca}).\n`
+      : '';
+
+    const text = isLastTram
+      ? `⏰ *Últimes inscripcions en termini!*\n` +
+        currentLine +
+        `Després (${whenLabel}) les inscripcions seran *fora de termini*: *${eur(upcoming.amount_per_player_cents)}/jugador*.\n\n` +
+        `No t'ho deixis, inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`
+      : `⏰ *Últim moment al preu actual!*\n` +
+        currentLine +
+        `${whenLabel} el preu puja a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
+        `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
 
     await sendWhatsAppToGroup(text);
+
+    // Marca el tram com a avisat perquè no es repeteixi mai.
+    await supabase
+      .from('tournament_fees')
+      .update({ phase_change_warned_at: new Date().toISOString() })
+      .eq('id', upcoming.id);
   } catch (err) {
     console.warn('[whatsapp] notifyFeePhaseChangeToGroup failed', err);
   }
