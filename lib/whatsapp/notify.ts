@@ -6,6 +6,7 @@
 
 import { createServiceClient } from '@/lib/supabase/service';
 import { getSiteUrl } from '@/lib/site-url';
+import { formatMatchTime, madridDateKey } from '@/lib/format-date';
 import { sendWhatsApp, sendWhatsAppToGroup } from './send';
 
 // Per obtenir el JID del grup de gestió:
@@ -760,13 +761,31 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     const eur = (cents: number) =>
       (cents / 100).toLocaleString('ca-ES', { style: 'currency', currency: 'EUR' });
 
-    const text =
-      `⏰ *Últim dia al preu actual!*\n` +
-      (current
-        ? `Avui encara pots inscriure't per *${eur(current.amount_per_player_cents)}/jugador* (${current.label_ca}).\n`
-        : '') +
-      `A partir de demà, el preu passa a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
-      `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
+    // Moment exacte del canvi en hora de Madrid. El cron salta el matí del dia
+    // del canvi, així que normalment és "avui a les HH:mm" (no "demà").
+    const changeTime = formatMatchTime(upcoming.starts_at, 'ca');
+    const isToday = madridDateKey(upcoming.starts_at) === madridDateKey(now.toISOString());
+    const whenLabel = isToday ? `avui a les ${changeTime}` : `demà a les ${changeTime}`;
+
+    // És l'últim tram? (cap altre tram comença després). Si ho és, és el
+    // tram "fora de termini" i el missatge avisa del tancament d'inscripcions.
+    const isLastTram = !fees.some(
+      (f) => new Date(f.starts_at).getTime() > new Date(upcoming.starts_at).getTime(),
+    );
+
+    const currentLine = current
+      ? `Fins ${whenLabel} encara pots inscriure't per *${eur(current.amount_per_player_cents)}/jugador* (${current.label_ca}).\n`
+      : '';
+
+    const text = isLastTram
+      ? `⏰ *Últimes inscripcions en termini!*\n` +
+        currentLine +
+        `Després (${whenLabel}) les inscripcions seran *fora de termini*: *${eur(upcoming.amount_per_player_cents)}/jugador*.\n\n` +
+        `No t'ho deixis, inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`
+      : `⏰ *Últim moment al preu actual!*\n` +
+        currentLine +
+        `${whenLabel} el preu puja a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
+        `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
 
     await sendWhatsAppToGroup(text);
 
