@@ -727,19 +727,26 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     if (!tournament) return;
 
     const now = new Date();
-    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Finestra de mirada endavant. El cron corre cada dia a les 09:00 Madrid;
+    // amb 24h, l'avís cau exactament al matí del dia en què canvia el preu
+    // (p.ex. canvi a les 19:00 → avís el mateix dia a les 09:00, ~10h abans).
+    // No es fa servir una finestra de 10h "exacta" perquè un cron diari mai
+    // coincideix amb les 10h justes; 24h garanteix que el matí del dia del
+    // canvi sempre l'atrapa, i la marca d'enviat evita repeticions.
+    const WARNING_WINDOW_HOURS = 24;
+    const windowEnd = new Date(now.getTime() + WARNING_WINDOW_HOURS * 60 * 60 * 1000);
 
     const { data: fees } = await supabase
       .from('tournament_fees')
-      .select('id, label_ca, starts_at, ends_at, amount_per_player_cents')
+      .select('id, label_ca, starts_at, ends_at, amount_per_player_cents, phase_change_warned_at')
       .eq('tournament_id', tournament.id)
       .order('starts_at', { ascending: true });
     if (!fees || fees.length === 0) return;
 
-    // Tram que comença dins de les pròximes 24h.
+    // Tram que comença dins de la finestra i del qual encara NO s'ha avisat.
     const upcoming = fees.find((f) => {
       const start = new Date(f.starts_at).getTime();
-      return start > now.getTime() && start <= in24h.getTime();
+      return !f.phase_change_warned_at && start > now.getTime() && start <= windowEnd.getTime();
     });
     if (!upcoming) return;
 
@@ -762,6 +769,12 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
       `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
 
     await sendWhatsAppToGroup(text);
+
+    // Marca el tram com a avisat perquè no es repeteixi mai.
+    await supabase
+      .from('tournament_fees')
+      .update({ phase_change_warned_at: new Date().toISOString() })
+      .eq('id', upcoming.id);
   } catch (err) {
     console.warn('[whatsapp] notifyFeePhaseChangeToGroup failed', err);
   }

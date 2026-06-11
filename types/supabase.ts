@@ -30,6 +30,7 @@ type TournamentFeeRow = {
   ends_at: string;
   amount_per_player_cents: number;
   is_default_open: boolean;
+  phase_change_warned_at: string | null;
   created_at: string;
 };
 
