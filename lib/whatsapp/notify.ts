@@ -787,9 +787,15 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
         `${whenLabel} el preu puja a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
         `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
 
-    await sendWhatsAppToGroup(text);
+    // Marca el tram com a avisat NOMÉS si el missatge s'ha enviat de debò.
+    // Si el grup no està configurat (skipped) o l'API ha fallat, deixem la
+    // marca a null perquè el cron del dia següent ho torni a intentar.
+    const result = await sendWhatsAppToGroup(text);
+    if (!result.ok || result.skipped) {
+      console.warn('[whatsapp] fee phase warning NOT sent; will retry next cron', result);
+      return;
+    }
 
-    // Marca el tram com a avisat perquè no es repeteixi mai.
     await supabase
       .from('tournament_fees')
       .update({ phase_change_warned_at: new Date().toISOString() })
