@@ -6,7 +6,7 @@
 
 import { createServiceClient } from '@/lib/supabase/service';
 import { getSiteUrl } from '@/lib/site-url';
-import { formatMatchTime, madridDateKey } from '@/lib/format-date';
+import { formatMatchTime, formatMatchDateTimeLong, madridDateKey } from '@/lib/format-date';
 import { sendWhatsApp, sendWhatsAppToGroup } from './send';
 
 // Per obtenir el JID del grup de gestió:
@@ -745,17 +745,9 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     if (!fees || fees.length === 0) return;
 
     // Tram que comença dins de la finestra i del qual encara NO s'ha avisat.
-    // Excloem trams que comencen un cop ja tancades les inscripcions: aquests
-    // són "fora de termini" (admin-only) i tenen el seu propi avís de tancament.
-    const registrationCloseMs = new Date(tournament.registration_closes_at).getTime();
     const upcoming = fees.find((f) => {
       const start = new Date(f.starts_at).getTime();
-      return (
-        !f.phase_change_warned_at &&
-        start > now.getTime() &&
-        start <= windowEnd.getTime() &&
-        start < registrationCloseMs
-      );
+      return !f.phase_change_warned_at && start > now.getTime() && start <= windowEnd.getTime();
     });
     if (!upcoming) return;
 
@@ -775,15 +767,25 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     const isToday = madridDateKey(upcoming.starts_at) === madridDateKey(now.toISOString());
     const whenLabel = isToday ? `avui a les ${changeTime}` : `demà a les ${changeTime}`;
 
+    // És l'últim tram (tipus "fora de termini")? Si ho és, el missatge ha
+    // d'esmentar fins quan estaran obertes les inscripcions amb el recàrrec.
+    const isLastTram = !fees.some(
+      (f) => new Date(f.starts_at).getTime() > new Date(upcoming.starts_at).getTime(),
+    );
+
     const currentLine = current
       ? `Fins ${whenLabel} encara pots inscriure't per *${eur(current.amount_per_player_cents)}/jugador* (${current.label_ca}).\n`
       : '';
 
-    const text =
-      `⏰ *Últim moment al preu actual!*\n` +
-      currentLine +
-      `${whenLabel} el preu puja a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
-      `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
+    const text = isLastTram
+      ? `⏰ *Últimes inscripcions en termini!*\n` +
+        currentLine +
+        `${whenLabel} les inscripcions passen a ser *fora de termini*: *${eur(upcoming.amount_per_player_cents)}/jugador* fins al *${formatMatchDateTimeLong(upcoming.ends_at, 'ca')}*.\n\n` +
+        `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`
+      : `⏰ *Últim moment al preu actual!*\n` +
+        currentLine +
+        `${whenLabel} el preu puja a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
+        `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
 
     // Marca el tram com a avisat NOMÉS si el missatge s'ha enviat de debò.
     // Si el grup no està configurat (skipped) o l'API ha fallat, deixem la
