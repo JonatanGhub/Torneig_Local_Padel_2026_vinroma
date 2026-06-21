@@ -722,7 +722,7 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     const supabase = createServiceClient();
     const { data: tournament } = await supabase
       .from('tournaments')
-      .select('id')
+      .select('id, registration_closes_at')
       .eq('edition', 5)
       .maybeSingle();
     if (!tournament) return;
@@ -745,9 +745,17 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     if (!fees || fees.length === 0) return;
 
     // Tram que comença dins de la finestra i del qual encara NO s'ha avisat.
+    // Excloem trams que comencen un cop ja tancades les inscripcions: aquests
+    // són "fora de termini" (admin-only) i tenen el seu propi avís de tancament.
+    const registrationCloseMs = new Date(tournament.registration_closes_at).getTime();
     const upcoming = fees.find((f) => {
       const start = new Date(f.starts_at).getTime();
-      return !f.phase_change_warned_at && start > now.getTime() && start <= windowEnd.getTime();
+      return (
+        !f.phase_change_warned_at &&
+        start > now.getTime() &&
+        start <= windowEnd.getTime() &&
+        start < registrationCloseMs
+      );
     });
     if (!upcoming) return;
 
@@ -767,25 +775,15 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     const isToday = madridDateKey(upcoming.starts_at) === madridDateKey(now.toISOString());
     const whenLabel = isToday ? `avui a les ${changeTime}` : `demà a les ${changeTime}`;
 
-    // És l'últim tram? (cap altre tram comença després). Si ho és, és el
-    // tram "fora de termini" i el missatge avisa del tancament d'inscripcions.
-    const isLastTram = !fees.some(
-      (f) => new Date(f.starts_at).getTime() > new Date(upcoming.starts_at).getTime(),
-    );
-
     const currentLine = current
       ? `Fins ${whenLabel} encara pots inscriure't per *${eur(current.amount_per_player_cents)}/jugador* (${current.label_ca}).\n`
       : '';
 
-    const text = isLastTram
-      ? `⏰ *Últimes inscripcions en termini!*\n` +
-        currentLine +
-        `Després (${whenLabel}) les inscripcions seran *fora de termini*: *${eur(upcoming.amount_per_player_cents)}/jugador*.\n\n` +
-        `No t'ho deixis, inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`
-      : `⏰ *Últim moment al preu actual!*\n` +
-        currentLine +
-        `${whenLabel} el preu puja a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
-        `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
+    const text =
+      `⏰ *Últim moment al preu actual!*\n` +
+      currentLine +
+      `${whenLabel} el preu puja a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
+      `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`;
 
     // Marca el tram com a avisat NOMÉS si el missatge s'ha enviat de debò.
     // Si el grup no està configurat (skipped) o l'API ha fallat, deixem la
@@ -802,5 +800,68 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
       .eq('id', upcoming.id);
   } catch (err) {
     console.warn('[whatsapp] notifyFeePhaseChangeToGroup failed', err);
+  }
+}
+
+// 11) Tancament d'inscripcions → avís al grup quan falten <24h.
+// Es dispara igual que notifyFeePhaseChangeToGroup però mira
+// `tournaments.registration_closes_at`. Mateixa idempotència via
+// `tournaments.registration_close_warned_at`.
+export async function notifyRegistrationClosingToGroup(): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('id, registration_closes_at, registration_close_warned_at')
+      .eq('edition', 5)
+      .maybeSingle();
+    if (!tournament || tournament.registration_close_warned_at) return;
+
+    const now = new Date();
+    const closesAt = new Date(tournament.registration_closes_at).getTime();
+    const windowEnd = now.getTime() + 24 * 60 * 60 * 1000;
+    if (closesAt <= now.getTime() || closesAt > windowEnd) return;
+
+    // Preu actual (tram actiu) per recordar quant costa encara.
+    const { data: fees } = await supabase
+      .from('tournament_fees')
+      .select('label_ca, starts_at, ends_at, amount_per_player_cents')
+      .eq('tournament_id', tournament.id)
+      .order('starts_at', { ascending: true });
+    const current = (fees ?? []).find(
+      (f) =>
+        new Date(f.starts_at).getTime() <= now.getTime() &&
+        now.getTime() < new Date(f.ends_at).getTime(),
+    );
+
+    const eur = (cents: number) =>
+      (cents / 100).toLocaleString('ca-ES', { style: 'currency', currency: 'EUR' });
+
+    const closeTime = formatMatchTime(tournament.registration_closes_at, 'ca');
+    const isToday =
+      madridDateKey(tournament.registration_closes_at) === madridDateKey(now.toISOString());
+    const whenLabel = isToday ? `avui a les ${closeTime}` : `demà a les ${closeTime}`;
+    const priceLine = current
+      ? `Preu actual: *${eur(current.amount_per_player_cents)}/jugador* (${current.label_ca}).\n`
+      : '';
+
+    const text =
+      `🚨 *Es tanquen les inscripcions ${whenLabel}!*\n` +
+      priceLine +
+      `Última oportunitat d'inscriure la teva parella per la web.\n\n` +
+      `${SITE_URL}/ca/inscripcio`;
+
+    const result = await sendWhatsAppToGroup(text);
+    if (!result.ok || result.skipped) {
+      console.warn('[whatsapp] registration close warning NOT sent; will retry next cron', result);
+      return;
+    }
+
+    await supabase
+      .from('tournaments')
+      .update({ registration_close_warned_at: new Date().toISOString() })
+      .eq('id', tournament.id);
+  } catch (err) {
+    console.warn('[whatsapp] notifyRegistrationClosingToGroup failed', err);
   }
 }
