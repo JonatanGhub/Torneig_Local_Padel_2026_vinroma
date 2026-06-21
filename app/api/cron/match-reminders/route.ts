@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
-import {
-  sendDailyGroupSummary,
-  notifyFeePhaseChangeToGroup,
-  notifyRegistrationClosingToGroup,
-} from '@/lib/whatsapp/notify';
+import { sendDailyGroupSummary, notifyFeePhaseChangeToGroup } from '@/lib/whatsapp/notify';
 import { whatsappConfigured } from '@/lib/whatsapp/send';
 
 export const dynamic = 'force-dynamic';
@@ -34,9 +30,6 @@ export async function GET(request: Request) {
 
   // Últim dia al preu actual (si demà comença un tram nou de tarifa).
   await notifyFeePhaseChangeToGroup();
-
-  // Avís de tancament d'inscripcions (si tanquen en les pròximes 24h).
-  await notifyRegistrationClosingToGroup();
 
   return NextResponse.json({ ok: true });
 }
