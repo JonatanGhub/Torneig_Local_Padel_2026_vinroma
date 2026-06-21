@@ -17,6 +17,7 @@ type TournamentRow = {
   final_at: string;
   is_published: boolean;
   fee_mode_default: 'per_pair' | 'per_player';
+  registration_close_warned_at: string | null;
   created_at: string;
   updated_at: string;
 };

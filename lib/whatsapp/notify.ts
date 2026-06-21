@@ -6,7 +6,7 @@
 
 import { createServiceClient } from '@/lib/supabase/service';
 import { getSiteUrl } from '@/lib/site-url';
-import { formatMatchTime, madridDateKey } from '@/lib/format-date';
+import { formatMatchTime, formatMatchDateTimeLong, madridDateKey } from '@/lib/format-date';
 import { sendWhatsApp, sendWhatsAppToGroup } from './send';
 
 // Per obtenir el JID del grup de gestió:
@@ -722,7 +722,7 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     const supabase = createServiceClient();
     const { data: tournament } = await supabase
       .from('tournaments')
-      .select('id')
+      .select('id, registration_closes_at')
       .eq('edition', 5)
       .maybeSingle();
     if (!tournament) return;
@@ -767,8 +767,8 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     const isToday = madridDateKey(upcoming.starts_at) === madridDateKey(now.toISOString());
     const whenLabel = isToday ? `avui a les ${changeTime}` : `demà a les ${changeTime}`;
 
-    // És l'últim tram? (cap altre tram comença després). Si ho és, és el
-    // tram "fora de termini" i el missatge avisa del tancament d'inscripcions.
+    // És l'últim tram (tipus "fora de termini")? Si ho és, el missatge ha
+    // d'esmentar fins quan estaran obertes les inscripcions amb el recàrrec.
     const isLastTram = !fees.some(
       (f) => new Date(f.starts_at).getTime() > new Date(upcoming.starts_at).getTime(),
     );
@@ -780,8 +780,9 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     const text = isLastTram
       ? `⏰ *Últimes inscripcions en termini!*\n` +
         currentLine +
-        `Després (${whenLabel}) les inscripcions seran *fora de termini*: *${eur(upcoming.amount_per_player_cents)}/jugador*.\n\n` +
-        `No t'ho deixis, inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`
+        `${whenLabel} les inscripcions passen a ser *fora de termini*: *${eur(upcoming.amount_per_player_cents)}/jugador* fins al *${formatMatchDateTimeLong(upcoming.ends_at, 'ca')}*.\n` +
+        `_⚠️ Les inscripcions fora de termini queden subjectes a la decisió de l'organització segons si encaixen a la fase de grups._\n\n` +
+        `Inscriu la teva parella ara:\n${SITE_URL}/ca/inscripcio`
       : `⏰ *Últim moment al preu actual!*\n` +
         currentLine +
         `${whenLabel} el preu puja a *${eur(upcoming.amount_per_player_cents)}/jugador* (${upcoming.label_ca}).\n\n` +
