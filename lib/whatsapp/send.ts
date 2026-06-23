@@ -191,6 +191,124 @@ export async function fetchGroupInfoRaw(groupJid: string): Promise<{
   }
 }
 
+// Descobreix grups SENSE passar per fetchAllGroups (que fa 504 perquè
+// consulta WhatsApp en viu). En comptes d'això:
+//   1. POST /chat/findChats — llegeix els chats de la BD LOCAL d'Evolution
+//      (instantani). D'aquí n'extraiem els remoteJid acabats en @g.us.
+//   2. Per cada JID de grup, GET /group/findGroupInfos (ràpid, cachejat) per
+//      obtenir el nom (subject).
+// Retorna la llista [{ id, subject }] i la loga.
+export type DiscoveredGroup = { id: string; subject: string };
+
+export async function discoverGroups(): Promise<{
+  ok: boolean;
+  status: number;
+  error?: string;
+  chatsCount?: number;
+  groups: DiscoveredGroup[];
+}> {
+  if (!whatsappConfigured()) {
+    return { ok: false, status: 0, error: 'evolution_not_configured', groups: [] };
+  }
+
+  // 1) findChats. A v2 és POST amb cos opcional; fem fallback a GET.
+  let chatsBody = '';
+  let chatsStatus = 0;
+  try {
+    let res = await evolutionFetch(
+      `/chat/findChats/${INSTANCE}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
+        body: JSON.stringify({}),
+      },
+      30_000,
+    );
+    if (res.status === 404 || res.status === 405) {
+      res = await evolutionFetch(`/chat/findChats/${INSTANCE}`, {
+        method: 'GET',
+        headers: { apikey: API_KEY! },
+      });
+    }
+    chatsStatus = res.status;
+    chatsBody = await res.text().catch(() => '');
+    if (!res.ok) {
+      console.error('[wa-discover] findChats non-2xx', {
+        status: res.status,
+        body: chatsBody.slice(0, 300),
+      });
+      return { ok: false, status: res.status, error: chatsBody.slice(0, 300), groups: [] };
+    }
+  } catch (err) {
+    console.error('[wa-discover] findChats threw', { error: String(err) });
+    return { ok: false, status: 0, error: String(err), groups: [] };
+  }
+
+  // 2) Extreure remoteJid de grup (acaben en @g.us) del cos de findChats.
+  const groupJids = new Set<string>();
+  try {
+    const parsed = JSON.parse(chatsBody) as unknown;
+    const arr = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray((parsed as Record<string, unknown>)?.chats)
+        ? ((parsed as Record<string, unknown>).chats as unknown[])
+        : [];
+    for (const c of arr) {
+      if (typeof c !== 'object' || c === null) continue;
+      const o = c as Record<string, unknown>;
+      const candidate =
+        (typeof o.remoteJid === 'string' && o.remoteJid) ||
+        (typeof o.id === 'string' && o.id) ||
+        (typeof o.jid === 'string' && o.jid) ||
+        '';
+      if (candidate.endsWith('@g.us')) groupJids.add(candidate);
+    }
+  } catch {
+    // si no és JSON, ho reportem com a error perquè no podem continuar
+    console.error('[wa-discover] findChats body not JSON', { body: chatsBody.slice(0, 300) });
+    return {
+      ok: false,
+      status: chatsStatus,
+      error: 'findChats body not JSON',
+      groups: [],
+    };
+  }
+
+  const jids = Array.from(groupJids);
+  console.log(`[wa-discover] findChats OK: ${jids.length} grups detectats`);
+
+  // 3) Resoldre el subject de cada grup amb findGroupInfos (concurrència 6).
+  const groups: DiscoveredGroup[] = [];
+  const CONCURRENCY = 6;
+  for (let i = 0; i < jids.length; i += CONCURRENCY) {
+    const batch = jids.slice(i, i + CONCURRENCY);
+    const resolved = await Promise.all(
+      batch.map(async (jid) => {
+        const info = await fetchGroupInfoRaw(jid);
+        let subject = '';
+        if (info.ok) {
+          try {
+            const o = JSON.parse(info.body) as Record<string, unknown>;
+            if (typeof o.subject === 'string') subject = o.subject;
+          } catch {
+            // ignore
+          }
+        }
+        return { id: jid, subject };
+      }),
+    );
+    groups.push(...resolved);
+  }
+
+  groups.sort((a, b) => a.subject.localeCompare(b.subject, 'ca', { sensitivity: 'base' }));
+  console.log(
+    `[wa-discover] ${groups.length} grups resolts:\n` +
+      groups.map((g) => `${g.subject} => ${g.id}`).join('\n'),
+  );
+
+  return { ok: true, status: 200, chatsCount: jids.length, groups };
+}
+
 // Llista tots els grups que coneix la instància. Útil per descobrir el JID
 // real quan el configurat no funciona.
 //

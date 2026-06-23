@@ -8,10 +8,12 @@ import {
   fetchGroupInfoRaw,
   fetchAllGroupsRaw,
   fetchConnectionStateRaw,
+  discoverGroups,
 } from '@/lib/whatsapp/send';
 import { sendDailyGroupSummary, notifyFeePhaseChangeToGroup } from '@/lib/whatsapp/notify';
 import type {
   CronRunResult,
+  DiscoverGroupsResult,
   GroupListEntry,
   RawEvolutionResponse,
   WhatsAppConfigSnapshot,
@@ -162,6 +164,13 @@ export async function checkGroupInfo(): Promise<RawEvolutionResponse | null> {
   const jid = process.env.WHATSAPP_GROUP_JID?.trim();
   if (!jid) return { ok: false, status: 0, body: 'WHATSAPP_GROUP_JID not set' };
   return fetchGroupInfoRaw(jid);
+}
+
+// Descobreix grups via findChats (BD local) + findGroupInfos. Ràpid, evita
+// el 504 de fetchAllGroups.
+export async function discoverGroupsAction(): Promise<DiscoverGroupsResult | null> {
+  if (!(await assertAdmin())) return null;
+  return discoverGroups();
 }
 
 // Llista tots els grups que el bot coneix. Útil per descobrir el JID real
