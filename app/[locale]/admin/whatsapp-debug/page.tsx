@@ -7,11 +7,10 @@ type Props = { params: Promise<{ locale: Locale }> };
 
 export const dynamic = 'force-dynamic';
 
-// fetchAllGroups d'Evolution amb molts grups pot tardar 30-40s. Aquesta
-// pàgina (i els seus server actions) necessiten l'extensió del timeout per
-// damunt dels 10s per defecte de Vercel Hobby. 60s és el màxim permès a
-// Hobby plan.
-export const maxDuration = 60;
+// fetchAllGroups d'Evolution pot tardar molt la primera vegada. Demanem el
+// màxim de durada possible; Vercel ho limita automàticament al màxim del pla
+// (60s a Hobby, fins a 300s a Pro), no falla el build per demanar de més.
+export const maxDuration = 300;
 
 export default async function WhatsAppDebugPage({ params }: Props) {
   const { locale } = await params;
