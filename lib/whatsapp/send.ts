@@ -193,7 +193,15 @@ export async function fetchGroupInfoRaw(groupJid: string): Promise<{
 
 // Llista tots els grups que coneix la instància. Útil per descobrir el JID
 // real quan el configurat no funciona.
-export async function fetchAllGroupsRaw(): Promise<{
+//
+// IMPORTANT sobre el timeout: el backend d'Evolution és lent recopilant tots
+// els grups (pot tardar > 60s la PRIMERA vegada, i el seu nginx talla amb un
+// 504). Però aquella primera crida ESCALFA la cache interna d'Evolution, així
+// que crides posteriors són ràpides. Per això loguem el resultat (compacte)
+// tan bon punt arriba: encara que el client mòbil abandoni la connexió, la
+// funció serverless continua fins a `maxDuration` i, si Evolution respon dins
+// d'aquesta finestra, els JIDs queden als runtime logs de Vercel.
+export async function fetchAllGroupsRaw(timeoutMs = 290_000): Promise<{
   ok: boolean;
   status: number;
   body: string;
@@ -202,16 +210,41 @@ export async function fetchAllGroupsRaw(): Promise<{
     return { ok: false, status: 0, body: 'evolution_not_configured' };
   }
   try {
-    // 50s — fetchAllGroups d'Evolution amb molts grups pot tardar 20-30s.
-    // Vercel Hobby permet fins a 60s en serverless functions.
     const res = await evolutionFetch(
       `/group/fetchAllGroups/${INSTANCE}?getParticipants=false`,
       { method: 'GET', headers: { apikey: API_KEY! } },
-      50_000,
+      timeoutMs,
     );
     const body = await res.text().catch(() => '');
+    // Log compacte de subject => id per poder llegir-ho dels runtime logs
+    // sense dependre que la UI rebi la resposta.
+    if (res.ok) {
+      try {
+        const parsed = JSON.parse(body) as unknown;
+        if (Array.isArray(parsed)) {
+          const lines = parsed
+            .map((g) => {
+              if (typeof g !== 'object' || g === null) return null;
+              const o = g as Record<string, unknown>;
+              const id = typeof o.id === 'string' ? o.id : '?';
+              const subject = typeof o.subject === 'string' ? o.subject : '';
+              return `${subject} => ${id}`;
+            })
+            .filter(Boolean);
+          console.log(`[wa-groups] ${lines.length} grups:\n${lines.join('\n')}`);
+        }
+      } catch {
+        // body no parseable; igualment el retornem cru
+      }
+    } else {
+      console.error('[wa-groups] fetchAllGroups non-2xx', {
+        status: res.status,
+        body: body.slice(0, 300),
+      });
+    }
     return { ok: res.ok, status: res.status, body: body.slice(0, 200_000) };
   } catch (err) {
+    console.error('[wa-groups] fetchAllGroups threw', { error: String(err) });
     return { ok: false, status: 0, body: String(err) };
   }
 }
