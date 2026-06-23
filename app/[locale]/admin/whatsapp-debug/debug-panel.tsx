@@ -312,6 +312,7 @@ function GroupListView({
   data: { raw: RawEvolutionResponse; groups: GroupListEntry[] | null };
   configuredJid: string | null;
 }) {
+  const [filter, setFilter] = useState('');
   if (!data.raw.ok) {
     return <RawResponseView resp={data.raw} />;
   }
@@ -327,6 +328,13 @@ function GroupListView({
   }
 
   const matched = configuredJid ? data.groups.find((g) => g.id === configuredJid) : undefined;
+  const sorted = [...data.groups].sort((a, b) =>
+    (a.subject || '').localeCompare(b.subject || '', 'ca', { sensitivity: 'base' }),
+  );
+  const q = filter.trim().toLowerCase();
+  const filtered = q
+    ? sorted.filter((g) => g.subject.toLowerCase().includes(q) || g.id.toLowerCase().includes(q))
+    : sorted;
 
   return (
     <div className="space-y-2">
@@ -345,13 +353,24 @@ function GroupListView({
           </div>
         )}
       </div>
+      <input
+        type="text"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder="Filtra per nom o JID (ex: TORNEIG ESTIU)"
+        className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm"
+      />
       <ul className="divide-y divide-[hsl(var(--border))] overflow-x-auto rounded-md border border-[hsl(var(--border))] text-sm">
-        {data.groups.map((g) => (
-          <li key={g.id} className="px-3 py-2">
-            <div className="font-medium">{g.subject || '(sense nom)'}</div>
-            <code className="text-muted-foreground text-xs break-all">{g.id}</code>
-          </li>
-        ))}
+        {filtered.length === 0 ? (
+          <li className="text-muted-foreground px-3 py-2 text-xs">Cap grup coincideix.</li>
+        ) : (
+          filtered.map((g) => (
+            <li key={g.id} className="px-3 py-2">
+              <div className="font-medium">{g.subject || '(sense nom)'}</div>
+              <code className="text-muted-foreground text-xs break-all">{g.id}</code>
+            </li>
+          ))
+        )}
       </ul>
     </div>
   );

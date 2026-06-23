@@ -42,9 +42,13 @@ export type SendWhatsAppResult =
   | { ok: true; skipped: true; reason: 'not_configured' | 'invalid_number' }
   | { ok: false; skipped: false; error: string; status?: number; body?: string };
 
-async function evolutionFetch(path: string, init: RequestInit): Promise<Response> {
+async function evolutionFetch(
+  path: string,
+  init: RequestInit,
+  timeoutMs: number = EVOLUTION_TIMEOUT_MS,
+): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), EVOLUTION_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(`${API_URL}${path}`, { ...init, signal: controller.signal });
   } finally {
@@ -198,12 +202,15 @@ export async function fetchAllGroupsRaw(): Promise<{
     return { ok: false, status: 0, body: 'evolution_not_configured' };
   }
   try {
-    const res = await evolutionFetch(`/group/fetchAllGroups/${INSTANCE}?getParticipants=false`, {
-      method: 'GET',
-      headers: { apikey: API_KEY! },
-    });
+    // 50s — fetchAllGroups d'Evolution amb molts grups pot tardar 20-30s.
+    // Vercel Hobby permet fins a 60s en serverless functions.
+    const res = await evolutionFetch(
+      `/group/fetchAllGroups/${INSTANCE}?getParticipants=false`,
+      { method: 'GET', headers: { apikey: API_KEY! } },
+      50_000,
+    );
     const body = await res.text().catch(() => '');
-    return { ok: res.ok, status: res.status, body: body.slice(0, 8000) };
+    return { ok: res.ok, status: res.status, body: body.slice(0, 200_000) };
   } catch (err) {
     return { ok: false, status: 0, body: String(err) };
   }
