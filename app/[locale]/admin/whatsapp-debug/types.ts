@@ -1,5 +1,11 @@
 export type WhatsAppDebugResult =
-  | { ok: true; status: number; target: 'group' | 'dm'; sentAt: string }
+  | {
+      ok: true;
+      status: number;
+      target: 'group' | 'dm';
+      sentAt: string;
+      responseBody?: string;
+    }
   | {
       ok: false;
       target: 'group' | 'dm';
@@ -18,7 +24,7 @@ export type WhatsAppConfigSnapshot = {
   instancePresent: boolean;
   instancePreview: string | null;
   groupJidPresent: boolean;
-  groupJidPreview: string | null;
+  groupJidFull: string | null;
   groupJidLooksValid: boolean;
   cronSecretPresent: boolean;
   adminNumberPresent: boolean;
@@ -32,10 +38,10 @@ export type CronRunResult = {
   feePhase: { attempted: boolean; error?: string };
 };
 
-export type GroupInfo = {
+export type RawEvolutionResponse = {
   ok: boolean;
-  status?: number;
-  error?: string;
-  matchedGroup?: { id: string; subject: string; size?: number; isAdmin?: boolean };
-  totalGroups?: number;
+  status: number;
+  body: string;
 };
+
+export type GroupListEntry = { id: string; subject: string };
