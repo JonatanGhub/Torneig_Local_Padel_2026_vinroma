@@ -45,3 +45,11 @@ export type RawEvolutionResponse = {
 };
 
 export type GroupListEntry = { id: string; subject: string };
+
+export type DiscoverGroupsResult = {
+  ok: boolean;
+  status: number;
+  error?: string;
+  chatsCount?: number;
+  groups: GroupListEntry[];
+};

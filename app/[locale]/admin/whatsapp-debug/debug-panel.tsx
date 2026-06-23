@@ -8,6 +8,7 @@ import {
   checkConnectionState,
   checkGroupInfo,
   listAllGroups,
+  discoverGroupsAction,
 } from './actions';
 import type {
   WhatsAppDebugResult,
@@ -15,6 +16,7 @@ import type {
   CronRunResult,
   RawEvolutionResponse,
   GroupListEntry,
+  DiscoverGroupsResult,
 } from './types';
 
 type Props = { config: WhatsAppConfigSnapshot | null };
@@ -29,11 +31,13 @@ export function DebugPanel({ config }: Props) {
     raw: RawEvolutionResponse;
     groups: GroupListEntry[] | null;
   } | null>(null);
+  const [discovered, setDiscovered] = useState<DiscoverGroupsResult | null>(null);
   const [phone, setPhone] = useState('');
 
   const [pConn, sConn] = useTransition();
   const [pInfo, sInfo] = useTransition();
   const [pList, sList] = useTransition();
+  const [pDiscover, sDiscover] = useTransition();
   const [pGroup, sGroup] = useTransition();
   const [pDm, sDm] = useTransition();
   const [pCron, sCron] = useTransition();
@@ -74,13 +78,26 @@ export function DebugPanel({ config }: Props) {
 
       <Section
         n={3}
-        title="Llistar tots els grups del bot"
-        description="GET /group/fetchAllGroups. Tarda força (15s timeout). Compara el JID del grup TORNEIG ESTIU TOTS amb el que tens configurat."
+        title="Descobrir grups (ràpid) ⭐"
+        description="Llegeix els xats de la BD local d'Evolution i en treu els JIDs de grup. És ràpid (evita el 504 de fetchAllGroups). Aquí trobaràs el JID de TORNEIG ESTIU TOTS."
+      >
+        <PrimaryButton
+          pending={pDiscover}
+          onClick={() => sDiscover(async () => setDiscovered(await discoverGroupsAction()))}
+          label="Descobrir grups"
+        />
+        {discovered && <DiscoverView data={discovered} configuredJid={configuredJid} />}
+      </Section>
+
+      <Section
+        n={3.1}
+        title="Llistar tots els grups del bot (lent)"
+        description="GET /group/fetchAllGroups. Sol fer 504 perquè consulta WhatsApp en viu. Fes servir 'Descobrir grups' millor."
       >
         <PrimaryButton
           pending={pList}
           onClick={() => sList(async () => setAllGroups(await listAllGroups()))}
-          label="Llistar grups"
+          label="Llistar grups (lent)"
         />
         {allGroups && <GroupListView data={allGroups} configuredJid={configuredJid} />}
       </Section>
@@ -301,6 +318,73 @@ function RawResponseView({ resp }: { resp: RawEvolutionResponse }) {
       <pre className={`overflow-x-auto rounded p-2 text-xs break-all whitespace-pre-wrap ${bg}`}>
         {resp.body || '(cos buit)'}
       </pre>
+    </div>
+  );
+}
+
+function DiscoverView({
+  data,
+  configuredJid,
+}: {
+  data: DiscoverGroupsResult;
+  configuredJid: string | null;
+}) {
+  const [filter, setFilter] = useState('');
+  if (!data.ok) {
+    return (
+      <div className="space-y-1 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900 dark:bg-red-950 dark:text-red-200">
+        <div className="font-medium">✗ Error (HTTP {data.status})</div>
+        {data.error && (
+          <pre className="overflow-x-auto rounded bg-red-100 p-2 text-xs break-all whitespace-pre-wrap dark:bg-red-900">
+            {data.error}
+          </pre>
+        )}
+      </div>
+    );
+  }
+
+  const matched = configuredJid ? data.groups.find((g) => g.id === configuredJid) : undefined;
+  const q = filter.trim().toLowerCase();
+  const filtered = q
+    ? data.groups.filter(
+        (g) => g.subject.toLowerCase().includes(q) || g.id.toLowerCase().includes(q),
+      )
+    : data.groups;
+
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-3 text-sm">
+        <div className="font-medium">{data.groups.length} grups trobats</div>
+        {configuredJid && (
+          <div className="mt-1 text-xs">
+            JID configurat: <code className="break-all">{configuredJid}</code>
+            {matched ? (
+              <span className="ml-2 text-emerald-600">✓ és «{matched.subject}»</span>
+            ) : (
+              <span className="ml-2 text-red-600">✗ no és cap d&apos;aquests</span>
+            )}
+          </div>
+        )}
+      </div>
+      <input
+        type="text"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder="Filtra (ex: TORNEIG ESTIU)"
+        className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm"
+      />
+      <ul className="divide-y divide-[hsl(var(--border))] overflow-x-auto rounded-md border border-[hsl(var(--border))] text-sm">
+        {filtered.length === 0 ? (
+          <li className="text-muted-foreground px-3 py-2 text-xs">Cap grup coincideix.</li>
+        ) : (
+          filtered.map((g) => (
+            <li key={g.id} className="px-3 py-2">
+              <div className="font-medium">{g.subject || '(sense nom)'}</div>
+              <code className="text-muted-foreground text-xs break-all">{g.id}</code>
+            </li>
+          ))
+        )}
+      </ul>
     </div>
   );
 }
