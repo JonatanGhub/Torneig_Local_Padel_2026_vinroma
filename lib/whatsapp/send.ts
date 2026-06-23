@@ -34,9 +34,9 @@ export function toWhatsAppNumber(raw: string | null | undefined): string | null 
 }
 
 export type SendWhatsAppResult =
-  | { ok: true; skipped: false }
+  | { ok: true; skipped: false; status?: number }
   | { ok: true; skipped: true; reason: 'not_configured' | 'invalid_number' }
-  | { ok: false; skipped: false; error: string };
+  | { ok: false; skipped: false; error: string; status?: number; body?: string };
 
 export async function sendWhatsApp({
   to,
@@ -46,12 +46,12 @@ export async function sendWhatsApp({
   text: string;
 }): Promise<SendWhatsAppResult> {
   if (!whatsappConfigured()) {
-    console.warn('[whatsapp] EVOLUTION_* not set; message NOT sent');
+    console.error('[whatsapp:dm] EVOLUTION_* not set; message NOT sent');
     return { ok: true, skipped: true, reason: 'not_configured' };
   }
   const number = toWhatsAppNumber(to);
   if (!number) {
-    console.warn('[whatsapp] invalid phone; skipped');
+    console.error('[whatsapp:dm] invalid phone; skipped', { to });
     return { ok: true, skipped: true, reason: 'invalid_number' };
   }
 
@@ -64,11 +64,22 @@ export async function sendWhatsApp({
     });
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
-      throw new Error(`Evolution API ${res.status}: ${errBody.slice(0, 200)}`);
+      console.error('[whatsapp:dm] Evolution API non-2xx', {
+        status: res.status,
+        body: errBody.slice(0, 500),
+        number,
+      });
+      return {
+        ok: false,
+        skipped: false,
+        error: `Evolution API ${res.status}: ${errBody.slice(0, 200)}`,
+        status: res.status,
+        body: errBody.slice(0, 500),
+      };
     }
-    return { ok: true, skipped: false };
+    return { ok: true, skipped: false, status: res.status };
   } catch (err) {
-    console.warn('[whatsapp] send failed', err);
+    console.error('[whatsapp:dm] send threw', { error: String(err), number });
     return { ok: false, skipped: false, error: String(err) };
   }
 }
@@ -89,13 +100,13 @@ export async function sendWhatsApp({
  * configurats. Mai llança.
  */
 export async function sendWhatsAppToGroup(text: string): Promise<SendWhatsAppResult> {
-  const groupJid = process.env.WHATSAPP_GROUP_JID ?? null;
+  const groupJid = process.env.WHATSAPP_GROUP_JID?.trim() ?? null;
   if (!whatsappConfigured()) {
-    console.warn('[whatsapp] EVOLUTION_* not set; group message NOT sent');
+    console.error('[whatsapp:group] EVOLUTION_* not set; group message NOT sent');
     return { ok: true, skipped: true, reason: 'not_configured' };
   }
   if (!groupJid) {
-    console.warn('[whatsapp] WHATSAPP_GROUP_JID not set; group message NOT sent');
+    console.error('[whatsapp:group] WHATSAPP_GROUP_JID not set; group message NOT sent');
     return { ok: true, skipped: true, reason: 'not_configured' };
   }
 
@@ -108,11 +119,27 @@ export async function sendWhatsAppToGroup(text: string): Promise<SendWhatsAppRes
     });
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
-      throw new Error(`Evolution API ${res.status}: ${errBody.slice(0, 200)}`);
+      console.error('[whatsapp:group] Evolution API non-2xx', {
+        status: res.status,
+        body: errBody.slice(0, 500),
+        groupJid,
+        instance: INSTANCE,
+      });
+      return {
+        ok: false,
+        skipped: false,
+        error: `Evolution API ${res.status}: ${errBody.slice(0, 200)}`,
+        status: res.status,
+        body: errBody.slice(0, 500),
+      };
     }
-    return { ok: true, skipped: false };
+    return { ok: true, skipped: false, status: res.status };
   } catch (err) {
-    console.warn('[whatsapp] group send failed', err);
+    console.error('[whatsapp:group] send threw', {
+      error: String(err),
+      groupJid,
+      instance: INSTANCE,
+    });
     return { ok: false, skipped: false, error: String(err) };
   }
 }

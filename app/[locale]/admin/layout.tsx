@@ -15,6 +15,7 @@ import {
   Home,
   Coins,
   Bug,
+  MessageCircle,
 } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -97,6 +98,12 @@ export default async function AdminLayout({ children, params }: Props) {
             </NavLink>
             <NavLink href={`/${locale}/admin/interest`} icon={<Mail className="size-5" />}>
               {t('nav_interest')}
+            </NavLink>
+            <NavLink
+              href={`/${locale}/admin/whatsapp-debug`}
+              icon={<MessageCircle className="size-5" />}
+            >
+              WhatsApp
             </NavLink>
             <NavLink href={`/${locale}/admin/settings`} icon={<Settings className="size-5" />}>
               {t('nav_settings')}
