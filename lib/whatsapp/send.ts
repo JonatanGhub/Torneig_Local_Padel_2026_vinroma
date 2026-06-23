@@ -131,11 +131,15 @@ export async function sendWhatsAppToGroup(
   }
 
   try {
-    const res = await evolutionFetch(`/message/sendText/${INSTANCE}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
-      body: JSON.stringify({ number: groupJid, text }),
-    });
+    const res = await evolutionFetch(
+      `/message/sendText/${INSTANCE}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
+        body: JSON.stringify({ number: groupJid, text }),
+      },
+      30_000,
+    );
     const bodyText = await res.text().catch(() => '');
     if (!res.ok) {
       console.error('[whatsapp:group] Evolution API non-2xx', {
