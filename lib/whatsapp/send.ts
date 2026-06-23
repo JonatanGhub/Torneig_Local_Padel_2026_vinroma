@@ -15,6 +15,10 @@ const API_URL = process.env.EVOLUTION_API_URL?.replace(/\/$/, '') ?? null;
 const API_KEY = process.env.EVOLUTION_API_KEY ?? null;
 const INSTANCE = process.env.EVOLUTION_INSTANCE ?? null;
 
+// Timeout per a totes les crides a Evolution. Sense això, si Evolution està
+// pengat el server action també es penja i la UI mostra spinner per sempre.
+const EVOLUTION_TIMEOUT_MS = 15_000;
+
 export function whatsappConfigured(): boolean {
   return Boolean(API_URL && API_KEY && INSTANCE);
 }
@@ -34,9 +38,19 @@ export function toWhatsAppNumber(raw: string | null | undefined): string | null 
 }
 
 export type SendWhatsAppResult =
-  | { ok: true; skipped: false; status?: number }
+  | { ok: true; skipped: false; status?: number; responseBody?: string }
   | { ok: true; skipped: true; reason: 'not_configured' | 'invalid_number' }
   | { ok: false; skipped: false; error: string; status?: number; body?: string };
+
+async function evolutionFetch(path: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), EVOLUTION_TIMEOUT_MS);
+  try {
+    return await fetch(`${API_URL}${path}`, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export async function sendWhatsApp({
   to,
@@ -56,28 +70,27 @@ export async function sendWhatsApp({
   }
 
   try {
-    const res = await fetch(`${API_URL}/message/sendText/${INSTANCE}`, {
+    const res = await evolutionFetch(`/message/sendText/${INSTANCE}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
-      // Format Evolution API v2.
       body: JSON.stringify({ number, text }),
     });
+    const bodyText = await res.text().catch(() => '');
     if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
       console.error('[whatsapp:dm] Evolution API non-2xx', {
         status: res.status,
-        body: errBody.slice(0, 500),
+        body: bodyText.slice(0, 500),
         number,
       });
       return {
         ok: false,
         skipped: false,
-        error: `Evolution API ${res.status}: ${errBody.slice(0, 200)}`,
+        error: `Evolution API ${res.status}: ${bodyText.slice(0, 200)}`,
         status: res.status,
-        body: errBody.slice(0, 500),
+        body: bodyText.slice(0, 500),
       };
     }
-    return { ok: true, skipped: false, status: res.status };
+    return { ok: true, skipped: false, status: res.status, responseBody: bodyText.slice(0, 1000) };
   } catch (err) {
     console.error('[whatsapp:dm] send threw', { error: String(err), number });
     return { ok: false, skipped: false, error: String(err) };
@@ -111,29 +124,38 @@ export async function sendWhatsAppToGroup(text: string): Promise<SendWhatsAppRes
   }
 
   try {
-    const res = await fetch(`${API_URL}/message/sendText/${INSTANCE}`, {
+    const res = await evolutionFetch(`/message/sendText/${INSTANCE}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
-      // Evolution API v2 accepta JID de grup (`...@g.us`) al camp `number`.
       body: JSON.stringify({ number: groupJid, text }),
     });
+    const bodyText = await res.text().catch(() => '');
     if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
       console.error('[whatsapp:group] Evolution API non-2xx', {
         status: res.status,
-        body: errBody.slice(0, 500),
+        body: bodyText.slice(0, 500),
         groupJid,
         instance: INSTANCE,
       });
       return {
         ok: false,
         skipped: false,
-        error: `Evolution API ${res.status}: ${errBody.slice(0, 200)}`,
+        error: `Evolution API ${res.status}: ${bodyText.slice(0, 200)}`,
         status: res.status,
-        body: errBody.slice(0, 500),
+        body: bodyText.slice(0, 500),
       };
     }
-    return { ok: true, skipped: false, status: res.status };
+    // Evolution v2 retorna 200/201 amb la metadata del missatge inclús quan el
+    // missatge està en cua i NO s'ha entregat realment (cas típic: bot fora
+    // del grup o sessió de Baileys trencada). Loguem el cos sempre per poder
+    // veure `status: PENDING` o codis similars sense haver d'inspeccionar el
+    // servidor d'Evolution.
+    console.log('[whatsapp:group] Evolution accepted', {
+      status: res.status,
+      body: bodyText.slice(0, 500),
+      groupJid,
+    });
+    return { ok: true, skipped: false, status: res.status, responseBody: bodyText.slice(0, 1000) };
   } catch (err) {
     console.error('[whatsapp:group] send threw', {
       error: String(err),
@@ -141,5 +163,71 @@ export async function sendWhatsAppToGroup(text: string): Promise<SendWhatsAppRes
       instance: INSTANCE,
     });
     return { ok: false, skipped: false, error: String(err) };
+  }
+}
+
+// Crida directa a Evolution per llegir informació d'un grup específic.
+// Útil per diagnòstic: si retorna 404 / not found, el bot no està al grup o
+// el JID és incorrecte. Si retorna info, el bot SÍ pot llegir el grup.
+export async function fetchGroupInfoRaw(groupJid: string): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+}> {
+  if (!whatsappConfigured()) {
+    return { ok: false, status: 0, body: 'evolution_not_configured' };
+  }
+  try {
+    const url = `/group/findGroupInfos/${INSTANCE}?groupJid=${encodeURIComponent(groupJid)}`;
+    const res = await evolutionFetch(url, { method: 'GET', headers: { apikey: API_KEY! } });
+    const body = await res.text().catch(() => '');
+    return { ok: res.ok, status: res.status, body: body.slice(0, 2000) };
+  } catch (err) {
+    return { ok: false, status: 0, body: String(err) };
+  }
+}
+
+// Llista tots els grups que coneix la instància. Útil per descobrir el JID
+// real quan el configurat no funciona.
+export async function fetchAllGroupsRaw(): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+}> {
+  if (!whatsappConfigured()) {
+    return { ok: false, status: 0, body: 'evolution_not_configured' };
+  }
+  try {
+    const res = await evolutionFetch(`/group/fetchAllGroups/${INSTANCE}?getParticipants=false`, {
+      method: 'GET',
+      headers: { apikey: API_KEY! },
+    });
+    const body = await res.text().catch(() => '');
+    return { ok: res.ok, status: res.status, body: body.slice(0, 8000) };
+  } catch (err) {
+    return { ok: false, status: 0, body: String(err) };
+  }
+}
+
+// Mostra l'estat de la connexió de la instància (CONNECTED, DISCONNECTED, etc.).
+// Si el bot està desconnectat, els missatges SÍ retornen 200 OK però mai
+// s'envien — això és la causa més comuna de "POST 200 però res no arriba".
+export async function fetchConnectionStateRaw(): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+}> {
+  if (!whatsappConfigured()) {
+    return { ok: false, status: 0, body: 'evolution_not_configured' };
+  }
+  try {
+    const res = await evolutionFetch(`/instance/connectionState/${INSTANCE}`, {
+      method: 'GET',
+      headers: { apikey: API_KEY! },
+    });
+    const body = await res.text().catch(() => '');
+    return { ok: res.ok, status: res.status, body: body.slice(0, 1000) };
+  } catch (err) {
+    return { ok: false, status: 0, body: String(err) };
   }
 }

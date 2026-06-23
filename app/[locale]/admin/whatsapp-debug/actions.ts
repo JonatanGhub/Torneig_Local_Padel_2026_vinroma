@@ -1,11 +1,19 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { sendWhatsApp, sendWhatsAppToGroup, whatsappConfigured } from '@/lib/whatsapp/send';
+import {
+  sendWhatsApp,
+  sendWhatsAppToGroup,
+  whatsappConfigured,
+  fetchGroupInfoRaw,
+  fetchAllGroupsRaw,
+  fetchConnectionStateRaw,
+} from '@/lib/whatsapp/send';
 import { sendDailyGroupSummary, notifyFeePhaseChangeToGroup } from '@/lib/whatsapp/notify';
 import type {
   CronRunResult,
-  GroupInfo,
+  GroupListEntry,
+  RawEvolutionResponse,
   WhatsAppConfigSnapshot,
   WhatsAppDebugResult,
 } from './types';
@@ -17,13 +25,6 @@ async function assertAdmin() {
   } = await supabase.auth.getUser();
   const role = (user?.app_metadata?.role as string | undefined) ?? null;
   return Boolean(user && role === 'admin');
-}
-
-function preview(s: string | null | undefined, keepStart = 4, keepEnd = 4): string | null {
-  if (!s) return null;
-  const trimmed = s.trim();
-  if (trimmed.length <= keepStart + keepEnd + 1) return trimmed;
-  return `${trimmed.slice(0, keepStart)}…${trimmed.slice(-keepEnd)}`;
 }
 
 export async function sendTestToGroup(): Promise<WhatsAppDebugResult> {
@@ -38,6 +39,7 @@ export async function sendTestToGroup(): Promise<WhatsAppDebugResult> {
       status: result.status ?? 200,
       target: 'group',
       sentAt: new Date().toISOString(),
+      responseBody: result.responseBody,
     };
   }
   if (result.ok && result.skipped) {
@@ -68,6 +70,7 @@ export async function sendTestToNumber(formData: FormData): Promise<WhatsAppDebu
       status: result.status ?? 200,
       target: 'dm',
       sentAt: new Date().toISOString(),
+      responseBody: result.responseBody,
     };
   }
   if (result.ok && result.skipped) {
@@ -105,17 +108,13 @@ export async function getConfigSnapshot(): Promise<WhatsAppConfigSnapshot | null
     instancePresent: Boolean(instance),
     instancePreview: instance,
     groupJidPresent: Boolean(groupJid),
-    groupJidPreview: groupJid ? preview(groupJid, 6, 6) : null,
+    groupJidFull: groupJid ? groupJid.trim() : null,
     groupJidLooksValid: Boolean(groupJid && /^[\w-]+@g\.us$/.test(groupJid.trim())),
     cronSecretPresent: Boolean(cronSecret),
     adminNumberPresent: Boolean(adminNumber),
   };
 }
 
-// Executa exactament la mateixa lògica que el cron diari
-// (/api/cron/match-reminders), però sense passar pel CRON_SECRET. Útil per
-// provar des d'admin sense esperar les 09:00. Cada funció ja captura els seus
-// propis errors internament — això només informa de panics no recollits.
 export async function triggerDailyCron(): Promise<CronRunResult | null> {
   if (!(await assertAdmin())) return null;
 
@@ -148,54 +147,49 @@ export async function triggerDailyCron(): Promise<CronRunResult | null> {
   return result;
 }
 
-// Comprova si la instància d'Evolution té el grup configurat. Falla amb un
-// missatge útil si el JID no apareix entre els grups de la instància.
-export async function fetchGroupInfo(): Promise<GroupInfo | null> {
+// Pregunta a Evolution per l'estat de la connexió de la instància. Si surt
+// "close" o "connecting", el bot està desconnectat de WhatsApp i cap missatge
+// (DM ni grup) s'envia realment, encara que l'API retorni 200 OK.
+export async function checkConnectionState(): Promise<RawEvolutionResponse | null> {
   if (!(await assertAdmin())) return null;
+  return fetchConnectionStateRaw();
+}
 
-  const apiUrl = process.env.EVOLUTION_API_URL?.replace(/\/$/, '') ?? null;
-  const apiKey = process.env.EVOLUTION_API_KEY ?? null;
-  const instance = process.env.EVOLUTION_INSTANCE ?? null;
-  const groupJid = process.env.WHATSAPP_GROUP_JID?.trim() ?? null;
+// Llegeix info d'un grup específic. Si retorna 404 / not found, el bot no
+// està al grup o el JID és incorrecte.
+export async function checkGroupInfo(): Promise<RawEvolutionResponse | null> {
+  if (!(await assertAdmin())) return null;
+  const jid = process.env.WHATSAPP_GROUP_JID?.trim();
+  if (!jid) return { ok: false, status: 0, body: 'WHATSAPP_GROUP_JID not set' };
+  return fetchGroupInfoRaw(jid);
+}
 
-  if (!apiUrl || !apiKey || !instance) {
-    return { ok: false, error: 'evolution_not_configured' };
+// Llista tots els grups que el bot coneix. Útil per descobrir el JID real
+// del grup quan el configurat no funciona. Tarda força — té timeout de 15s.
+export async function listAllGroups(): Promise<{
+  raw: RawEvolutionResponse;
+  groups: GroupListEntry[] | null;
+}> {
+  if (!(await assertAdmin())) {
+    return { raw: { ok: false, status: 0, body: 'forbidden' }, groups: null };
   }
-  if (!groupJid) {
-    return { ok: false, error: 'group_jid_not_set' };
-  }
+  const raw = await fetchAllGroupsRaw();
+  if (!raw.ok) return { raw, groups: null };
 
   try {
-    const res = await fetch(`${apiUrl}/group/fetchAllGroups/${instance}?getParticipants=true`, {
-      method: 'GET',
-      headers: { apikey: apiKey },
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      return { ok: false, status: res.status, error: body.slice(0, 300) };
-    }
-    type EvolutionGroup = { id: string; subject: string; size?: number };
-    const groups = (await res.json()) as EvolutionGroup[];
-    const matched = Array.isArray(groups) ? groups.find((g) => g.id === groupJid) : undefined;
-
-    if (!matched) {
-      return {
-        ok: false,
-        error: 'group_jid_not_in_instance',
-        totalGroups: Array.isArray(groups) ? groups.length : undefined,
-      };
-    }
-
-    return {
-      ok: true,
-      totalGroups: Array.isArray(groups) ? groups.length : undefined,
-      matchedGroup: {
-        id: matched.id,
-        subject: matched.subject,
-        size: matched.size,
-      },
-    };
-  } catch (err) {
-    return { ok: false, error: String(err) };
+    const parsed = JSON.parse(raw.body) as unknown;
+    if (!Array.isArray(parsed)) return { raw, groups: null };
+    const groups: GroupListEntry[] = parsed
+      .map((g) => {
+        if (typeof g !== 'object' || g === null) return null;
+        const obj = g as Record<string, unknown>;
+        const id = typeof obj.id === 'string' ? obj.id : null;
+        const subject = typeof obj.subject === 'string' ? obj.subject : '';
+        return id ? { id, subject } : null;
+      })
+      .filter((g): g is GroupListEntry => g !== null);
+    return { raw, groups };
+  } catch {
+    return { raw, groups: null };
   }
 }
