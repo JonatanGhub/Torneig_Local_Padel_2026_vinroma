@@ -33,6 +33,9 @@ export function DebugPanel({ config }: Props) {
   } | null>(null);
   const [discovered, setDiscovered] = useState<DiscoverGroupsResult | null>(null);
   const [phone, setPhone] = useState('');
+  // Candidat fort per a "TORNEIG ESTIU TOTS" (primer JID de findChats). L'admin
+  // el pot canviar per provar qualsevol altre JID de la llista descoberta.
+  const [manualJid, setManualJid] = useState('120363043943785701@g.us');
 
   const [pConn, sConn] = useTransition();
   const [pInfo, sInfo] = useTransition();
@@ -50,6 +53,25 @@ export function DebugPanel({ config }: Props) {
     <div className="space-y-6">
       <ConfigCard config={config} />
 
+      <section className="space-y-2 rounded-lg border-2 border-amber-400 bg-amber-50 p-4 dark:bg-amber-950/30">
+        <h2 className="text-lg font-semibold">🎯 JID a provar</h2>
+        <p className="text-muted-foreground text-sm">
+          Escriu aquí el JID d&apos;un grup (de la llista descoberta) per provar-lo sense tocar les
+          variables d&apos;entorn. Les seccions &laquo;Llegir info del grup&raquo; i &laquo;Enviar
+          prova al grup&raquo; faran servir aquest valor.
+        </p>
+        <input
+          type="text"
+          value={manualJid}
+          onChange={(e) => setManualJid(e.target.value)}
+          placeholder="120363...@g.us"
+          className="w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono text-sm"
+        />
+        <p className="text-muted-foreground text-xs">
+          Si el deixes buit, s&apos;usa el <code>WHATSAPP_GROUP_JID</code> configurat.
+        </p>
+      </section>
+
       <Section
         n={1}
         title="Estat de la connexió de la instància"
@@ -65,12 +87,12 @@ export function DebugPanel({ config }: Props) {
 
       <Section
         n={2}
-        title="Info del grup configurat"
-        description="GET /group/findGroupInfos amb el JID actual. Si retorna 404 / not found, el bot no és al grup o el JID és incorrecte."
+        title="Info del grup (JID a provar)"
+        description="GET /group/findGroupInfos amb el JID del camp de dalt (o el configurat si és buit). Mostra el nom del grup."
       >
         <PrimaryButton
           pending={pInfo}
-          onClick={() => sInfo(async () => setGroupInfo(await checkGroupInfo()))}
+          onClick={() => sInfo(async () => setGroupInfo(await checkGroupInfo(manualJid)))}
           label="Llegir info del grup"
         />
         {groupInfo && <RawResponseView resp={groupInfo} />}
@@ -104,12 +126,12 @@ export function DebugPanel({ config }: Props) {
 
       <Section
         n={4}
-        title="Envia missatge de prova al grup"
-        description="POST /message/sendText al JID del grup. Mostra la resposta sencera d'Evolution."
+        title="Envia missatge de prova al grup (JID a provar)"
+        description="POST /message/sendText al JID del camp de dalt (o el configurat si és buit). Comprova si arriba al grup correcte."
       >
         <PrimaryButton
           pending={pGroup}
-          onClick={() => sGroup(async () => setGroupResult(await sendTestToGroup()))}
+          onClick={() => sGroup(async () => setGroupResult(await sendTestToGroup(manualJid)))}
           label="Enviar prova al grup"
         />
         {groupResult && <ResultView result={groupResult} />}

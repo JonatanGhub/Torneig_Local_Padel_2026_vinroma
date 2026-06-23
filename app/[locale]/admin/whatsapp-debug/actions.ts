@@ -29,11 +29,12 @@ async function assertAdmin() {
   return Boolean(user && role === 'admin');
 }
 
-export async function sendTestToGroup(): Promise<WhatsAppDebugResult> {
+export async function sendTestToGroup(overrideJid?: string): Promise<WhatsAppDebugResult> {
   if (!(await assertAdmin())) return { ok: false, target: 'group', reason: 'forbidden' };
 
+  const jid = overrideJid?.trim() || undefined;
   const text = `🧪 *Test des del panell admin*\nSi veus aquest missatge, l'enviament al grup funciona.\n(${new Date().toISOString()})`;
-  const result = await sendWhatsAppToGroup(text);
+  const result = await sendWhatsAppToGroup(text, jid);
 
   if (result.ok && !result.skipped) {
     return {
@@ -159,9 +160,9 @@ export async function checkConnectionState(): Promise<RawEvolutionResponse | nul
 
 // Llegeix info d'un grup específic. Si retorna 404 / not found, el bot no
 // està al grup o el JID és incorrecte.
-export async function checkGroupInfo(): Promise<RawEvolutionResponse | null> {
+export async function checkGroupInfo(overrideJid?: string): Promise<RawEvolutionResponse | null> {
   if (!(await assertAdmin())) return null;
-  const jid = process.env.WHATSAPP_GROUP_JID?.trim();
+  const jid = overrideJid?.trim() || process.env.WHATSAPP_GROUP_JID?.trim();
   if (!jid) return { ok: false, status: 0, body: 'WHATSAPP_GROUP_JID not set' };
   return fetchGroupInfoRaw(jid);
 }
