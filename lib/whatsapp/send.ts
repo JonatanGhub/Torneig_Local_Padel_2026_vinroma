@@ -116,8 +116,11 @@ export async function sendWhatsApp({
  * No-op silenciós (ok: true, skipped) si Evolution o el JID no estan
  * configurats. Mai llança.
  */
-export async function sendWhatsAppToGroup(text: string): Promise<SendWhatsAppResult> {
-  const groupJid = process.env.WHATSAPP_GROUP_JID?.trim() ?? null;
+export async function sendWhatsAppToGroup(
+  text: string,
+  overrideJid?: string,
+): Promise<SendWhatsAppResult> {
+  const groupJid = (overrideJid ?? process.env.WHATSAPP_GROUP_JID)?.trim() || null;
   if (!whatsappConfigured()) {
     console.error('[whatsapp:group] EVOLUTION_* not set; group message NOT sent');
     return { ok: true, skipped: true, reason: 'not_configured' };
