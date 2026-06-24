@@ -130,51 +130,83 @@ export async function sendWhatsAppToGroup(
     return { ok: true, skipped: true, reason: 'not_configured' };
   }
 
-  try {
-    const res = await evolutionFetch(
-      `/message/sendText/${INSTANCE}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
-        body: JSON.stringify({ number: groupJid, text }),
-      },
-      90_000,
-    );
-    const bodyText = await res.text().catch(() => '');
-    if (!res.ok) {
-      console.error('[whatsapp:group] Evolution API non-2xx', {
+  // Intent amb retry: el primer enviament a un grup gran sovint falla amb
+  // "Timed Out" perquè Baileys ha de distribuir la sender-key a tots els
+  // participants. La segona crida ja troba la sessió de grup escalfada i
+  // sol funcionar. Fem fins a 2 intents amb una pausa breu entremig.
+  const MAX_ATTEMPTS = 2;
+  let lastErr: SendWhatsAppResult | null = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await evolutionFetch(
+        `/message/sendText/${INSTANCE}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
+          body: JSON.stringify({ number: groupJid, text }),
+        },
+        90_000,
+      );
+      const bodyText = await res.text().catch(() => '');
+      if (!res.ok) {
+        console.error('[whatsapp:group] Evolution API non-2xx', {
+          attempt,
+          status: res.status,
+          body: bodyText.slice(0, 500),
+          groupJid,
+          instance: INSTANCE,
+        });
+        lastErr = {
+          ok: false,
+          skipped: false,
+          error: `Evolution API ${res.status}: ${bodyText.slice(0, 200)}`,
+          status: res.status,
+          body: bodyText.slice(0, 500),
+        };
+        // Només reintentem si l'error semblant és un timeout intern de Baileys.
+        const isTimedOut = bodyText.includes('Timed Out');
+        if (attempt < MAX_ATTEMPTS && isTimedOut) {
+          console.log('[whatsapp:group] retry after Timed Out', { attempt });
+          await new Promise((r) => setTimeout(r, 3000));
+          continue;
+        }
+        return lastErr;
+      }
+      // Evolution v2 retorna 200/201 amb la metadata del missatge inclús quan el
+      // missatge està en cua i NO s'ha entregat realment (cas típic: bot fora
+      // del grup o sessió de Baileys trencada). Loguem el cos sempre per poder
+      // veure `status: PENDING` o codis similars sense haver d'inspeccionar el
+      // servidor d'Evolution.
+      console.log('[whatsapp:group] Evolution accepted', {
+        attempt,
         status: res.status,
         body: bodyText.slice(0, 500),
         groupJid,
-        instance: INSTANCE,
       });
       return {
-        ok: false,
+        ok: true,
         skipped: false,
-        error: `Evolution API ${res.status}: ${bodyText.slice(0, 200)}`,
         status: res.status,
-        body: bodyText.slice(0, 500),
+        responseBody: bodyText.slice(0, 1000),
       };
+    } catch (err) {
+      console.error('[whatsapp:group] send threw', {
+        attempt,
+        error: String(err),
+        groupJid,
+        instance: INSTANCE,
+      });
+      lastErr = { ok: false, skipped: false, error: String(err) };
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
+      return lastErr;
     }
-    // Evolution v2 retorna 200/201 amb la metadata del missatge inclús quan el
-    // missatge està en cua i NO s'ha entregat realment (cas típic: bot fora
-    // del grup o sessió de Baileys trencada). Loguem el cos sempre per poder
-    // veure `status: PENDING` o codis similars sense haver d'inspeccionar el
-    // servidor d'Evolution.
-    console.log('[whatsapp:group] Evolution accepted', {
-      status: res.status,
-      body: bodyText.slice(0, 500),
-      groupJid,
-    });
-    return { ok: true, skipped: false, status: res.status, responseBody: bodyText.slice(0, 1000) };
-  } catch (err) {
-    console.error('[whatsapp:group] send threw', {
-      error: String(err),
-      groupJid,
-      instance: INSTANCE,
-    });
-    return { ok: false, skipped: false, error: String(err) };
   }
+
+  return lastErr ?? { ok: false, skipped: false, error: 'unknown' };
 }
 
 // Crida directa a Evolution per llegir informació d'un grup específic.
