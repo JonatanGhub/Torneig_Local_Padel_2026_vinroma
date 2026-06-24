@@ -10,6 +10,7 @@ import {
   listAllGroups,
   discoverGroupsAction,
   restartInstanceAction,
+  checkEvolutionVersion,
 } from './actions';
 import type {
   WhatsAppDebugResult,
@@ -34,6 +35,7 @@ export function DebugPanel({ config }: Props) {
   } | null>(null);
   const [discovered, setDiscovered] = useState<DiscoverGroupsResult | null>(null);
   const [restart, setRestart] = useState<RawEvolutionResponse | null>(null);
+  const [version, setVersion] = useState<RawEvolutionResponse | null>(null);
   const [phone, setPhone] = useState('');
   // Candidat fort per a "TORNEIG ESTIU TOTS" (primer JID de findChats). L'admin
   // el pot canviar per provar qualsevol altre JID de la llista descoberta.
@@ -41,6 +43,7 @@ export function DebugPanel({ config }: Props) {
 
   const [pConn, sConn] = useTransition();
   const [pRestart, sRestart] = useTransition();
+  const [pVersion, sVersion] = useTransition();
   const [pInfo, sInfo] = useTransition();
   const [pList, sList] = useTransition();
   const [pDiscover, sDiscover] = useTransition();
@@ -104,6 +107,21 @@ export function DebugPanel({ config }: Props) {
           label="Reiniciar instància Evolution"
         />
         {restart && <RawResponseView resp={restart} />}
+      </section>
+
+      <section className="space-y-2 rounded-lg border-2 border-blue-400 bg-blue-50 p-4 dark:bg-blue-950/30">
+        <h2 className="text-lg font-semibold">🔍 Versió d&apos;Evolution API</h2>
+        <p className="text-muted-foreground text-sm">
+          Comprova quina versió d&apos;Evolution i Baileys està instal·lada. Si és anterior a v2.1.0
+          (Baileys &lt; 6.7), pot no suportar el nou sistema LID de WhatsApp i penjar-se al enviar a
+          grups grans.
+        </p>
+        <PrimaryButton
+          pending={pVersion}
+          onClick={() => sVersion(async () => setVersion(await checkEvolutionVersion()))}
+          label="Comprovar versió"
+        />
+        {version && <RawResponseView resp={version} />}
       </section>
 
       <Section

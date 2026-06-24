@@ -10,6 +10,7 @@ import {
   fetchConnectionStateRaw,
   discoverGroups,
   restartInstanceRaw,
+  fetchEvolutionVersionRaw,
 } from '@/lib/whatsapp/send';
 import { sendDailyGroupSummary, notifyFeePhaseChangeToGroup } from '@/lib/whatsapp/notify';
 import type {
@@ -181,6 +182,12 @@ export async function discoverGroupsAction(): Promise<DiscoverGroupsResult | nul
 export async function restartInstanceAction(): Promise<RawEvolutionResponse | null> {
   if (!(await assertAdmin())) return null;
   return restartInstanceRaw();
+}
+
+// Retorna la versió d'Evolution API. Útil per saber si cal actualitzar el servidor.
+export async function checkEvolutionVersion(): Promise<RawEvolutionResponse | null> {
+  if (!(await assertAdmin())) return null;
+  return fetchEvolutionVersionRaw();
 }
 
 // Llista tots els grups que el bot coneix. Útil per descobrir el JID real

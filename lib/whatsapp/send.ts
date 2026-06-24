@@ -374,6 +374,24 @@ export async function fetchAllGroupsRaw(timeoutMs = 290_000): Promise<{
   }
 }
 
+// Retorna la versió d'Evolution API (GET /). Útil per saber si cal actualitzar.
+export async function fetchEvolutionVersionRaw(): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+}> {
+  if (!whatsappConfigured()) {
+    return { ok: false, status: 0, body: 'evolution_not_configured' };
+  }
+  try {
+    const res = await evolutionFetch('/', { method: 'GET', headers: { apikey: API_KEY! } });
+    const body = await res.text().catch(() => '');
+    return { ok: res.ok, status: res.status, body: body.slice(0, 1000) };
+  } catch (err) {
+    return { ok: false, status: 0, body: String(err) };
+  }
+}
+
 // Reinicia la instància d'Evolution. Això força Baileys a reconnectar-se amb
 // les credencials JA guardades (NO cal tornar a escanejar el QR) i, sobretot,
 // neteja l'estat de sessió que s'hagi quedat penjat. És la recuperació estàndard
