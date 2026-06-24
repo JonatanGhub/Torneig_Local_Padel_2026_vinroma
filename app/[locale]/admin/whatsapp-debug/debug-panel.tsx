@@ -9,6 +9,7 @@ import {
   checkGroupInfo,
   listAllGroups,
   discoverGroupsAction,
+  restartInstanceAction,
 } from './actions';
 import type {
   WhatsAppDebugResult,
@@ -32,12 +33,14 @@ export function DebugPanel({ config }: Props) {
     groups: GroupListEntry[] | null;
   } | null>(null);
   const [discovered, setDiscovered] = useState<DiscoverGroupsResult | null>(null);
+  const [restart, setRestart] = useState<RawEvolutionResponse | null>(null);
   const [phone, setPhone] = useState('');
   // Candidat fort per a "TORNEIG ESTIU TOTS" (primer JID de findChats). L'admin
   // el pot canviar per provar qualsevol altre JID de la llista descoberta.
   const [manualJid, setManualJid] = useState('120363043943785701@g.us');
 
   const [pConn, sConn] = useTransition();
+  const [pRestart, sRestart] = useTransition();
   const [pInfo, sInfo] = useTransition();
   const [pList, sList] = useTransition();
   const [pDiscover, sDiscover] = useTransition();
@@ -84,6 +87,24 @@ export function DebugPanel({ config }: Props) {
         />
         {connState && <RawResponseView resp={connState} />}
       </Section>
+
+      <section className="space-y-2 rounded-lg border-2 border-orange-400 bg-orange-50 p-4 dark:bg-orange-950/30">
+        <h2 className="text-lg font-semibold">🔄 Reiniciar instància (recuperació)</h2>
+        <p className="text-muted-foreground text-sm">
+          Si els DMs funcionen i pots llegir la info del grup, però enviar al grup es penja amb un{' '}
+          <strong>504 Gateway Time-out</strong>, vol dir que la sessió del grup (sender-keys)
+          s&apos;ha quedat encallada dins d&apos;Evolution. Reiniciar la instància la torna a
+          sincronitzar <strong>sense haver de tornar a escanejar el QR</strong> (es reconnecta amb
+          les credencials guardades). Després espera ~15 s i torna a provar &laquo;Enviar prova al
+          grup&raquo;.
+        </p>
+        <PrimaryButton
+          pending={pRestart}
+          onClick={() => sRestart(async () => setRestart(await restartInstanceAction()))}
+          label="Reiniciar instància Evolution"
+        />
+        {restart && <RawResponseView resp={restart} />}
+      </section>
 
       <Section
         n={2}

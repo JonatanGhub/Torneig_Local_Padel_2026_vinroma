@@ -9,6 +9,7 @@ import {
   fetchAllGroupsRaw,
   fetchConnectionStateRaw,
   discoverGroups,
+  restartInstanceRaw,
 } from '@/lib/whatsapp/send';
 import { sendDailyGroupSummary, notifyFeePhaseChangeToGroup } from '@/lib/whatsapp/notify';
 import type {
@@ -172,6 +173,14 @@ export async function checkGroupInfo(overrideJid?: string): Promise<RawEvolution
 export async function discoverGroupsAction(): Promise<DiscoverGroupsResult | null> {
   if (!(await assertAdmin())) return null;
   return discoverGroups();
+}
+
+// Reinicia la instància d'Evolution per netejar l'estat de sessió encallat.
+// És la recuperació estàndard quan els enviaments al grup es pengen (504) però
+// els DMs i la lectura d'info del grup funcionen. NO cal re-escanejar el QR.
+export async function restartInstanceAction(): Promise<RawEvolutionResponse | null> {
+  if (!(await assertAdmin())) return null;
+  return restartInstanceRaw();
 }
 
 // Llista tots els grups que el bot coneix. Útil per descobrir el JID real

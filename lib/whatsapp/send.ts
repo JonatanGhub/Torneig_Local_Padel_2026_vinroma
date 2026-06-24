@@ -374,6 +374,51 @@ export async function fetchAllGroupsRaw(timeoutMs = 290_000): Promise<{
   }
 }
 
+// Reinicia la instància d'Evolution. Això força Baileys a reconnectar-se amb
+// les credencials JA guardades (NO cal tornar a escanejar el QR) i, sobretot,
+// neteja l'estat de sessió que s'hagi quedat penjat. És la recuperació estàndard
+// quan la instància pot llegir grups i enviar DMs però els enviaments a un grup
+// gran es pengen (504): la distribució de sender-keys / sessions de Signal del
+// grup s'ha quedat encallada i un restart la torna a sincronitzar.
+//
+//   POST /instance/restart/{instance}
+//
+// Timeout llarg perquè el restart pot trigar uns segons a tornar a connectar.
+export async function restartInstanceRaw(): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+}> {
+  if (!whatsappConfigured()) {
+    return { ok: false, status: 0, body: 'evolution_not_configured' };
+  }
+  try {
+    const res = await evolutionFetch(
+      `/instance/restart/${INSTANCE}`,
+      { method: 'POST', headers: { apikey: API_KEY! } },
+      60_000,
+    );
+    const body = await res.text().catch(() => '');
+    if (res.ok) {
+      console.log('[whatsapp:restart] instance restarted', {
+        status: res.status,
+        body: body.slice(0, 300),
+        instance: INSTANCE,
+      });
+    } else {
+      console.error('[whatsapp:restart] non-2xx', {
+        status: res.status,
+        body: body.slice(0, 300),
+        instance: INSTANCE,
+      });
+    }
+    return { ok: res.ok, status: res.status, body: body.slice(0, 1000) };
+  } catch (err) {
+    console.error('[whatsapp:restart] threw', { error: String(err), instance: INSTANCE });
+    return { ok: false, status: 0, body: String(err) };
+  }
+}
+
 // Mostra l'estat de la connexió de la instància (CONNECTED, DISCONNECTED, etc.).
 // Si el bot està desconnectat, els missatges SÍ retornen 200 OK però mai
 // s'envien — això és la causa més comuna de "POST 200 però res no arriba".
