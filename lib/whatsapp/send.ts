@@ -138,7 +138,7 @@ export async function sendWhatsAppToGroup(
         headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
         body: JSON.stringify({ number: groupJid, text }),
       },
-      30_000,
+      90_000,
     );
     const bodyText = await res.text().catch(() => '');
     if (!res.ok) {
