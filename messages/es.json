@@ -64,7 +64,10 @@
     "card_pricing_upcoming": "{amount} por jugador a partir del {date}. Transferencia o ingreso en cuenta al club.",
     "card_pricing_past": "{amount} por jugador en la última ventana. Inscripciones cerradas.",
     "cta_title": "¿Quieres competir este verano?",
-    "cta_body": "Las inscripciones abren el 1 de junio. Apúntalo en la agenda y prepara la pareja."
+    "cta_body": "Las inscripciones abren el 1 de junio. Apúntalo en la agenda y prepara la pareja.",
+    "pairs_title": "Parejas inscritas",
+    "pairs_empty": "Aún no hay ninguna pareja inscrita en esta categoría.",
+    "pairs_count": "{count, plural, =0 {Sin parejas} =1 {1 pareja} other {# parejas}}"
   },
   "fees_schedule": {
     "title": "Tarifas de inscripción",
