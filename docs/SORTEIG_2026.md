@@ -58,29 +58,29 @@ preses el 26 de juny de 2026 per al sorteig i el calendari de la V edició.
 | 4a        | 10     | 2 + 1        | 13     | 4           |
 | **Total** | **64** | **25**       | **89** | —           |
 
-> **Tothom juga com a mínim 4 partits** garantits. El càlcul propi de
-> l'organització donava 153 partits (probablement comptant sets, no partits;
-> 89 × ~1,7 sets = ~150).
+> **Tothom juga com a mínim 4 partits** garantits. El recompte inicial de
+> l'organització (≈150) es va revisar i es confirma que el total correcte és
+> de **89 partits** (round-robin simple als grups).
 
 ## 3. Pistes i franges
 
-- Pista 1: 19:00 · 20:30 · 22:00
-- Pista 2: 20:30 · 22:00
-- Pista 3: 20:30 · 22:00
+- Només **Pista 2** i **Pista 3**.
+- Franges: **20:30** i **22:00**.
 
-**7 partits per nit · 4 nits per setmana (Dl–Dj) → 28 partits/setmana màxim.**
+**4 partits per nit · 4 nits per setmana (Dl–Dj) → 16 partits/setmana.**
 
-## 4. Restriccions de calendari
+## 4. Calendari
 
-### Setmana 1 (29 jun – 2 jul)
+### Fase de grups → acabada el 30 de juliol
 
-| Dia       | Restricció            | Slots útils |
-| --------- | --------------------- | ----------- |
-| Dl 29 jun | Pista 1 19:00 ocupada | 6           |
-| Dt 30 jun | Pista 1 19:00 ocupada | 6           |
-| Dc 1 jul  | —                     | 7           |
-| Dj 2 jul  | Pista 1 19:00 ocupada | 6           |
-| **Total** |                       | **25**      |
+Tots els partits de tots els grups (**64**) han d'estar **acabats el dijous 30
+de juliol**. Amb només Pista 2 i Pista 3 (4 partits/nit), les 5 setmanes del 29
+de juny al 30 de juliol donen 80 slots, suficients per als 64 partits de grup.
+
+### Última setmana (3 – 7 d'agost)
+
+Es reserva per a l'eliminatòria: **quarts de final** (les categories que en
+tinguin), **semifinals** i **finals**.
 
 ### Dies de finals especials
 
@@ -94,21 +94,18 @@ preses el 26 de juny de 2026 per al sorteig i el calendari de la V edició.
   1. Final 1a
   2. Final 2a
 
-## 5. Capacitat total
+## 5. Capacitat
 
-| Període                     | Slots útils           |
-| --------------------------- | --------------------- |
-| Setmana 1 (Dl–Dj)           | 25                    |
-| Setmanes 2–5 (4 setm. × 28) | 112                   |
-| Setmana 6, Dl–Dc            | 21                    |
-| Dj 6 ag (finals dia)        | 5 partits planificats |
-| Dv 7 ag (grans finals)      | 2 partits             |
-| **Disponible**              | **~165 slots**        |
-| **A jugar**                 | **89 partits**        |
-| **Marge**                   | **≈ 76 slots**        |
+| Fase                      | Partits | Slots disponibles                 |
+| ------------------------- | ------- | --------------------------------- |
+| Grups (29 jun – 30 jul)   | 64      | 80 (5 setm. × 16)                 |
+| Eliminatòries (3 – 7 ago) | 25      | última setmana + tardes de finals |
+| **Total**                 | **89**  | —                                 |
 
-El marge permet absorbir incidències (pluja, baixes, reprogramacions). Si calgués
-més capacitat, el diumenge a la tarda queda com a vàlvula de seguretat.
+La fase de grups té marge ampli (80 slots per a 64 partits). L'última setmana
+és més justa: amb 4 partits/nit de dilluns a dijous (16 slots) més les finals,
+cal aprofitar les tardes dels dies 6 i 7 d'agost per encabir els 25 partits
+d'eliminatòria. El diumenge queda com a vàlvula de seguretat si cal.
 
 ## 6. Sorteig
 
