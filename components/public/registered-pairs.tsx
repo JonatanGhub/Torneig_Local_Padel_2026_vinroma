@@ -36,9 +36,18 @@ export async function RegisteredPairs({ locale, title, emptyLabel, pairsCountLab
     new Set((pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id])),
   );
   const { data: names } = playerIds.length
-    ? await supabase.from('public_player_names').select('id, last_name').in('id', playerIds)
+    ? await supabase
+        .from('public_player_names')
+        .select('id, first_name, last_name')
+        .in('id', playerIds)
     : { data: [] };
-  const nameMap = new Map((names ?? []).map((p) => [p.id, p.last_name ?? '—']));
+  // Nom complet (nom + cognoms). Si falta alguna part, mostra el que hi hagi.
+  const nameMap = new Map(
+    (names ?? []).map((p) => [
+      p.id,
+      [p.first_name, p.last_name].filter(Boolean).join(' ').trim() || '—',
+    ]),
+  );
 
   const pairsByCategory = new Map<string, Array<{ id: string; label: string }>>();
   for (const p of pairs ?? []) {

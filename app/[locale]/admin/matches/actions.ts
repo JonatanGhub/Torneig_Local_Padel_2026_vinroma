@@ -139,6 +139,17 @@ const SUMMER_OFFSET = '+02:00';
 // Última nit per a partits de fase de grups. L'última setmana del torneig
 // (3–7 ago) queda reservada per a quarts, semifinals i finals.
 const GROUP_PHASE_LAST_DAY = '2026-07-30';
+// Última nit de la SETMANA 1 (29 jun – 2 jul). Els jugadors de la llista de
+// sota no juguen aquesta primera setmana (ho han demanat); els seus partits
+// es programen a partir de la setmana 2.
+const WEEK1_LAST_DAY = '2026-07-02';
+// Noms complets (nom + cognoms, en minúscules) de jugadors que NO juguen la
+// setmana 1. Editable per l'organització si cal afegir-ne d'altres.
+const PLAYERS_NOT_IN_WEEK1 = ['toni villanueva segarra'];
+
+function normalizeName(s: string | null | undefined): string {
+  return (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
 
 function matchDaysMonToThu(startISO: string, endISO: string): string[] {
   const days: string[] = [];
@@ -222,6 +233,31 @@ export async function proposeAutoSchedule(): Promise<ProposeAutoScheduleResult> 
     return { ok: false, error: 'nothing_to_schedule' };
   }
 
+  // Parelles amb algun jugador que NO juga la setmana 1. Els seus partits
+  // només es podran proposar a partir de la setmana 2 (>= 6 jul).
+  const restrictedPairIds = new Set<string>();
+  if (PLAYERS_NOT_IN_WEEK1.length > 0) {
+    const { data: allPlayers } = await supabase.from('players').select('id, first_name, last_name');
+    const restrictedPlayerIds = new Set(
+      (allPlayers ?? [])
+        .filter((p) =>
+          PLAYERS_NOT_IN_WEEK1.includes(normalizeName(`${p.first_name} ${p.last_name}`)),
+        )
+        .map((p) => p.id),
+    );
+    if (restrictedPlayerIds.size > 0) {
+      const { data: allPairs } = await supabase
+        .from('pairs')
+        .select('id, player_a_id, player_b_id')
+        .eq('tournament_id', tournament.id);
+      for (const p of allPairs ?? []) {
+        if (restrictedPlayerIds.has(p.player_a_id) || restrictedPlayerIds.has(p.player_b_id)) {
+          restrictedPairIds.add(p.id);
+        }
+      }
+    }
+  }
+
   // Partits ja programats (qualsevol fase): ens diuen quins slots (data+hora+
   // pista) estan ocupats i quines parelles ja juguen un dia concret, perquè la
   // proposta no xoqui amb res existent.
@@ -269,7 +305,16 @@ export async function proposeAutoSchedule(): Promise<ProposeAutoScheduleResult> 
     if (occupied.has(`${instant}|${slot.court}`)) continue;
 
     const played = playedByDay.get(slot.day) ?? new Set<string>();
-    const idx = pool.findIndex((m) => !played.has(m.pair_a_id) && !played.has(m.pair_b_id));
+    const isWeek1 = slot.day <= WEEK1_LAST_DAY;
+    const idx = pool.findIndex((m) => {
+      if (played.has(m.pair_a_id) || played.has(m.pair_b_id)) return false;
+      // Jugadors que no juguen la setmana 1: salta els seus partits en dies
+      // de la setmana 1.
+      if (isWeek1 && (restrictedPairIds.has(m.pair_a_id) || restrictedPairIds.has(m.pair_b_id))) {
+        return false;
+      }
+      return true;
+    });
     if (idx === -1) continue;
     const [m] = pool.splice(idx, 1);
 
