@@ -103,11 +103,18 @@ export async function scheduleMatch(formData: FormData): Promise<ScheduleMatchRe
 
 // =========================================================================
 // Proposta automàtica d'horaris de fase de grups.
-// Repartiment aleatori sobre dies dilluns–dijous del rang [first_match_at,
-// final_at], a les pistes 2 i 3 (la 1 queda lliure), a les 19:00 i 20:30
-// (i 22:00 només si no caben). Cap parella juga dos partits el mateix dia, i
-// mai es proposa un slot (data+hora+pista) que ja estigui ocupat per un altre
-// partit ja programat.
+// Repartiment aleatori sobre dies dilluns–dijous des de `first_match_at` fins
+// al 30 de juliol (última nit de fase de grups; l'última setmana queda
+// reservada per quarts, semifinals i finals). Només Pista 2 i Pista 3, a les
+// 20:30 i 22:00 (4 partits per nit). Cap parella juga dos partits el mateix
+// dia, i mai es proposa un slot (data+hora+pista) que ja estigui ocupat per
+// un altre partit programat.
+//
+// Per garantir un calendari equilibrat:
+//   - els partits es barregen interleavant els (categoria, grup) perquè cap
+//     categoria s'acumuli;
+//   - l'ordre dels slots també es barreja, per no omplir només els primers
+//     dies del mes.
 //
 // IMPORTANT: aquesta acció NO desa res a la base de dades. Només calcula una
 // proposta que omple els formularis del panell; l'admin ha de prémer "Desar"
@@ -125,11 +132,13 @@ export type ProposeAutoScheduleResult =
   | { ok: true; proposals: ProposedSlot[]; unplaced: number; total: number }
   | { ok: false; error: 'dates_not_set' | 'no_match_days' | 'nothing_to_schedule' | string };
 
-const PRIMARY_TIMES = ['19:00', '20:30'] as const;
-const OVERFLOW_TIME = '22:00';
+const TIMES = ['20:30', '22:00'] as const;
 const COURTS = ['Pista 2', 'Pista 3'] as const;
 // Offset d'estiu a Espanya (CEST). El torneig es juga al juny/juliol/agost.
 const SUMMER_OFFSET = '+02:00';
+// Última nit per a partits de fase de grups. L'última setmana del torneig
+// (3–7 ago) queda reservada per a quarts, semifinals i finals.
+const GROUP_PHASE_LAST_DAY = '2026-07-30';
 
 function matchDaysMonToThu(startISO: string, endISO: string): string[] {
   const days: string[] = [];
@@ -162,6 +171,28 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+// Barreja els elements interleaving per "bucket": cada ronda agafa un element
+// de cada bucket no buit. Aplicat a (categoria, grup) garanteix que les
+// categories es reparteixen pel mes en lloc de quedar agrupades.
+function balancedShuffleByBucket<T>(items: T[], bucketKey: (t: T) => string): T[] {
+  const buckets = new Map<string, T[]>();
+  for (const it of items) {
+    const k = bucketKey(it);
+    const arr = buckets.get(k) ?? [];
+    arr.push(it);
+    buckets.set(k, arr);
+  }
+  const queues = shuffle(Array.from(buckets.values()).map((arr) => shuffle(arr)));
+  const out: T[] = [];
+  while (queues.some((q) => q.length > 0)) {
+    for (const q of queues) {
+      const next = q.shift();
+      if (next !== undefined) out.push(next);
+    }
+  }
+  return out;
+}
+
 export async function proposeAutoSchedule(): Promise<ProposeAutoScheduleResult> {
   const supabase = await createClient();
 
@@ -174,12 +205,15 @@ export async function proposeAutoSchedule(): Promise<ProposeAutoScheduleResult> 
     return { ok: false, error: 'dates_not_set' };
   }
 
-  const days = matchDaysMonToThu(tournament.first_match_at, tournament.final_at);
+  // Limitem la finestra de fase de grups al 30 de juliol (decisió organització
+  // 2026): l'última setmana del torneig queda reservada per a l'eliminatòria.
+  const groupEndISO = `${GROUP_PHASE_LAST_DAY}T23:59:59${SUMMER_OFFSET}`;
+  const days = matchDaysMonToThu(tournament.first_match_at, groupEndISO);
   if (days.length === 0) return { ok: false, error: 'no_match_days' };
 
   const { data: matches } = await supabase
     .from('matches')
-    .select('id, pair_a_id, pair_b_id')
+    .select('id, pair_a_id, pair_b_id, category_id, group_label')
     .eq('tournament_id', tournament.id)
     .eq('phase', 'group')
     .eq('status', 'scheduled')
@@ -211,25 +245,24 @@ export async function proposeAutoSchedule(): Promise<ProposeAutoScheduleResult> 
   }
 
   type Slot = { day: string; iso: string; court: string };
-  const primary: Slot[] = [];
-  const overflow: Slot[] = [];
+  const slots: Slot[] = [];
   for (const day of days) {
-    for (const time of PRIMARY_TIMES) {
+    for (const time of TIMES) {
       for (const court of COURTS) {
-        primary.push({ day, iso: `${day}T${time}:00${SUMMER_OFFSET}`, court });
+        slots.push({ day, iso: `${day}T${time}:00${SUMMER_OFFSET}`, court });
       }
     }
-    for (const court of COURTS) {
-      overflow.push({ day, iso: `${day}T${OVERFLOW_TIME}:00${SUMMER_OFFSET}`, court });
-    }
   }
-  // Primer tots els slots principals de tots els dies; 22:00 només al final.
-  const slots = [...primary, ...overflow];
+  // Barreja l'ordre dels slots per evitar omplir només els primers dies. Així
+  // els partits queden repartits al llarg de tot el mes.
+  const shuffledSlots = shuffle(slots);
 
-  const pool = shuffle(matches);
+  // Pool balancejat per (categoria, grup) per evitar que totes les partides
+  // d'una mateixa categoria es concentrin als mateixos dies.
+  const pool = balancedShuffleByBucket(matches, (m) => `${m.category_id}|${m.group_label ?? ''}`);
   const proposals: ProposedSlot[] = [];
 
-  for (const slot of slots) {
+  for (const slot of shuffledSlots) {
     if (pool.length === 0) break;
     // Salta slots ja ocupats per partits programats.
     const instant = new Date(slot.iso).toISOString();
