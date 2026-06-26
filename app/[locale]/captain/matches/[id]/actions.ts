@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { madridInputToISO } from '@/lib/format-date';
+import { madridInputToISO, madridDateKey } from '@/lib/format-date';
 import {
   notifyMatchDisputed,
   notifyMatchValidated,
@@ -92,6 +92,108 @@ export async function submitReport(formData: FormData) {
   revalidatePath('/[locale]/captain/matches/[id]', 'page');
   revalidatePath('/[locale]/grups/[level]', 'page');
   return { ok: true, side: data as string } as const;
+}
+
+// =========================================================================
+// Buscador de huecos OFICIALES libres para reprogramar.
+// Horario oficial del torneo 2026: lunes–jueves, Pista 2 i Pista 3, a les
+// 20:30 i 22:00. Només huecos fins al 30 de juliol (fi de fase de grups).
+// Un hueco es "libre" si:
+//   - és futur,
+//   - cap altre partit ocupa la mateixa pista a la mateixa hora,
+//   - cap dels 4 jugadors del partit ja juga aquella mateixa nit (per no
+//     encadenar dos partits en una nit).
+// =========================================================================
+
+const OFFICIAL_TIMES = ['20:30', '22:00'] as const;
+const OFFICIAL_COURTS = ['Pista 2', 'Pista 3'] as const;
+const SUMMER_OFFSET = '+02:00';
+const GROUP_PHASE_LAST_DAY = '2026-07-30';
+
+export type FreeSlot = {
+  // Valor per a <input datetime-local>: hora de paret de Madrid `YYYY-MM-DDTHH:mm`.
+  scheduledAtInput: string;
+  courtLabel: string;
+  // Instant UTC, per ordenar i etiquetar.
+  iso: string;
+};
+
+export type FreeSlotsResult =
+  | { ok: true; slots: FreeSlot[] }
+  | { ok: false; error: 'match_not_found' | string };
+
+function officialDaysMonToThu(fromISO: string, toISO: string): string[] {
+  const days: string[] = [];
+  const startKey = madridDateKey(fromISO);
+  const endKey = madridDateKey(toISO);
+  const [sy, sm, sd] = startKey.split('-').map(Number);
+  const [ey, em, ed] = endKey.split('-').map(Number);
+  const cur = new Date(Date.UTC(sy!, sm! - 1, sd!, 12));
+  const last = new Date(Date.UTC(ey!, em! - 1, ed!, 12));
+  while (cur <= last) {
+    const dow = cur.getUTCDay();
+    if (dow >= 1 && dow <= 4) {
+      const y = cur.getUTCFullYear();
+      const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(cur.getUTCDate()).padStart(2, '0');
+      days.push(`${y}-${m}-${d}`);
+    }
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return days;
+}
+
+export async function getFreeOfficialSlots(matchId: string): Promise<FreeSlotsResult> {
+  const supabase = await createClient();
+
+  const { data: match } = await supabase
+    .from('matches')
+    .select('id, tournament_id, pair_a_id, pair_b_id')
+    .eq('id', matchId)
+    .maybeSingle();
+  if (!match) return { ok: false, error: 'match_not_found' };
+
+  const nowMs = Date.now();
+  const days = officialDaysMonToThu(
+    new Date(nowMs).toISOString(),
+    `${GROUP_PHASE_LAST_DAY}T23:59:59${SUMMER_OFFSET}`,
+  );
+  if (days.length === 0) return { ok: true, slots: [] };
+
+  // Partits ja programats al torneig → slots ocupats + nits en què juga
+  // algun dels 4 jugadors d'aquest partit.
+  const { data: scheduled } = await supabase
+    .from('matches')
+    .select('id, pair_a_id, pair_b_id, scheduled_at, court_label')
+    .eq('tournament_id', match.tournament_id)
+    .not('scheduled_at', 'is', null);
+
+  const occupied = new Set<string>(); // `${instantUTC}|${court}`
+  const involvedPairs = new Set([match.pair_a_id, match.pair_b_id]);
+  const busyNights = new Set<string>(); // dies en què ja juga alguna de les 2 parelles
+  for (const m of scheduled ?? []) {
+    if (m.id === match.id || !m.scheduled_at) continue;
+    const instant = new Date(m.scheduled_at).toISOString();
+    if (m.court_label) occupied.add(`${instant}|${m.court_label}`);
+    if (involvedPairs.has(m.pair_a_id) || involvedPairs.has(m.pair_b_id)) {
+      busyNights.add(madridDateKey(m.scheduled_at));
+    }
+  }
+
+  const slots: FreeSlot[] = [];
+  for (const day of days) {
+    if (busyNights.has(day)) continue; // no encadenar dos partits la mateixa nit
+    for (const time of OFFICIAL_TIMES) {
+      for (const court of OFFICIAL_COURTS) {
+        const iso = new Date(`${day}T${time}:00${SUMMER_OFFSET}`).toISOString();
+        if (new Date(iso).getTime() <= nowMs) continue;
+        if (occupied.has(`${iso}|${court}`)) continue;
+        slots.push({ scheduledAtInput: `${day}T${time}`, courtLabel: court, iso });
+      }
+    }
+  }
+  slots.sort((a, b) => a.iso.localeCompare(b.iso));
+  return { ok: true, slots };
 }
 
 const RescheduleSchema = z.object({

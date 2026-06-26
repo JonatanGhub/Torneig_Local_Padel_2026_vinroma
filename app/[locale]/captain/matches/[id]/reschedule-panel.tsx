@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { CalendarClock, X, Check, Send } from 'lucide-react';
+import { CalendarClock, X, Check, Send, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cancelReschedule, proposeReschedule, respondToReschedule } from './actions';
+import type { FreeSlot } from './actions';
 
 type Proposal = {
   id: string;
@@ -23,17 +24,37 @@ export function ReschedulePanel({
   mySide,
   pending,
   history,
+  freeSlots,
 }: {
   locale: string;
   matchId: string;
   mySide: 'a' | 'b';
   pending: Proposal | null;
   history: Proposal[];
+  freeSlots: FreeSlot[];
 }) {
   const t = useTranslations('captain');
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [whenValue, setWhenValue] = useState('');
+  const [courtValue, setCourtValue] = useState('');
+
+  const slotLabel = (slot: FreeSlot) =>
+    `${new Date(slot.iso).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Madrid',
+    })} · ${slot.courtLabel}`;
+
+  // Un hueco és "oficial" si coincideix amb un dels lliures proposats (mateixa
+  // data/hora i pista). Si no, és fora d'horari → s'aplica l'avís de cost.
+  const isOfficialSelection = freeSlots.some(
+    (s) => s.scheduledAtInput === whenValue && s.courtLabel === courtValue,
+  );
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES', {
@@ -72,13 +93,6 @@ export function ReschedulePanel({
     });
   }
 
-  const defaultDate = (() => {
-    const d = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-    d.setMinutes(0, 0, 0);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  })();
-
   return (
     <section className="border-border mt-8 rounded-lg border p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -89,7 +103,11 @@ export function ReschedulePanel({
         {!pending && !showForm && (
           <button
             type="button"
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setWhenValue('');
+              setCourtValue('');
+              setShowForm(true);
+            }}
             className="text-crimson-600 hover:text-crimson-500 dark:text-crimson-400 text-xs"
           >
             + {t('reschedule_propose_cta')}
@@ -160,19 +178,69 @@ export function ReschedulePanel({
           className="bg-card mb-3 space-y-3 rounded-md border border-[hsl(var(--border))] p-3"
         >
           <input type="hidden" name="matchId" value={matchId} />
+
+          <div className="space-y-1">
+            <label className="text-muted-foreground text-xs">
+              {t('reschedule_official_slots_label')}
+            </label>
+            {freeSlots.length > 0 ? (
+              <select
+                className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm"
+                value={isOfficialSelection ? `${whenValue}|${courtValue}` : ''}
+                onChange={(e) => {
+                  const slot = freeSlots.find(
+                    (s) => `${s.scheduledAtInput}|${s.courtLabel}` === e.target.value,
+                  );
+                  if (slot) {
+                    setWhenValue(slot.scheduledAtInput);
+                    setCourtValue(slot.courtLabel);
+                  }
+                }}
+              >
+                <option value="">{t('reschedule_official_slots_placeholder')}</option>
+                {freeSlots.map((s) => (
+                  <option
+                    key={`${s.scheduledAtInput}|${s.courtLabel}`}
+                    value={`${s.scheduledAtInput}|${s.courtLabel}`}
+                  >
+                    {slotLabel(s)}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-muted-foreground text-xs italic">
+                {t('reschedule_no_free_slots')}
+              </p>
+            )}
+          </div>
+
           <div className="space-y-1">
             <label className="text-muted-foreground text-xs">{t('reschedule_new_when')}</label>
             <Input
               type="datetime-local"
               name="newScheduledAt"
               required
-              defaultValue={defaultDate}
+              value={whenValue}
+              onChange={(e) => setWhenValue(e.target.value)}
             />
           </div>
           <div className="space-y-1">
             <label className="text-muted-foreground text-xs">{t('reschedule_new_court')}</label>
-            <Input type="text" name="newCourtLabel" placeholder="Pista 1" />
+            <Input
+              type="text"
+              name="newCourtLabel"
+              placeholder="Pista 2"
+              value={courtValue}
+              onChange={(e) => setCourtValue(e.target.value)}
+            />
           </div>
+
+          {whenValue && !isOfficialSelection && (
+            <div className="flex gap-2 rounded-md border border-amber-400/50 bg-amber-400/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+              <Info className="mt-0.5 size-3.5 shrink-0" />
+              <span>{t('reschedule_offhours_warning')}</span>
+            </div>
+          )}
           <div className="space-y-1">
             <label className="text-muted-foreground text-xs">{t('reschedule_message')}</label>
             <Input

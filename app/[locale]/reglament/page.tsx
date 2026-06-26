@@ -28,7 +28,7 @@ const TEXTS = {
           },
           {
             h: '§3. Instal·lacions',
-            p: "Tots els partits es disputaran a les pistes del Club Pàdel les Coves de Vinromà. Per regla general es faran servir la Pista 2 i la Pista 3; la Pista 1 queda lliure per a ús del club. La franja de les 22:00 només s'activa si cal recuperar partits.",
+            p: "Tots els partits es disputaran a les pistes del Club Pàdel les Coves de Vinromà. L'horari oficial del torneig és de dilluns a dijous, a la Pista 2 i la Pista 3, a les 20:30 i a les 22:00. La Pista 1 queda lliure per a ús del club. IMPORTANT: si una parella decideix jugar un partit fora d'aquest horari oficial (un altre dia, hora o pista), la reserva de la pista, les pilotes i la llum van a càrrec d'algun dels 4 jugadors del partit; l'organització només cobreix els partits jugats en horari oficial.",
           },
           {
             h: '§4. Categories',
@@ -116,7 +116,7 @@ const TEXTS = {
         items: [
           {
             h: '§20. Proposta de canvi',
-            p: "Qualsevol capità pot proposar un canvi de data o pista d'un partit a través del portal /captain. La proposta s'envia al capità rival per correu i WhatsApp.",
+            p: "Qualsevol capità pot proposar un canvi de data o pista d'un partit a través del portal /captain. El portal mostra els buits oficials lliures (Dl–Dj, Pista 2/3, 20:30 i 22:00) per triar-ne un fàcilment. La proposta s'envia al capità rival per correu i WhatsApp. Recorda: si es proposa jugar fora de l'horari oficial, la reserva, les pilotes i la llum van a càrrec dels 4 jugadors (§3).",
           },
           {
             h: '§21. Acceptació',
@@ -213,7 +213,7 @@ const TEXTS = {
           },
           {
             h: '§3. Instalaciones',
-            p: 'Todos los partidos se disputarán en las pistas del Club Pádel les Coves de Vinromà. Por regla general se usarán la Pista 2 y la Pista 3; la Pista 1 queda libre para uso del club. La franja de las 22:00 solo se activa si hay que recuperar partidos.',
+            p: 'Todos los partidos se disputarán en las pistas del Club Pádel les Coves de Vinromà. El horario oficial del torneo es de lunes a jueves, en la Pista 2 y la Pista 3, a las 20:30 y a las 22:00. La Pista 1 queda libre para uso del club. IMPORTANTE: si una pareja decide jugar un partido fuera de ese horario oficial (otro día, hora o pista), la reserva de la pista, las pelotas y la luz corren a cargo de alguno de los 4 jugadores del partido; la organización solo cubre los partidos jugados en horario oficial.',
           },
           {
             h: '§4. Categorías',
@@ -301,7 +301,7 @@ const TEXTS = {
         items: [
           {
             h: '§20. Propuesta de cambio',
-            p: 'Cualquier capitán puede proponer un cambio de fecha o pista de un partido a través del portal /captain. La propuesta se envía al capitán rival por correo y WhatsApp.',
+            p: 'Cualquier capitán puede proponer un cambio de fecha o pista de un partido a través del portal /captain. El portal muestra los huecos oficiales libres (Lu–Ju, Pista 2/3, 20:30 y 22:00) para elegir uno fácilmente. La propuesta se envía al capitán rival por correo y WhatsApp. Recuerda: si se propone jugar fuera del horario oficial, la reserva, las pelotas y la luz corren a cargo de los 4 jugadores (§3).',
           },
           {
             h: '§21. Aceptación',

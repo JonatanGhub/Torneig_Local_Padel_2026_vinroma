@@ -121,10 +121,15 @@ d'eliminatòria. El diumenge queda com a vàlvula de seguretat si cal.
 - **Puntualitat (§14)**: si una parella no es presenta a l'hora indicada,
   l'organització pot declarar walkover a favor del rival amb 6-0, 6-0.
 - **Reprogramació (§20–§21)**: qualsevol capità pot proposar un canvi de
-  data/pista des de `/captain`. El canvi és vàlid només quan el capità rival
-  l'accepta abans del partit original. Si no respon, el partit es disputa
-  a la data prevista. Un cop acceptada, la nova data es publica al grup
-  de gestió.
+  data/pista des de `/captain`. El portal mostra els **buits oficials lliures**
+  (Dl–Dj, Pista 2/3, 20:30 i 22:00, fins al 30 jul) per triar-ne un. El canvi
+  és vàlid només quan el capità rival l'accepta abans del partit original. Si
+  no respon, el partit es disputa a la data prevista. Un cop acceptada, la
+  nova data es publica al grup de gestió.
+- **Horari oficial i joc fora d'horari (§3)**: l'horari oficial és Dl–Dj, Pista
+  2/3, a les 20:30 i 22:00. Si una parella juga **fora d'aquest horari**, la
+  reserva de pista, les pilotes i la llum van a càrrec d'algun dels 4 jugadors
+  del partit; l'organització només cobreix els partits en horari oficial.
 - **Reportar resultats (§17, §19)**: cada capità introdueix el resultat al
   portal després del partit. El resultat queda _pendent_ fins que el rival el
   confirma. Termini: **24 hores**. Passat el termini, l'organització pot

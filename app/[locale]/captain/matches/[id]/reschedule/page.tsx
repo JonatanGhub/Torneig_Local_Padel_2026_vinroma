@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCaptainPlayerIds } from '@/lib/captain/data';
 import { formatMatchDateTime } from '@/lib/format-date';
 import { ReschedulePanel } from '../reschedule-panel';
+import { getFreeOfficialSlots } from '../actions';
 
 type Props = { params: Promise<{ locale: Locale; id: string }> };
 
@@ -69,6 +70,10 @@ export default async function CaptainRescheduleMatchPage({ params }: Props) {
   const pendingProposal = proposals?.find((p) => p.status === 'pending') ?? null;
   const historyProposals = (proposals ?? []).filter((p) => p.status !== 'pending');
 
+  // Huecos oficiales libres (L–J, P2/P3, 20:30/22:00) hasta el 30 de julio.
+  const freeSlotsRes = await getFreeOfficialSlots(matchId);
+  const freeSlots = freeSlotsRes.ok ? freeSlotsRes.slots : [];
+
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-8">
       <Link
@@ -98,6 +103,7 @@ export default async function CaptainRescheduleMatchPage({ params }: Props) {
         mySide={mySide}
         pending={pendingProposal}
         history={historyProposals}
+        freeSlots={freeSlots}
       />
     </main>
   );
