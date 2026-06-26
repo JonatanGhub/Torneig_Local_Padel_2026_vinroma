@@ -5,6 +5,7 @@ import {
   Calendar,
   CalendarCheck,
   CalendarClock,
+  FileText,
   MapPin,
   Sparkles,
   Trophy,
@@ -159,6 +160,15 @@ export default async function LandingPage({ params }: Props) {
             >
               {t('landing.see_groups_cta')}
             </Link>
+            <a
+              href="/sorteig-2026.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
+            >
+              <FileText className="size-4" />
+              {t('landing.download_format')}
+            </a>
           </div>
 
           {heroCaption && <p className="text-xs text-white/55">{heroCaption}</p>}
