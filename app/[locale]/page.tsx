@@ -16,6 +16,7 @@ import { createClient } from '@/lib/supabase/server';
 import { formatCents, getTournamentFees, type PublicFee } from '@/lib/pricing';
 import { CourtCarousel } from '@/components/brand/court-carousel';
 import { LogoLockup } from '@/components/brand/logo-mark';
+import { BracketPreviewSection } from '@/components/public/bracket-preview-section';
 import { InterestSubscribe } from '@/components/public/interest-subscribe';
 import { MobileNav } from '@/components/public/mobile-nav';
 import { RegisteredPairs } from '@/components/public/registered-pairs';
@@ -233,6 +234,8 @@ export default async function LandingPage({ params }: Props) {
         emptyLabel={t('landing.pairs_empty')}
         pairsCountLabel={(count) => t('landing.pairs_count', { count })}
       />
+
+      <BracketPreviewSection locale={locale} />
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-3">

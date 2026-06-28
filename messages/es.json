@@ -70,7 +70,17 @@
     "cta_body": "Las inscripciones abren el 1 de junio. Apúntalo en la agenda y prepara la pareja.",
     "pairs_title": "Parejas inscritas",
     "pairs_empty": "Aún no hay ninguna pareja inscrita en esta categoría.",
-    "pairs_count": "{count, plural, =0 {Sin parejas} =1 {1 pareja} other {# parejas}}"
+    "pairs_count": "{count, plural, =0 {Sin parejas} =1 {1 pareja} other {# parejas}}",
+    "bracket_eyebrow": "Eliminatorias",
+    "bracket_title": "Cómo quedaría el cuadro",
+    "bracket_subtitle": "Previsión según la clasificación actual de los grupos. Se actualiza a medida que se juegan los partidos.",
+    "bracket_provisional": "Provisional",
+    "bracket_final": "Definitivo",
+    "bracket_main": "Cuadro principal",
+    "bracket_consolation": "Consolación",
+    "bracket_round_qf": "Cuartos",
+    "bracket_round_sf": "Semifinales",
+    "bracket_round_final": "Final"
   },
   "fees_schedule": {
     "title": "Tarifas de inscripción",

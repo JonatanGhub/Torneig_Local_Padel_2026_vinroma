@@ -70,7 +70,17 @@
     "cta_body": "Les inscripcions s'obren l'1 de juny. Reserva-ho a l'agenda i prepara la parella.",
     "pairs_title": "Parelles inscrites",
     "pairs_empty": "Encara no hi ha cap parella inscrita en aquesta categoria.",
-    "pairs_count": "{count, plural, =0 {Cap parella} =1 {1 parella} other {# parelles}}"
+    "pairs_count": "{count, plural, =0 {Cap parella} =1 {1 parella} other {# parelles}}",
+    "bracket_eyebrow": "Eliminatòries",
+    "bracket_title": "Com quedaria el quadre",
+    "bracket_subtitle": "Previsió segons la classificació actual dels grups. S'actualitza a mesura que es juguen els partits.",
+    "bracket_provisional": "Provisional",
+    "bracket_final": "Definitiu",
+    "bracket_main": "Quadre principal",
+    "bracket_consolation": "Consolació",
+    "bracket_round_qf": "Quarts",
+    "bracket_round_sf": "Semifinals",
+    "bracket_round_final": "Final"
   },
   "fees_schedule": {
     "title": "Tarifes d'inscripció",
