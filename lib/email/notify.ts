@@ -38,7 +38,7 @@ function fullName(p: PlayerLite | null | undefined): string {
 }
 
 function lastNamesPair(a?: PlayerLite | null, b?: PlayerLite | null): string {
-  return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
+  return `${fullName(a)} / ${fullName(b)}`;
 }
 
 function scoreToText(score: unknown): string {

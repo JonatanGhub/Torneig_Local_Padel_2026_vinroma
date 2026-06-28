@@ -4,6 +4,7 @@ import { ArrowLeft, Clock } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { fullName } from '@/lib/player-name';
 import { getCaptainPlayerIds } from '@/lib/captain/data';
 import { formatMatchDateTime, formatMatchDateTimeLong } from '@/lib/format-date';
 import { ReportForm } from './report-form';
@@ -46,7 +47,10 @@ export default async function CaptainMatchPage({ params }: Props) {
   // del company ni el dels rivals. Si féssim servir `from('players')`, els
   // noms sortirien tots com a "—".
   const { data: players } = allPlayerIds.length
-    ? await supabase.from('public_player_names').select('id, last_name').in('id', allPlayerIds)
+    ? await supabase
+        .from('public_player_names')
+        .select('id, first_name, last_name')
+        .in('id', allPlayerIds)
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
   const pairLabel = (pairId: string) => {
@@ -54,7 +58,7 @@ export default async function CaptainMatchPage({ params }: Props) {
     if (!pair) return '—';
     const a = playerMap.get(pair.player_a_id);
     const b = playerMap.get(pair.player_b_id);
-    return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
+    return `${fullName(a)} / ${fullName(b)}`;
   };
 
   const { data: reports } = await supabase

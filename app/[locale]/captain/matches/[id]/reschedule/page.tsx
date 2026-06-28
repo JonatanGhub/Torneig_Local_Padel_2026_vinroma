@@ -5,6 +5,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { getCaptainPlayerIds } from '@/lib/captain/data';
+import { fullName } from '@/lib/player-name';
 import { formatMatchDateTime } from '@/lib/format-date';
 import { ReschedulePanel } from '../reschedule-panel';
 import { getFreeOfficialSlots } from '../actions';
@@ -49,7 +50,10 @@ export default async function CaptainRescheduleMatchPage({ params }: Props) {
   // propi registre; `public_player_names` exposa id+last_name a tothom per a
   // les etiquetes de parella.
   const { data: players } = allPlayerIds.length
-    ? await supabase.from('public_player_names').select('id, last_name').in('id', allPlayerIds)
+    ? await supabase
+        .from('public_player_names')
+        .select('id, first_name, last_name')
+        .in('id', allPlayerIds)
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
   const pairLabel = (pairId: string) => {
@@ -57,7 +61,7 @@ export default async function CaptainRescheduleMatchPage({ params }: Props) {
     if (!pair) return '—';
     const a = playerMap.get(pair.player_a_id);
     const b = playerMap.get(pair.player_b_id);
-    return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
+    return `${fullName(a)} / ${fullName(b)}`;
   };
 
   const { data: proposals } = await supabase

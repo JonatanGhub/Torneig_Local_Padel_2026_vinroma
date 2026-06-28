@@ -2,6 +2,7 @@ import { Trophy } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { fullName } from '@/lib/player-name';
 import {
   KnockoutBracket,
   defaultBracketLabels,
@@ -70,9 +71,12 @@ export default async function CaptainQuadrePage({ params }: Props) {
       .in('id', missing);
     const playerIds = (extra ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
     const { data: names } = playerIds.length
-      ? await supabase.from('public_player_names').select('id, last_name').in('id', playerIds)
+      ? await supabase
+          .from('public_player_names')
+          .select('id, first_name, last_name')
+          .in('id', playerIds)
       : { data: [] };
-    const nameMap = new Map((names ?? []).map((p) => [p.id, p.last_name ?? '—']));
+    const nameMap = new Map((names ?? []).map((p) => [p.id, fullName(p)]));
     for (const p of extra ?? []) {
       pairLabels.set(
         p.id,

@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service';
+import { fullName } from '@/lib/player-name';
 import { buildIcsCalendar, type IcalMatch } from '@/lib/ical';
 
 const MATCH_DURATION_MINUTES = 90;
@@ -72,7 +73,7 @@ export async function GET(request: Request, { params }: Params) {
     (rivalPairs ?? []).map((p) => {
       const a = playerMap.get(p.player_a_id);
       const b = playerMap.get(p.player_b_id);
-      const label = `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
+      const label = `${fullName(a)} / ${fullName(b)}`;
       return [p.id, label];
     }),
   );
