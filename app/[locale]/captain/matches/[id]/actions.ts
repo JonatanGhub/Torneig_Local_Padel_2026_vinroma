@@ -219,6 +219,82 @@ const RescheduleSchema = z.object({
   message: z.string().max(500).nullable().optional(),
 });
 
+// Errors coneguts de reprogramació (tenen traducció reschedule_error_*).
+// Qualsevol altre missatge de la BD es mapeja a 'unknown' per no mostrar text
+// cru a l'usuari.
+const KNOWN_RESCHEDULE_ERRORS = [
+  'invalid_input',
+  'new_date_must_be_future',
+  'court_double_booked',
+  'pair_double_booked',
+  'unauthenticated',
+  'not_captain_of_this_match',
+  'not_rival_captain',
+  'match_already_finished',
+  'proposal_not_pending',
+  'only_proposer_can_cancel',
+] as const;
+
+function mapRescheduleError(msg: string): string {
+  for (const code of KNOWN_RESCHEDULE_ERRORS) if (msg.includes(code)) return code;
+  return 'unknown';
+}
+
+// Comprova si moure un partit a (whenISO, court) xocaria amb un altre partit:
+// mateixa pista a la mateixa hora, o algun dels 4 jugadors ja jugant a aquella
+// hora. És un avís ràpid; la garantia dura la dóna el trigger de la BD.
+// Fa servir el client de servei (salta RLS) perquè el pre-check vegi totes les
+// parelles encara que el torneig no estigui publicat.
+async function checkRescheduleConflict(
+  matchId: string,
+  whenISO: string,
+  newCourtLabel: string | null,
+): Promise<'court_double_booked' | 'pair_double_booked' | null> {
+  const supabase = createServiceClient();
+  const { data: thisMatch } = await supabase
+    .from('matches')
+    .select('id, tournament_id, pair_a_id, pair_b_id, court_label')
+    .eq('id', matchId)
+    .maybeSingle();
+  if (!thisMatch) return null;
+  const court = newCourtLabel ?? thisMatch.court_label;
+
+  const { data: others } = await supabase
+    .from('matches')
+    .select('id, court_label, pair_a_id, pair_b_id')
+    .eq('tournament_id', thisMatch.tournament_id)
+    .eq('scheduled_at', whenISO)
+    .neq('id', matchId);
+  if (!others || others.length === 0) return null;
+
+  if (court && others.some((m) => m.court_label === court)) return 'court_double_booked';
+
+  const pairIds = Array.from(
+    new Set([
+      thisMatch.pair_a_id,
+      thisMatch.pair_b_id,
+      ...others.flatMap((m) => [m.pair_a_id, m.pair_b_id]),
+    ]),
+  );
+  const { data: prs } = await supabase
+    .from('pairs')
+    .select('id, player_a_id, player_b_id')
+    .in('id', pairIds);
+  const playersByPair = new Map((prs ?? []).map((p) => [p.id, [p.player_a_id, p.player_b_id]]));
+  const mine = new Set([
+    ...(playersByPair.get(thisMatch.pair_a_id) ?? []),
+    ...(playersByPair.get(thisMatch.pair_b_id) ?? []),
+  ]);
+  for (const m of others) {
+    const theirs = [
+      ...(playersByPair.get(m.pair_a_id) ?? []),
+      ...(playersByPair.get(m.pair_b_id) ?? []),
+    ];
+    if (theirs.some((pid) => mine.has(pid))) return 'pair_double_booked';
+  }
+  return null;
+}
+
 export async function proposeReschedule(formData: FormData) {
   const parsed = RescheduleSchema.safeParse({
     matchId: formData.get('matchId'),
@@ -236,13 +312,23 @@ export async function proposeReschedule(formData: FormData) {
   }
 
   const supabase = await createClient();
+
+  // Avís ràpid: no deixem ni proposar un canvi que ja xocaria amb un altre
+  // partit (pista ocupada o parella jugant a aquella hora).
+  const conflict = await checkRescheduleConflict(
+    parsed.data.matchId,
+    whenISO,
+    parsed.data.newCourtLabel ?? null,
+  );
+  if (conflict) return { ok: false, error: conflict } as const;
+
   const { data, error } = await supabase.rpc('propose_reschedule', {
     p_match_id: parsed.data.matchId,
     p_new_scheduled_at: whenISO,
     p_new_court_label: parsed.data.newCourtLabel ?? null,
     p_message: parsed.data.message ?? null,
   });
-  if (error) return { ok: false, error: error.message } as const;
+  if (error) return { ok: false, error: mapRescheduleError(error.message ?? '') } as const;
 
   // Notificar al capitán rival en background (errores no rompen la mutación).
   if (typeof data === 'string') {
@@ -262,11 +348,33 @@ export async function respondToReschedule(formData: FormData) {
     return { ok: false, error: 'invalid_input' } as const;
   }
   const supabase = await createClient();
+
+  // En acceptar, revalidem que el canvi no crei un conflicte (pot haver canviat
+  // des que es va proposar). El trigger de la BD és la garantia final.
+  if (accept === 'yes') {
+    const { data: proposal } = await supabase
+      .from('match_reschedule_proposals')
+      .select('match_id, new_scheduled_at, new_court_label, status')
+      .eq('id', proposalId)
+      .maybeSingle();
+    if (proposal && proposal.status === 'pending') {
+      const whenISO = new Date(proposal.new_scheduled_at).toISOString();
+      const conflict = await checkRescheduleConflict(
+        proposal.match_id,
+        whenISO,
+        proposal.new_court_label ?? null,
+      );
+      if (conflict) return { ok: false, error: conflict } as const;
+    }
+  }
+
   const { data, error } = await supabase.rpc('respond_to_reschedule', {
     p_proposal_id: proposalId,
     p_accept: accept === 'yes',
   });
-  if (error) return { ok: false, error: error.message } as const;
+  // El trigger matches_prevent_overlap pot rebutjar l'acceptació si crearia un
+  // solapament: ho traduïm a un codi conegut per al missatge d'error.
+  if (error) return { ok: false, error: mapRescheduleError(error.message ?? '') } as const;
 
   // Si la proposta s'accepta, avisem el grup de gestió (canvi confirmat).
   // Errors de WhatsApp no han de trencar la mutació principal.
@@ -289,7 +397,7 @@ export async function cancelReschedule(formData: FormData) {
   const { data, error } = await supabase.rpc('cancel_reschedule', {
     p_proposal_id: proposalId,
   });
-  if (error) return { ok: false, error: error.message } as const;
+  if (error) return { ok: false, error: mapRescheduleError(error.message ?? '') } as const;
   revalidatePath('/[locale]/captain/matches/[id]', 'page');
   return { ok: true, status: data as string } as const;
 }

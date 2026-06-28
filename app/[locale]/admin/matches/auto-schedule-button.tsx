@@ -67,8 +67,13 @@ export function AutoScheduleControls() {
         setMessage(res.error === 'invalid_input' ? t('autoschedule_error_invalid') : res.error);
         return;
       }
-      setTone('ok');
-      setMessage(t('autoschedule_saved_ok', { count: res.saved }));
+      if (res.skipped > 0) {
+        setTone('warn');
+        setMessage(t('autoschedule_saved_partial', { saved: res.saved, skipped: res.skipped }));
+      } else {
+        setTone('ok');
+        setMessage(t('autoschedule_saved_ok', { count: res.saved }));
+      }
       clearProposals();
       router.refresh();
     });

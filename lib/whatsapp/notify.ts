@@ -127,17 +127,38 @@ export async function notifyRescheduleProposedWhatsApp(proposalId: string) {
 
     const { data: match } = await supabase
       .from('matches')
-      .select('id, pair_a_id, pair_b_id')
+      .select('id, category_id, pair_a_id, pair_b_id')
       .eq('id', proposal.match_id)
       .maybeSingle();
     if (!match) return;
 
-    const rivalPairId = proposal.proposer_pair_side === 'a' ? match.pair_b_id : match.pair_a_id;
-    const { data: rivalPair } = await supabase
+    // Les dues parelles del partit, per indicar QUIN partit és al missatge.
+    const { data: matchPairs } = await supabase
       .from('pairs')
-      .select('id, captain_id')
-      .eq('id', rivalPairId)
+      .select('id, captain_id, player_a_id, player_b_id')
+      .in('id', [match.pair_a_id, match.pair_b_id]);
+    const mpPlayerIds = (matchPairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
+    const { data: mpNames } = mpPlayerIds.length
+      ? await supabase.from('players').select('id, first_name, last_name').in('id', mpPlayerIds)
+      : { data: [] };
+    const labelOf = (pairId: string) => {
+      const p = matchPairs?.find((x) => x.id === pairId);
+      if (!p) return '—';
+      return lastNamesPair(
+        mpNames?.find((n) => n.id === p.player_a_id),
+        mpNames?.find((n) => n.id === p.player_b_id),
+      );
+    };
+    const matchLabel = `${labelOf(match.pair_a_id)} vs ${labelOf(match.pair_b_id)}`;
+
+    const { data: category } = await supabase
+      .from('categories')
+      .select('name_ca')
+      .eq('id', match.category_id)
       .maybeSingle();
+
+    const rivalPairId = proposal.proposer_pair_side === 'a' ? match.pair_b_id : match.pair_a_id;
+    const rivalPair = matchPairs?.find((p) => p.id === rivalPairId);
     if (!rivalPair) return;
 
     const { data: rivalCaptain } = await supabase
@@ -149,6 +170,7 @@ export async function notifyRescheduleProposedWhatsApp(proposalId: string) {
 
     const text =
       `📅 *Proposta de canvi de partit*\n` +
+      `*${matchLabel}*${category?.name_ca ? ` · ${category.name_ca}` : ''}\n` +
       `Nova data: ${formatDateCA(proposal.new_scheduled_at)}\n` +
       (proposal.new_court_label ? `Pista: ${proposal.new_court_label}\n` : '') +
       (proposal.message ? `Missatge: ${proposal.message}\n` : '') +
