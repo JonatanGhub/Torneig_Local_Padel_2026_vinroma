@@ -82,10 +82,14 @@ function rank(standings: StandingRow[], groups: GroupMeta[]): Ranked {
   return { byGroup, groupByLabel };
 }
 
+// Fila de classificació per a (grup, rank). undefined si encara no existeix.
+function rowAt(r: Ranked, groupLabel: string, rank1: number): StandingRow | undefined {
+  return (r.byGroup.get(groupLabel) ?? [])[rank1 - 1];
+}
+
 // Construeix un Seed per a (grup, rank). rank és 1-based.
 function seedAt(r: Ranked, groupLabel: string, rank1: number): BracketSeed {
-  const arr = r.byGroup.get(groupLabel) ?? [];
-  const row = arr[rank1 - 1];
+  const row = rowAt(r, groupLabel, rank1);
   const closed = r.groupByLabel.get(groupLabel)?.closed ?? false;
   if (row && closed) {
     return { kind: 'pair', pair_id: row.pair_id, locked: true, rank: rank1, groupLabel };
@@ -158,17 +162,25 @@ function bracketTwoFivesOneFour(r: Ranked, groups: GroupMeta[]): CategoryBracket
   const closedAll = groups.every((g) => g.closed);
 
   // --- Principal (8): 1r/2n de cada grup + 3r dels dos grups de 5 ---
-  const mainSeeds: BracketSeed[] = [
-    seedAt(r, a5!.label, 1),
-    seedAt(r, a5!.label, 2),
-    seedAt(r, b5!.label, 1),
-    seedAt(r, b5!.label, 2),
-    seedAt(r, four.label, 1),
-    seedAt(r, four.label, 2),
-    seedAt(r, a5!.label, 3),
-    seedAt(r, b5!.label, 3),
-  ];
-  const main = seedEightAvoidingSameGroup(mainSeeds);
+  // Es sembren per rendiment real (no per ordre fix): el millor balança és el
+  // cap de sèrie 1.
+  const mainEntries: Array<{ seed: BracketSeed; row?: StandingRow }> = [
+    { label: a5!.label, rank: 1 },
+    { label: a5!.label, rank: 2 },
+    { label: b5!.label, rank: 1 },
+    { label: b5!.label, rank: 2 },
+    { label: four.label, rank: 1 },
+    { label: four.label, rank: 2 },
+    { label: a5!.label, rank: 3 },
+    { label: b5!.label, rank: 3 },
+  ].map((e) => ({ seed: seedAt(r, e.label, e.rank), row: rowAt(r, e.label, e.rank) }));
+  mainEntries.sort((x, y) => {
+    if (x.row && y.row) return ROW_SORT(x.row, y.row);
+    if (x.row) return -1;
+    if (y.row) return 1;
+    return 0;
+  });
+  const main = seedEightAvoidingSameGroup(mainEntries.map((e) => e.seed));
 
   // --- Consolació (4): 3C, 4C, 4A, 4B → SF (3C vs millor 4t, 4C vs l'altre) ---
   const c3 = seedAt(r, four.label, 3);
@@ -226,11 +238,16 @@ function seedEightAvoidingSameGroup(seeds8: BracketSeed[]): BracketMatch[] {
     }
   }
   const order = chosen ?? standardOrder; // si no hi ha cap sense conflicte, estàndard
-  const out: BracketMatch[] = [];
+  // Quarts en l'ordre dels caps de sèrie: top[0]=1, top[1]=2, top[2]=3, top[3]=4.
+  const bySeed: BracketMatch[] = [];
   for (let i = 0; i < 4; i++) {
-    out.push({ phase: 'ko', round_size: 8, position: i + 1, a: top[i]!, b: bottom[order[i]!]! });
+    bySeed.push({ phase: 'ko', round_size: 8, position: i + 1, a: top[i]!, b: bottom[order[i]!]! });
   }
-  return out;
+  // Reordena a posicions de quadre estàndard perquè, amb l'aparellament
+  // consecutiu de la ronda següent (M1-M2, M3-M4), els caps de sèrie 1 i 2
+  // quedin a meitats oposades: SF1 = s1 vs s4, SF2 = s2 vs s3.
+  const slotOrder = [0, 3, 1, 2]; // s1, s4, s2, s3
+  return slotOrder.map((seedIdx, pos) => ({ ...bySeed[seedIdx]!, position: pos + 1 }));
 }
 
 function permute(arr: number[]): number[][] {

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { notifyDrawDone } from '@/lib/email/notify';
 import { notifyDrawDoneWhatsApp } from '@/lib/whatsapp/notify';
+import { generateKnockoutForCategory } from '@/lib/knockout';
 
 const DrawSchema = z.object({
   categoryId: z.string().uuid(),
@@ -44,17 +45,18 @@ export async function generateKnockout(formData: FormData) {
   const parsed = KnockoutSchema.safeParse({ categoryId: formData.get('categoryId') });
   if (!parsed.success) return { ok: false, error: 'invalid_input' } as const;
 
+  // Motor de quadres PERSONALITZAT (lib/knockout + lib/bracket-engine) en lloc
+  // del `generate_knockout` SQL estàndard: cada categoria té el seu format
+  // (2a amb 8 i 3rs, 4a top-4, etc.). L'insert va amb el client d'admin; la
+  // RLS `matches_admin_write` el permet.
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc('generate_knockout', {
-    p_category_id: parsed.data.categoryId,
-  });
-
-  if (error) return { ok: false, error: error.message } as const;
+  const result = await generateKnockoutForCategory(supabase, parsed.data.categoryId);
+  if (!result.ok) return { ok: false, error: result.error } as const;
 
   revalidatePath('/[locale]/admin/draw', 'page');
   revalidatePath('/[locale]/quadre', 'page');
   revalidatePath('/[locale]/quadre/[level]', 'page');
-  return { ok: true, summary: data ?? '' } as const;
+  return { ok: true, summary: `main=${result.main} cons=${result.cons}` } as const;
 }
 
 const ResetSchema = z.object({ categoryId: z.string().uuid() });

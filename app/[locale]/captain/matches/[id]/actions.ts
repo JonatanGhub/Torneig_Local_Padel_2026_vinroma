@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
+import { categoryReadyForKnockout, generateKnockoutForCategory } from '@/lib/knockout';
 import { madridInputToISO, madridDateKey } from '@/lib/format-date';
 import {
   notifyMatchDisputed,
@@ -71,7 +73,7 @@ export async function submitReport(formData: FormData) {
   // para decidir qué notificar. Errores de email no rompen la mutación.
   const { data: matchAfter } = await supabase
     .from('matches')
-    .select('status')
+    .select('status, phase, category_id')
     .eq('id', matchId)
     .maybeSingle();
   const reporterSide = data === 'a' || data === 'b' ? (data as 'a' | 'b') : null;
@@ -79,6 +81,18 @@ export async function submitReport(formData: FormData) {
     await notifyMatchValidated(matchId);
     await notifyMatchValidatedWhatsApp(matchId);
     await notifyValidatedToGroup(matchId);
+    // Si era l'últim partit de grup de la categoria, genera el quadre
+    // automàticament (amb client de servei, que salta RLS). Errors aïllats.
+    if (matchAfter.phase === 'group' && matchAfter.category_id) {
+      try {
+        const service = createServiceClient();
+        if (await categoryReadyForKnockout(service, matchAfter.category_id)) {
+          await generateKnockoutForCategory(service, matchAfter.category_id);
+        }
+      } catch (err) {
+        console.warn('[knockout] auto-generate failed', err);
+      }
+    }
   } else if (matchAfter?.status === 'disputed') {
     await notifyMatchDisputed(matchId);
     await notifyMatchDisputedWhatsApp(matchId);
