@@ -42,7 +42,14 @@ function lastNamesPair(
 function formatDateCA(iso: string | null): string {
   if (!iso) return 'sense data';
   try {
-    return new Date(iso).toLocaleString('ca-ES', { dateStyle: 'long', timeStyle: 'short' });
+    // IMPORTANT: el servidor (Vercel) corre en UTC. Sense `timeZone` les hores
+    // sortien 2h abans (p.ex. 18:30 enlloc de 20:30 a l'estiu). Cal forçar
+    // Europe/Madrid perquè els avisos de WhatsApp mostrin l'hora real.
+    return new Date(iso).toLocaleString('ca-ES', {
+      timeZone: 'Europe/Madrid',
+      dateStyle: 'long',
+      timeStyle: 'short',
+    });
   } catch {
     return iso;
   }

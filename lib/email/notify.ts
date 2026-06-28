@@ -56,7 +56,13 @@ function scoreToText(score: unknown): string {
 function formatDateCA(iso: string | null): string {
   if (!iso) return 'sense data';
   try {
-    return new Date(iso).toLocaleString('ca-ES', { dateStyle: 'long', timeStyle: 'short' });
+    // El servidor corre en UTC: sense `timeZone` les hores sortien 2h abans.
+    // Forcem Europe/Madrid perquè els correus mostrin l'hora real del partit.
+    return new Date(iso).toLocaleString('ca-ES', {
+      timeZone: 'Europe/Madrid',
+      dateStyle: 'long',
+      timeStyle: 'short',
+    });
   } catch {
     return iso;
   }
