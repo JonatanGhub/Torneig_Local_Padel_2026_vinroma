@@ -385,7 +385,7 @@ const ConfirmSchema = z.object({
 });
 
 export type ConfirmSchedulesResult =
-  | { ok: true; saved: number }
+  | { ok: true; saved: number; skipped: number }
   | { ok: false; error: 'invalid_input' | string };
 
 export async function confirmSchedules(
@@ -401,18 +401,26 @@ export async function confirmSchedules(
     court_label: a.courtLabel,
   }));
 
-  const { error } = await supabase.rpc('bulk_schedule_matches', { p_assignments: assignments });
+  // bulk_schedule_matches retorna els ids realment desats (salta els slots que
+  // xocarien amb el trigger anti-solapament). Així una sola col·lisió ja no
+  // anul·la tota la desada.
+  const { data, error } = await supabase.rpc('bulk_schedule_matches', {
+    p_assignments: assignments,
+  });
   if (error) return { ok: false, error: error.message };
+  const savedIds = new Set(Array.isArray(data) ? (data as string[]) : []);
 
-  // Avisa els capitans (email + WhatsApp) en paral·lel; els errors no bloquegen.
+  // Avisem només els capitans dels partits efectivament programats.
   await Promise.allSettled(
-    parsed.data.assignments.flatMap((a) => [
-      notifyMatchScheduled(a.matchId, false),
-      notifyMatchScheduledWhatsApp(a.matchId, false),
-    ]),
+    parsed.data.assignments
+      .filter((a) => savedIds.has(a.matchId))
+      .flatMap((a) => [
+        notifyMatchScheduled(a.matchId, false),
+        notifyMatchScheduledWhatsApp(a.matchId, false),
+      ]),
   );
 
   revalidatePath('/[locale]/admin/matches', 'page');
   revalidatePath('/[locale]/calendari', 'page');
-  return { ok: true, saved: assignments.length };
+  return { ok: true, saved: savedIds.size, skipped: assignments.length - savedIds.size };
 }

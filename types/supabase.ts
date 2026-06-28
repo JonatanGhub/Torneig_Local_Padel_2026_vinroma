@@ -382,7 +382,7 @@ export type Database = {
       };
       bulk_schedule_matches: {
         Args: { p_assignments: Json };
-        Returns: number;
+        Returns: string[];
       };
       submit_match_report: {
         Args: { p_match_id: string; p_score: Json };

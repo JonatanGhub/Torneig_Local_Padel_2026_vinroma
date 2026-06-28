@@ -78,3 +78,52 @@ drop trigger if exists matches_prevent_overlap on matches;
 create trigger matches_prevent_overlap
   before insert or update on matches
   for each row execute function matches_prevent_overlap();
+
+-- =========================================================================
+-- bulk_schedule_matches: ara és RESILIENT. Amb el trigger anterior, un sol
+-- slot en conflicte feia abortar TOTA la desada d'horaris (i amb un error
+-- sense traduir). Ara saltem les files que xoquen i retornem els ids
+-- realment desats, perquè el progrés parcial es manté i només s'avisa els
+-- capitans dels partits efectivament programats.
+-- =========================================================================
+drop function if exists bulk_schedule_matches(jsonb);
+
+create function bulk_schedule_matches(p_assignments jsonb)
+returns uuid[]
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_saved uuid[] := '{}';
+  v_row   jsonb;
+  v_id    uuid;
+begin
+  if not is_admin() then
+    raise exception 'only_admin';
+  end if;
+
+  for v_row in select * from jsonb_array_elements(p_assignments)
+  loop
+    begin
+      v_id := (v_row->>'match_id')::uuid;
+      update matches
+         set scheduled_at = (v_row->>'scheduled_at')::timestamptz,
+             court_label  = v_row->>'court_label'
+       where id = v_id;
+      if found then
+        v_saved := array_append(v_saved, v_id);
+      end if;
+    exception when others then
+      -- Slot en conflicte (trigger matches_prevent_overlap) o fila invàlida:
+      -- la saltem i continuem amb la resta.
+      null;
+    end;
+  end loop;
+
+  return v_saved;
+end;
+$$;
+
+revoke execute on function bulk_schedule_matches(jsonb) from anon, public;
+grant execute on function bulk_schedule_matches(jsonb) to authenticated;

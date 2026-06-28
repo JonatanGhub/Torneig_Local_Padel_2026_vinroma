@@ -219,15 +219,38 @@ const RescheduleSchema = z.object({
   message: z.string().max(500).nullable().optional(),
 });
 
+// Errors coneguts de reprogramació (tenen traducció reschedule_error_*).
+// Qualsevol altre missatge de la BD es mapeja a 'unknown' per no mostrar text
+// cru a l'usuari.
+const KNOWN_RESCHEDULE_ERRORS = [
+  'invalid_input',
+  'new_date_must_be_future',
+  'court_double_booked',
+  'pair_double_booked',
+  'unauthenticated',
+  'not_captain_of_this_match',
+  'not_rival_captain',
+  'match_already_finished',
+  'proposal_not_pending',
+  'only_proposer_can_cancel',
+] as const;
+
+function mapRescheduleError(msg: string): string {
+  for (const code of KNOWN_RESCHEDULE_ERRORS) if (msg.includes(code)) return code;
+  return 'unknown';
+}
+
 // Comprova si moure un partit a (whenISO, court) xocaria amb un altre partit:
 // mateixa pista a la mateixa hora, o algun dels 4 jugadors ja jugant a aquella
 // hora. És un avís ràpid; la garantia dura la dóna el trigger de la BD.
+// Fa servir el client de servei (salta RLS) perquè el pre-check vegi totes les
+// parelles encara que el torneig no estigui publicat.
 async function checkRescheduleConflict(
-  supabase: Awaited<ReturnType<typeof createClient>>,
   matchId: string,
   whenISO: string,
   newCourtLabel: string | null,
 ): Promise<'court_double_booked' | 'pair_double_booked' | null> {
+  const supabase = createServiceClient();
   const { data: thisMatch } = await supabase
     .from('matches')
     .select('id, tournament_id, pair_a_id, pair_b_id, court_label')
@@ -293,7 +316,6 @@ export async function proposeReschedule(formData: FormData) {
   // Avís ràpid: no deixem ni proposar un canvi que ja xocaria amb un altre
   // partit (pista ocupada o parella jugant a aquella hora).
   const conflict = await checkRescheduleConflict(
-    supabase,
     parsed.data.matchId,
     whenISO,
     parsed.data.newCourtLabel ?? null,
@@ -306,7 +328,7 @@ export async function proposeReschedule(formData: FormData) {
     p_new_court_label: parsed.data.newCourtLabel ?? null,
     p_message: parsed.data.message ?? null,
   });
-  if (error) return { ok: false, error: error.message } as const;
+  if (error) return { ok: false, error: mapRescheduleError(error.message ?? '') } as const;
 
   // Notificar al capitán rival en background (errores no rompen la mutación).
   if (typeof data === 'string') {
@@ -338,7 +360,6 @@ export async function respondToReschedule(formData: FormData) {
     if (proposal && proposal.status === 'pending') {
       const whenISO = new Date(proposal.new_scheduled_at).toISOString();
       const conflict = await checkRescheduleConflict(
-        supabase,
         proposal.match_id,
         whenISO,
         proposal.new_court_label ?? null,
@@ -351,17 +372,9 @@ export async function respondToReschedule(formData: FormData) {
     p_proposal_id: proposalId,
     p_accept: accept === 'yes',
   });
-  if (error) {
-    // El trigger matches_prevent_overlap pot rebutjar l'acceptació si crearia
-    // un solapament: ho traduïm a un codi conegut per al missatge d'error.
-    const msg = error.message ?? '';
-    const code = msg.includes('court_double_booked')
-      ? 'court_double_booked'
-      : msg.includes('pair_double_booked')
-        ? 'pair_double_booked'
-        : msg;
-    return { ok: false, error: code } as const;
-  }
+  // El trigger matches_prevent_overlap pot rebutjar l'acceptació si crearia un
+  // solapament: ho traduïm a un codi conegut per al missatge d'error.
+  if (error) return { ok: false, error: mapRescheduleError(error.message ?? '') } as const;
 
   // Si la proposta s'accepta, avisem el grup de gestió (canvi confirmat).
   // Errors de WhatsApp no han de trencar la mutació principal.
@@ -384,7 +397,7 @@ export async function cancelReschedule(formData: FormData) {
   const { data, error } = await supabase.rpc('cancel_reschedule', {
     p_proposal_id: proposalId,
   });
-  if (error) return { ok: false, error: error.message } as const;
+  if (error) return { ok: false, error: mapRescheduleError(error.message ?? '') } as const;
   revalidatePath('/[locale]/captain/matches/[id]', 'page');
   return { ok: true, status: data as string } as const;
 }
