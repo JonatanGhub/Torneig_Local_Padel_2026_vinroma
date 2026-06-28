@@ -1,5 +1,6 @@
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { fullName } from '@/lib/player-name';
 import { MatchCard, type MatchCardPhase } from '@/components/match/match-card';
 
 const PHASE_MAP: Record<string, MatchCardPhase> = {
@@ -88,9 +89,12 @@ export async function TodayMatches({ locale, title, emptyLabel }: Props) {
     : { data: [] };
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: names } = playerIds.length
-    ? await supabase.from('public_player_names').select('id, last_name').in('id', playerIds)
+    ? await supabase
+        .from('public_player_names')
+        .select('id, first_name, last_name')
+        .in('id', playerIds)
     : { data: [] };
-  const nameMap = new Map((names ?? []).map((p) => [p.id, p.last_name ?? '—']));
+  const nameMap = new Map((names ?? []).map((p) => [p.id, fullName(p)]));
   const pairLabels = new Map<string, string>();
   for (const p of pairs ?? []) {
     pairLabels.set(

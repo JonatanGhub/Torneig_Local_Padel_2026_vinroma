@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { fullName } from '@/lib/player-name';
 import { formatMatchDateTime } from '@/lib/format-date';
 import { ScheduleForm } from './schedule-form';
 import { AutoScheduleControls } from './auto-schedule-button';
@@ -77,7 +78,7 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
     if (!pair) return pairId.slice(0, 8);
     const a = playerMap.get(pair.player_a_id);
     const b = playerMap.get(pair.player_b_id);
-    return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
+    return `${fullName(a)} / ${fullName(b)}`;
   };
 
   const categoriesById = new Map(

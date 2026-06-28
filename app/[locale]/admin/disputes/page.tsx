@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { fullName } from '@/lib/player-name';
 import { WalkoverButton } from '../walkover-button';
 
 type Props = { params: Promise<{ locale: Locale }> };
@@ -35,7 +36,7 @@ export default async function DisputesAdminPage({ params }: Props) {
 
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: players } = playerIds.length
-    ? await supabase.from('players').select('id, last_name').in('id', playerIds)
+    ? await supabase.from('players').select('id, first_name, last_name').in('id', playerIds)
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
 
@@ -44,7 +45,7 @@ export default async function DisputesAdminPage({ params }: Props) {
     if (!pair) return '—';
     const a = playerMap.get(pair.player_a_id);
     const b = playerMap.get(pair.player_b_id);
-    return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
+    return `${fullName(a)} / ${fullName(b)}`;
   };
 
   function scoreToText(score: unknown) {

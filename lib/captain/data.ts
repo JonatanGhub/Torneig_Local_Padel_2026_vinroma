@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { fullName } from '@/lib/player-name';
 
 export type CaptainPlayer = {
   id: string;
@@ -174,9 +175,12 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     new Set([...(pairsData ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]), ...partnerIds]),
   );
   const { data: pubNames } = allPlayerIds.length
-    ? await supabase.from('public_player_names').select('id, last_name').in('id', allPlayerIds)
+    ? await supabase
+        .from('public_player_names')
+        .select('id, first_name, last_name')
+        .in('id', allPlayerIds)
     : { data: [] };
-  const lastNameMap = new Map(pubNames?.map((p) => [p.id, p.last_name ?? '—']) ?? []);
+  const nameMap = new Map(pubNames?.map((p) => [p.id, fullName(p)]) ?? []);
 
   // Cal service client per llegir noms de companys d'altres parelles (la RLS
   // de `players` només deixa veure el propi). Sense això sortirien com a '—'.
@@ -192,8 +196,8 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
 
   const pairLabels = new Map<string, string>();
   for (const p of pairsData ?? []) {
-    const a = lastNameMap.get(p.player_a_id) ?? '—';
-    const b = lastNameMap.get(p.player_b_id) ?? '—';
+    const a = nameMap.get(p.player_a_id) ?? '—';
+    const b = nameMap.get(p.player_b_id) ?? '—';
     pairLabels.set(p.id, `${a} / ${b}`);
   }
 

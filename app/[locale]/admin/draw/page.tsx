@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { fullName } from '@/lib/player-name';
 import { BracketPreviewCard } from '@/components/bracket-preview-card';
 import { DrawForms } from './draw-forms';
 
@@ -89,9 +90,12 @@ export default async function DrawAdminPage({ params }: Props) {
     : { data: [] };
   const previewPlayerIds = (previewPairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: previewPlayers } = previewPlayerIds.length
-    ? await supabase.from('public_player_names').select('id, last_name').in('id', previewPlayerIds)
+    ? await supabase
+        .from('public_player_names')
+        .select('id, first_name, last_name')
+        .in('id', previewPlayerIds)
     : { data: [] };
-  const lastNameMap = new Map((previewPlayers ?? []).map((p) => [p.id, p.last_name ?? '—']));
+  const lastNameMap = new Map((previewPlayers ?? []).map((p) => [p.id, fullName(p)]));
   const pairLabels = new Map<string, string>();
   for (const p of previewPairs ?? []) {
     pairLabels.set(

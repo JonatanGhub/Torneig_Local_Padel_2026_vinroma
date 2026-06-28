@@ -33,10 +33,12 @@ function canWhatsApp(p: Captain | null | undefined): p is Captain {
 }
 
 function lastNamesPair(
-  a?: { last_name: string | null } | null,
-  b?: { last_name: string | null } | null,
+  a?: { first_name?: string | null; last_name?: string | null } | null,
+  b?: { first_name?: string | null; last_name?: string | null } | null,
 ): string {
-  return `${a?.last_name ?? '—'} / ${b?.last_name ?? '—'}`;
+  const name = (p?: { first_name?: string | null; last_name?: string | null } | null) =>
+    p ? [p.first_name, p.last_name].filter(Boolean).join(' ').trim() || '—' : '—';
+  return `${name(a)} / ${name(b)}`;
 }
 
 function formatDateCA(iso: string | null): string {
@@ -176,7 +178,7 @@ export async function notifyMatchDisputedWhatsApp(matchId: string) {
     const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
     const { data: players } = await supabase
       .from('players')
-      .select('id, last_name')
+      .select('id, first_name, last_name')
       .in('id', playerIds);
     const pairLabelOf = (pairId: string) => {
       const pair = pairs?.find((p) => p.id === pairId);
@@ -359,7 +361,7 @@ export async function notifyPaymentReconciledWhatsApp(paymentId: string) {
 // no està definit. Mai llancen.
 // =========================================================================
 
-type PlayerLite = { id: string; last_name: string | null };
+type PlayerLite = { id: string; first_name: string | null; last_name: string | null };
 
 function lastNamesPairFromPlayers(
   players: PlayerLite[] | null | undefined,
@@ -392,7 +394,7 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
     const playerIds = pairs.flatMap((p) => [p.player_a_id, p.player_b_id]);
     const { data: players } = await supabase
       .from('players')
-      .select('id, last_name')
+      .select('id, first_name, last_name')
       .in('id', playerIds);
 
     const { data: sets } = await supabase
@@ -464,7 +466,7 @@ export async function notifyRescheduleAcceptedToGroup(proposalId: string): Promi
     const playerIds = pairs.flatMap((p) => [p.player_a_id, p.player_b_id]);
     const { data: players } = await supabase
       .from('players')
-      .select('id, last_name')
+      .select('id, first_name, last_name')
       .in('id', playerIds);
 
     const pairLabelOf = (pairId: string) => {
@@ -573,7 +575,7 @@ export async function sendDailyGroupSummary(): Promise<void> {
     );
     const { data: players } = await supabase
       .from('players')
-      .select('id, last_name')
+      .select('id, first_name, last_name')
       .in('id', playerIds);
 
     const categoryIds = Array.from(new Set(matches.map((m) => m.category_id)));
