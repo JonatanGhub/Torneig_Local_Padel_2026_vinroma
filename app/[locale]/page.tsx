@@ -17,6 +17,7 @@ import { formatCents, getTournamentFees, type PublicFee } from '@/lib/pricing';
 import { CourtCarousel } from '@/components/brand/court-carousel';
 import { LogoLockup } from '@/components/brand/logo-mark';
 import { InterestSubscribe } from '@/components/public/interest-subscribe';
+import { MobileNav } from '@/components/public/mobile-nav';
 import { RegisteredPairs } from '@/components/public/registered-pairs';
 import { TodayMatches } from '@/components/public/today-matches';
 import { LocaleSwitcher } from '@/components/locale-switcher';
@@ -121,7 +122,7 @@ export default async function LandingPage({ params }: Props) {
       <div className="hero-gradient pointer-events-none absolute inset-0 -z-10" />
 
       <div className="sticky top-4 z-40 mx-auto flex max-w-6xl items-center justify-between px-4">
-        <div className="liquid-glass-dark flex w-full items-center justify-between rounded-full px-4 py-2.5 sm:px-5">
+        <div className="liquid-glass-dark relative flex w-full items-center justify-between rounded-full px-4 py-2.5 sm:px-5">
           <LogoLockup />
           <nav className="hidden items-center gap-1 text-sm md:flex">
             <NavLink href={`/${locale}/grups`}>{t('navigation.groups')}</NavLink>
@@ -138,6 +139,16 @@ export default async function LandingPage({ params }: Props) {
               <ArrowRight className="size-3.5" />
             </Link>
           </nav>
+          <MobileNav
+            locale={locale}
+            loginLabel={t('navigation.login')}
+            links={[
+              { href: `/${locale}/grups`, label: t('navigation.groups') },
+              { href: `/${locale}/quadre`, label: t('navigation.knockout') },
+              { href: `/${locale}/calendari`, label: t('navigation.calendar') },
+              { href: `/${locale}/reglament`, label: t('navigation.rules') },
+            ]}
+          />
         </div>
       </div>
 
