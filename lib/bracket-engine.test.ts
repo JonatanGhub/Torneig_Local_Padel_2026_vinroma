@@ -113,6 +113,21 @@ describe('bracket-engine · 2a (2 grups de 5 + 1 de 4)', () => {
     expect(sameGroupInRound(bracket.main)).toBe(false);
   });
 
+  it('els caps de sèrie 1 i 2 cauen a meitats oposades del quadre', () => {
+    // Amb 4 quarts i aparellament consecutiu (M1-M2 → SF1, M3-M4 → SF2),
+    // els dos millors primers de grup no s'han de creuar abans de la final.
+    // Posicions 1-2 = meitat alta, 3-4 = meitat baixa.
+    const half = (pos: number) => (pos <= 2 ? 'alta' : 'baixa');
+    const seedHalf = new Map<string, string>();
+    for (const m of bracket.main) {
+      for (const s of [m.a, m.b]) {
+        if (s.kind === 'pair') seedHalf.set(s.pair_id, half(m.position));
+      }
+    }
+    // A1 i B1 són els dos primers de grup (millors caps de sèrie).
+    expect(seedHalf.get('A1')).not.toBe(seedHalf.get('B1'));
+  });
+
   it('consolació = 3C, 4C, 4A, 4B; els 5ns queden fora', () => {
     const inCons = new Set(bracket.consolation.flatMap((m) => [pairId(m.a), pairId(m.b)]));
     expect(inCons).toEqual(new Set(['C3', 'C4', 'A4', 'B4']));
