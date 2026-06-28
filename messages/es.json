@@ -742,6 +742,8 @@
     "reschedule_status_cancelled": "Cancelada",
     "reschedule_error_invalid_input": "Datos inválidos.",
     "reschedule_error_new_date_must_be_future": "La nueva fecha debe ser futura.",
+    "reschedule_error_court_double_booked": "Esa pista ya tiene un partido a esa hora. Elige otro hueco.",
+    "reschedule_error_pair_double_booked": "Alguna de las parejas ya juega otro partido a esa hora. Elige otro hueco.",
     "reschedule_error_unauthenticated": "Debes volver a iniciar sesión.",
     "reschedule_error_not_captain_of_this_match": "No eres el capitán de este partido.",
     "reschedule_error_not_rival_captain": "Solo el capitán rival puede responder.",

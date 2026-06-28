@@ -742,6 +742,8 @@
     "reschedule_status_cancelled": "Cancel·lada",
     "reschedule_error_invalid_input": "Dades invàlides.",
     "reschedule_error_new_date_must_be_future": "La nova data ha de ser futura.",
+    "reschedule_error_court_double_booked": "Aquesta pista ja té un partit a aquella hora. Tria un altre hueco.",
+    "reschedule_error_pair_double_booked": "Alguna de les parelles ja juga un altre partit a aquella hora. Tria un altre hueco.",
     "reschedule_error_unauthenticated": "Has de tornar a iniciar sessió.",
     "reschedule_error_not_captain_of_this_match": "No ets el capità d'aquest partit.",
     "reschedule_error_not_rival_captain": "Només el capità rival pot respondre.",
