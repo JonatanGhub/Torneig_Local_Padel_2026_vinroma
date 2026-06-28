@@ -30,20 +30,26 @@ const SLIDES = [
   { src: '/images/courts/3.png', alt: 'Pistes de pàdel al capvespre — Les Coves de Vinromà' },
 ];
 
-const KEY_DATE_FIELDS: Array<{
+type KeyDateLabel =
+  | 'date_opens'
+  | 'date_draw'
+  | 'date_first_match'
+  | 'date_groups_end'
+  | 'date_finals_day'
+  | 'date_final';
+
+const KEY_DATE_STEPS: Array<{
   icon: typeof Calendar;
-  labelKey: 'date_opens' | 'date_close' | 'date_draw' | 'date_first_match' | 'date_final';
-  field:
-    | 'registration_opens_at'
-    | 'registration_closes_at'
-    | 'draw_at'
-    | 'first_match_at'
-    | 'final_at';
+  labelKey: KeyDateLabel;
+  // Cada pas agafa la data d'un camp del torneig (BD) o una data fixa (ISO).
+  field?: 'registration_opens_at' | 'draw_at' | 'first_match_at' | 'final_at';
+  fixedDate?: string;
 }> = [
   { icon: Calendar, labelKey: 'date_opens', field: 'registration_opens_at' },
-  { icon: CalendarClock, labelKey: 'date_close', field: 'registration_closes_at' },
   { icon: Sparkles, labelKey: 'date_draw', field: 'draw_at' },
   { icon: CalendarCheck, labelKey: 'date_first_match', field: 'first_match_at' },
+  { icon: CalendarClock, labelKey: 'date_groups_end', fixedDate: '2026-07-30T12:00:00+02:00' },
+  { icon: Trophy, labelKey: 'date_finals_day', fixedDate: '2026-08-06T12:00:00+02:00' },
   { icon: Trophy, labelKey: 'date_final', field: 'final_at' },
 ];
 
@@ -81,10 +87,13 @@ export default async function LandingPage({ params }: Props) {
   const afterClose = closesAt !== null && now > closesAt;
   const registrationOpen = isPublished && !beforeOpen && !afterClose;
 
-  const keyDates = KEY_DATE_FIELDS.map((step) => ({
-    ...step,
-    formatted: tournament ? shortDateFormatter.format(new Date(tournament[step.field])) : null,
-  }));
+  const keyDates = KEY_DATE_STEPS.map((step) => {
+    const iso = step.field ? tournament?.[step.field] : step.fixedDate;
+    return {
+      ...step,
+      formatted: iso ? shortDateFormatter.format(new Date(iso)) : null,
+    };
+  });
 
   const heroCaption = tournament
     ? afterClose
@@ -233,7 +242,7 @@ export default async function LandingPage({ params }: Props) {
           </Link>
         </div>
 
-        <ol className="grid grid-cols-2 gap-4 md:grid-cols-5">
+        <ol className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           {keyDates.map((step) => {
             const Icon = step.icon;
             return (
