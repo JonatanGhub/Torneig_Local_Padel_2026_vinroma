@@ -133,7 +133,10 @@ export type ProposeAutoScheduleResult =
   | { ok: false; error: 'dates_not_set' | 'no_match_days' | 'nothing_to_schedule' | string };
 
 const TIMES = ['20:30', '22:00'] as const;
-const COURTS = ['Pista 2', 'Pista 3'] as const;
+// Fase de grups: només Pista 2 i Pista 3.
+const GROUP_COURTS = ['Pista 2', 'Pista 3'] as const;
+// Fase eliminatòria (última setmana): també s'obre la Pista 1 → 3 pistes.
+const KO_COURTS = ['Pista 1', 'Pista 2', 'Pista 3'] as const;
 // Offset d'estiu a Espanya (CEST). El torneig es juga al juny/juliol/agost.
 const SUMMER_OFFSET = '+02:00';
 // Última nit per a partits de fase de grups. L'última setmana del torneig
@@ -216,25 +219,41 @@ export async function proposeAutoSchedule(): Promise<ProposeAutoScheduleResult> 
     return { ok: false, error: 'dates_not_set' };
   }
 
-  // Limitem la finestra de fase de grups al 30 de juliol (decisió organització
-  // 2026): l'última setmana del torneig queda reservada per a l'eliminatòria.
-  const groupEndISO = `${GROUP_PHASE_LAST_DAY}T23:59:59${SUMMER_OFFSET}`;
-  const days = matchDaysMonToThu(tournament.first_match_at, groupEndISO);
+  // Finestra completa del torneig (Dl–Dj). Els grups es limiten al 30 de
+  // juliol per regla; l'eliminatòria pot anar fins al final (última setmana).
+  const days = matchDaysMonToThu(tournament.first_match_at, tournament.final_at);
   if (days.length === 0) return { ok: false, error: 'no_match_days' };
 
+  // Tots els partits sense data: grups (phase 'group') i eliminatòria
+  // (phase 'ko_*' / 'cons_*').
   const { data: matches } = await supabase
     .from('matches')
-    .select('id, pair_a_id, pair_b_id, category_id, group_label')
+    .select('id, pair_a_id, pair_b_id, category_id, group_label, phase')
     .eq('tournament_id', tournament.id)
-    .eq('phase', 'group')
     .eq('status', 'scheduled')
     .is('scheduled_at', null);
   if (!matches || matches.length === 0) {
     return { ok: false, error: 'nothing_to_schedule' };
   }
+  const groupMatches = matches.filter((m) => m.phase === 'group');
+  const koMatches = matches.filter((m) => /^(ko|cons)_/.test(m.phase));
 
-  // Parelles amb algun jugador que NO juga la setmana 1. Els seus partits
-  // només es podran proposar a partir de la setmana 2 (>= 6 jul).
+  // Parelles del torneig: per a la restricció de setmana 1 i per saber els
+  // jugadors de cada parella. Així cap JUGADOR juga dos partits el mateix dia,
+  // encara que estigui inscrit en dues categories.
+  const { data: allPairs } = await supabase
+    .from('pairs')
+    .select('id, player_a_id, player_b_id')
+    .eq('tournament_id', tournament.id);
+  const pairPlayersMap = new Map<string, string[]>(
+    (allPairs ?? []).map((p) => [p.id, [p.player_a_id, p.player_b_id]]),
+  );
+  const matchPlayers = (m: { pair_a_id: string; pair_b_id: string }) => [
+    ...(pairPlayersMap.get(m.pair_a_id) ?? []),
+    ...(pairPlayersMap.get(m.pair_b_id) ?? []),
+  ];
+
+  // Jugadors que NO juguen la setmana 1 → parelles restringides.
   const restrictedPairIds = new Set<string>();
   if (PLAYERS_NOT_IN_WEEK1.length > 0) {
     const { data: allPlayers } = await supabase.from('players').select('id, first_name, last_name');
@@ -245,22 +264,14 @@ export async function proposeAutoSchedule(): Promise<ProposeAutoScheduleResult> 
         )
         .map((p) => p.id),
     );
-    if (restrictedPlayerIds.size > 0) {
-      const { data: allPairs } = await supabase
-        .from('pairs')
-        .select('id, player_a_id, player_b_id')
-        .eq('tournament_id', tournament.id);
-      for (const p of allPairs ?? []) {
-        if (restrictedPlayerIds.has(p.player_a_id) || restrictedPlayerIds.has(p.player_b_id)) {
-          restrictedPairIds.add(p.id);
-        }
+    for (const p of allPairs ?? []) {
+      if (restrictedPlayerIds.has(p.player_a_id) || restrictedPlayerIds.has(p.player_b_id)) {
+        restrictedPairIds.add(p.id);
       }
     }
   }
 
-  // Partits ja programats (qualsevol fase): ens diuen quins slots (data+hora+
-  // pista) estan ocupats i quines parelles ja juguen un dia concret, perquè la
-  // proposta no xoqui amb res existent.
+  // Partits ja programats: slots ocupats + jugadors que ja juguen cada dia.
   const { data: booked } = await supabase
     .from('matches')
     .select('pair_a_id, pair_b_id, scheduled_at, court_label')
@@ -268,73 +279,91 @@ export async function proposeAutoSchedule(): Promise<ProposeAutoScheduleResult> 
     .not('scheduled_at', 'is', null);
 
   const occupied = new Set<string>(); // `${instantUTC}|${court}`
-  const playedByDay = new Map<string, Set<string>>();
+  const playedByDay = new Map<string, Set<string>>(); // dia → ids de jugadors
   for (const b of booked ?? []) {
     if (!b.scheduled_at) continue;
     const instant = new Date(b.scheduled_at).toISOString();
     if (b.court_label) occupied.add(`${instant}|${b.court_label}`);
     const dayKey = madridDateKey(b.scheduled_at);
     const set = playedByDay.get(dayKey) ?? new Set<string>();
-    set.add(b.pair_a_id);
-    set.add(b.pair_b_id);
+    for (const pid of matchPlayers(b)) set.add(pid);
     playedByDay.set(dayKey, set);
   }
 
+  // Slots de totes les pistes (P1/P2/P3). Els grups només podran fer servir
+  // P2/P3 i fins al 30 jul; això es controla a l'assignació.
   type Slot = { day: string; iso: string; court: string };
   const slots: Slot[] = [];
   for (const day of days) {
     for (const time of TIMES) {
-      for (const court of COURTS) {
+      for (const court of KO_COURTS) {
         slots.push({ day, iso: `${day}T${time}:00${SUMMER_OFFSET}`, court });
       }
     }
   }
-  // Barreja l'ordre dels slots per evitar omplir només els primers dies. Així
-  // els partits queden repartits al llarg de tot el mes.
   const shuffledSlots = shuffle(slots);
 
-  // Pool balancejat per (categoria, grup) per evitar que totes les partides
-  // d'una mateixa categoria es concentrin als mateixos dies.
-  const pool = balancedShuffleByBucket(matches, (m) => `${m.category_id}|${m.group_label ?? ''}`);
+  const groupPool = balancedShuffleByBucket(
+    groupMatches,
+    (m) => `${m.category_id}|${m.group_label ?? ''}`,
+  );
+  const koPool = balancedShuffleByBucket(koMatches, (m) => `${m.category_id}`);
   const proposals: ProposedSlot[] = [];
+  // No proposem slots en el passat (rellevant quan es programa l'eliminatòria
+  // a mitja competició, amb dies ja jugats).
+  const nowMs = Date.now();
+
+  const place = (m: (typeof matches)[number], slot: Slot, played: Set<string>) => {
+    const instant = new Date(slot.iso).toISOString();
+    occupied.add(`${instant}|${slot.court}`);
+    const [, time] = slot.iso.split('T');
+    proposals.push({
+      matchId: m.id,
+      scheduledAtInput: `${slot.day}T${(time ?? '').slice(0, 5)}`,
+      courtLabel: slot.court,
+    });
+    for (const pid of matchPlayers(m)) played.add(pid);
+    playedByDay.set(slot.day, played);
+  };
 
   for (const slot of shuffledSlots) {
-    if (pool.length === 0) break;
-    // Salta slots ja ocupats per partits programats.
+    if (groupPool.length === 0 && koPool.length === 0) break;
+    if (new Date(slot.iso).getTime() <= nowMs) continue; // mai en el passat
     const instant = new Date(slot.iso).toISOString();
     if (occupied.has(`${instant}|${slot.court}`)) continue;
 
     const played = playedByDay.get(slot.day) ?? new Set<string>();
-    const isWeek1 = slot.day <= WEEK1_LAST_DAY;
-    const idx = pool.findIndex((m) => {
-      if (played.has(m.pair_a_id) || played.has(m.pair_b_id)) return false;
-      // Jugadors que no juguen la setmana 1: salta els seus partits en dies
-      // de la setmana 1.
-      if (isWeek1 && (restrictedPairIds.has(m.pair_a_id) || restrictedPairIds.has(m.pair_b_id))) {
-        return false;
-      }
-      return true;
-    });
-    if (idx === -1) continue;
-    const [m] = pool.splice(idx, 1);
+    const free = (m: { pair_a_id: string; pair_b_id: string }) =>
+      !matchPlayers(m).some((pid) => played.has(pid));
 
-    // Marca aquest slot com a ocupat dins la mateixa proposta.
-    occupied.add(`${instant}|${slot.court}`);
-    const [, time] = slot.iso.split('T');
-    proposals.push({
-      matchId: m!.id,
-      scheduledAtInput: `${slot.day}T${(time ?? '').slice(0, 5)}`,
-      courtLabel: slot.court,
-    });
-    played.add(m!.pair_a_id);
-    played.add(m!.pair_b_id);
-    playedByDay.set(slot.day, played);
+    const isGroupDay = slot.day <= GROUP_PHASE_LAST_DAY;
+    const isWeek1 = slot.day <= WEEK1_LAST_DAY;
+    const isGroupCourt = (GROUP_COURTS as readonly string[]).includes(slot.court);
+
+    // 1) Prioritza els grups als slots elegibles (P2/P3, fins al 30 jul).
+    if (isGroupCourt && isGroupDay) {
+      const idx = groupPool.findIndex(
+        (m) =>
+          free(m) &&
+          !(isWeek1 && (restrictedPairIds.has(m.pair_a_id) || restrictedPairIds.has(m.pair_b_id))),
+      );
+      if (idx !== -1) {
+        place(groupPool.splice(idx, 1)[0]!, slot, played);
+        continue;
+      }
+    }
+
+    // 2) Eliminatòria: qualsevol pista (inclosa la P1), qualsevol dia Dl–Dj.
+    const koIdx = koPool.findIndex((m) => free(m));
+    if (koIdx !== -1) {
+      place(koPool.splice(koIdx, 1)[0]!, slot, played);
+    }
   }
 
   return {
     ok: true,
     proposals,
-    unplaced: pool.length,
+    unplaced: groupPool.length + koPool.length,
     total: matches.length,
   };
 }
