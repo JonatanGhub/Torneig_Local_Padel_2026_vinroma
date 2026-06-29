@@ -66,14 +66,14 @@ export async function RegisteredPairs({ locale, title, emptyLabel, pairsCountLab
     <section className="mx-auto max-w-6xl px-6 pb-24">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <h2 className="font-display text-3xl font-semibold tracking-tight md:text-4xl">{title}</h2>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/75">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-foreground dark:border-white/15 dark:bg-white/5 dark:text-white/75">
           <Users className="size-3.5" />
           {pairsCountLabel(totalPairs)}
         </span>
       </div>
 
       {totalPairs === 0 ? (
-        <p className="text-sm text-white/55">{emptyLabel}</p>
+        <p className="text-sm text-muted-foreground dark:text-white/55">{emptyLabel}</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {(categories ?? []).map((c) => {
@@ -85,18 +85,18 @@ export async function RegisteredPairs({ locale, title, emptyLabel, pairsCountLab
                 className="glass-card hover:border-crimson-400/40 flex flex-col gap-3 rounded-2xl p-5 transition-colors"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-display text-lg font-semibold text-white">{catName}</h3>
+                  <h3 className="font-display text-lg font-semibold text-foreground dark:text-white">{catName}</h3>
                   <span className="bg-crimson-500/15 text-crimson-300 rounded-full px-2.5 py-0.5 text-xs font-semibold">
                     {pairsCountLabel(list.length)}
                   </span>
                 </div>
                 {list.length === 0 ? (
-                  <p className="text-xs text-white/45">{emptyLabel}</p>
+                  <p className="text-xs text-muted-foreground dark:text-white/45">{emptyLabel}</p>
                 ) : (
-                  <ol className="space-y-1.5 text-sm text-white/80">
+                  <ol className="space-y-1.5 text-sm text-foreground/80 dark:text-white/80">
                     {list.map((pair, idx) => (
                       <li key={pair.id} className="flex gap-2">
-                        <span className="w-5 shrink-0 text-right font-mono text-xs text-white/40">
+                        <span className="w-5 shrink-0 text-right font-mono text-xs text-muted-foreground dark:text-white/40">
                           {idx + 1}.
                         </span>
                         <span className="flex-1">{pair.label}</span>
