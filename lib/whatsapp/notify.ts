@@ -762,7 +762,91 @@ export async function notifyInscriptionReceivedWhatsApp(params: {
   }
 }
 
-// 10) Canvi de tram de preu → avís al grup quan falten <24h.
+// 10) Recordatori de validació → DM a ambdós capitans quan un partit ja hauria
+//     d'estar jugat (>24h del scheduled_at) i el resultat no s'ha validat.
+//     Cridat des del cron diari. Marca reminder_sent_at per evitar repeticions.
+//     Finestra de 7 dies per no rescatar partits molt antics si el WA s'activa
+//     tard o el cron ha fallat diverses vegades.
+export async function sendValidationReminders(): Promise<{ sent: number; skipped: number }> {
+  let sent = 0;
+  let skipped = 0;
+  try {
+    const supabase = createServiceClient();
+    const now = new Date();
+    const cutoff24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const cutoff7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: matches } = await supabase
+      .from('matches')
+      .select('id, pair_a_id, pair_b_id, scheduled_at')
+      .in('status', ['scheduled', 'pending_validation'])
+      .not('scheduled_at', 'is', null)
+      .lt('scheduled_at', cutoff24h)
+      .gte('scheduled_at', cutoff7d)
+      .is('reminder_sent_at', null);
+
+    if (!matches || matches.length === 0) return { sent: 0, skipped: 0 };
+
+    for (const match of matches) {
+      const { data: pairs } = await supabase
+        .from('pairs')
+        .select('id, captain_id, player_a_id, player_b_id')
+        .in('id', [match.pair_a_id, match.pair_b_id]);
+      if (!pairs || pairs.length < 2) {
+        skipped++;
+        continue;
+      }
+
+      const allPlayerIds = pairs.flatMap((p) => [p.captain_id, p.player_a_id, p.player_b_id]);
+      const { data: players } = await supabase
+        .from('players')
+        .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
+        .in('id', allPlayerIds);
+
+      const pairLabelOf = (pairId: string) => {
+        const pair = pairs.find((p) => p.id === pairId);
+        if (!pair) return '—';
+        return lastNamesPair(
+          players?.find((p) => p.id === pair.player_a_id),
+          players?.find((p) => p.id === pair.player_b_id),
+        );
+      };
+
+      const labelA = pairLabelOf(match.pair_a_id);
+      const labelB = pairLabelOf(match.pair_b_id);
+      const dateText = formatDateCA(match.scheduled_at);
+
+      let atLeastOneSent = false;
+      for (const pair of pairs) {
+        const captain = players?.find((p) => p.id === pair.captain_id) as Captain | undefined;
+        if (!canWhatsApp(captain)) continue;
+        const text =
+          `⏰ *Recordatori: resultat pendent*\n` +
+          `${labelA} vs ${labelB}\n` +
+          `Jugat: ${dateText}\n\n` +
+          `El resultat d'aquest partit encara no s'ha registrat i validat per ambdues parts. Fes-ho des de l'app:\n` +
+          `${SITE_URL}/ca/captain/matches/${match.id}`;
+        await sendWhatsApp({ to: captain.phone, text });
+        atLeastOneSent = true;
+      }
+
+      // Marca el recordatori enviat sempre (fins i tot si cap capità tenia WA)
+      // per evitar bucles infinits en partits on ningú pot rebre notificació.
+      await supabase
+        .from('matches')
+        .update({ reminder_sent_at: now.toISOString() })
+        .eq('id', match.id);
+
+      if (atLeastOneSent) sent++;
+      else skipped++;
+    }
+  } catch (err) {
+    console.warn('[whatsapp] sendValidationReminders failed', err);
+  }
+  return { sent, skipped };
+}
+
+// 11) Canvi de tram de preu → avís al grup quan falten <24h.
 // El cron diari (09:00 Madrid) crida aquesta funció: si algun tram de tarifa
 // comença dins de les pròximes 24 hores, avisa el grup que és l'últim dia al
 // preu actual. Com que el cron corre cada 24h, el missatge s'envia exactament
