@@ -351,6 +351,9 @@ export async function respondToReschedule(formData: FormData) {
 
   // En acceptar, revalidem que el canvi no crei un conflicte (pot haver canviat
   // des que es va proposar). El trigger de la BD és la garantia final.
+  // Llegim l'hora antiga del partit ABANS que el RPC la sobreescrigui, per saber
+  // si avui s'ha d'actualitzar el resum diari del grup.
+  let oldScheduledAt: string | null = null;
   if (accept === 'yes') {
     const { data: proposal } = await supabase
       .from('match_reschedule_proposals')
@@ -358,6 +361,13 @@ export async function respondToReschedule(formData: FormData) {
       .eq('id', proposalId)
       .maybeSingle();
     if (proposal && proposal.status === 'pending') {
+      const { data: matchNow } = await supabase
+        .from('matches')
+        .select('scheduled_at')
+        .eq('id', proposal.match_id)
+        .maybeSingle();
+      oldScheduledAt = matchNow?.scheduled_at ?? null;
+
       const whenISO = new Date(proposal.new_scheduled_at).toISOString();
       const conflict = await checkRescheduleConflict(
         proposal.match_id,
@@ -379,7 +389,7 @@ export async function respondToReschedule(formData: FormData) {
   // Si la proposta s'accepta, avisem el grup de gestió (canvi confirmat).
   // Errors de WhatsApp no han de trencar la mutació principal.
   if (data === 'accepted') {
-    await notifyRescheduleAcceptedToGroup(proposalId);
+    await notifyRescheduleAcceptedToGroup(proposalId, oldScheduledAt);
   }
 
   revalidatePath('/[locale]/captain', 'page');
