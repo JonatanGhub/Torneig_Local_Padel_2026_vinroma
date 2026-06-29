@@ -49,15 +49,15 @@ const NO_COURT_LABELS: Record<'ca' | 'es', string> = { ca: 'Sense pista', es: 'S
 function statusPillClasses(status: MatchCardStatus): string {
   switch (status) {
     case 'pending_validation':
-      return 'border-blue-400/40 bg-blue-400/10 text-blue-300';
+      return 'border-blue-400/40 bg-blue-400/10 text-blue-600 dark:text-blue-300';
     case 'disputed':
-      return 'border-amber-400/40 bg-amber-400/10 text-amber-300';
+      return 'border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-300';
     case 'validated':
-      return 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300';
+      return 'border-emerald-400/40 bg-emerald-400/10 text-emerald-600 dark:text-emerald-300';
     case 'walkover':
-      return 'border-white/15 bg-white/5 text-white/65';
+      return 'border-border bg-muted text-muted-foreground dark:border-white/15 dark:bg-white/5 dark:text-white/65';
     default:
-      return 'border-white/15 bg-white/5 text-white/65';
+      return 'border-border bg-muted text-muted-foreground dark:border-white/15 dark:bg-white/5 dark:text-white/65';
   }
 }
 
@@ -97,21 +97,23 @@ export function MatchCard({
   return (
     <article
       className={cn(
-        'group rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-md transition-colors md:p-5',
-        'dark:bg-ink-900/40',
+        'group rounded-2xl border p-4 backdrop-blur-md transition-colors md:p-5',
+        'border-border bg-card dark:bg-ink-900/40 dark:border-white/10',
         'hover:border-crimson-400/40',
       )}
     >
       <header className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="bg-crimson-500/15 text-crimson-300 rounded px-1.5 py-0.5 text-[10px] tracking-wide uppercase">
+        <span className="bg-crimson-500/15 text-crimson-600 dark:text-crimson-300 rounded px-1.5 py-0.5 text-[10px] tracking-wide uppercase">
           {category}
         </span>
         {groupLabel ? (
-          <span className="text-[11px] text-white/55">
+          <span className="text-muted-foreground text-[11px] dark:text-white/55">
             {locale === 'ca' ? 'Grup' : 'Grupo'} {groupLabel}
           </span>
         ) : null}
-        {phaseLabel ? <span className="text-[11px] text-white/55">{phaseLabel}</span> : null}
+        {phaseLabel ? (
+          <span className="text-muted-foreground text-[11px] dark:text-white/55">{phaseLabel}</span>
+        ) : null}
         <span
           className={cn(
             'ml-auto inline-flex rounded-full border px-2 py-0.5 text-[10px] uppercase',
@@ -138,10 +140,12 @@ export function MatchCard({
       </div>
 
       {scoreText ? (
-        <p className="mt-3 font-mono text-sm tracking-wide text-white/80">{scoreText}</p>
+        <p className="text-foreground/80 mt-3 font-mono text-sm tracking-wide dark:text-white/80">
+          {scoreText}
+        </p>
       ) : null}
 
-      <footer className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/55">
+      <footer className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] dark:text-white/55">
         <span className="inline-flex items-center gap-1">
           <Clock className="size-3" />
           {scheduledAt ? formatScheduled(scheduledAt, locale) : noDate}
@@ -174,13 +178,13 @@ function PairLine({
       <span
         className={cn(
           'min-w-0 truncate text-base font-semibold md:text-lg',
-          isMine ? 'text-crimson-300' : 'text-white',
+          isMine ? 'text-crimson-500 dark:text-crimson-300' : 'text-foreground dark:text-white',
         )}
       >
         {label}
       </span>
       {isMine ? (
-        <span className="bg-crimson-500/20 text-crimson-200 ml-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+        <span className="bg-crimson-500/20 text-crimson-700 dark:text-crimson-200 ml-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
           {tuLabel}
         </span>
       ) : null}

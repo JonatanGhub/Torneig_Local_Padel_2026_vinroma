@@ -143,9 +143,12 @@ export async function BracketPreviewSection({ locale }: Props) {
   if (cards.length === 0) return null;
 
   const renderMatch = (m: BracketMatch) => (
-    <li key={`${m.phase}-${m.position}`} className="flex items-center gap-2 text-sm text-white/80">
+    <li
+      key={`${m.phase}-${m.position}`}
+      className="flex items-center gap-2 text-sm text-foreground/80 dark:text-white/80"
+    >
       <span className="flex-1 truncate text-right">{seedText(m.a)}</span>
-      <span className="text-white/35 text-xs">vs</span>
+      <span className="text-xs text-muted-foreground dark:text-white/35">vs</span>
       <span className="flex-1 truncate">{seedText(m.b)}</span>
     </li>
   );
@@ -160,7 +163,9 @@ export async function BracketPreviewSection({ locale }: Props) {
           <h2 className="font-display mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
             {t('landing.bracket_title')}
           </h2>
-          <p className="mt-1 text-sm text-white/55">{t('landing.bracket_subtitle')}</p>
+          <p className="mt-1 text-sm text-muted-foreground dark:text-white/55">
+            {t('landing.bracket_subtitle')}
+          </p>
         </div>
       </div>
 
@@ -168,15 +173,15 @@ export async function BracketPreviewSection({ locale }: Props) {
         {cards.map((card) => (
           <div key={card.id} className="glass-card flex flex-col gap-4 rounded-2xl p-5">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="font-display flex items-center gap-2 text-lg font-semibold text-white">
-                <Trophy className="text-crimson-300 size-4" />
+              <h3 className="font-display flex items-center gap-2 text-lg font-semibold text-foreground dark:text-white">
+                <Trophy className="text-crimson-500 dark:text-crimson-300 size-4" />
                 {card.name}
               </h3>
               <span
                 className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase ${
                   card.bracket.groupPhaseFinished
-                    ? 'bg-emerald-500/15 text-emerald-300'
-                    : 'bg-white/10 text-white/60'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-muted text-muted-foreground dark:bg-white/10 dark:text-white/60'
                 }`}
               >
                 {card.bracket.groupPhaseFinished
@@ -186,7 +191,7 @@ export async function BracketPreviewSection({ locale }: Props) {
             </div>
 
             <div>
-              <p className="mb-1.5 text-xs tracking-wide text-white/45 uppercase">
+              <p className="mb-1.5 text-xs tracking-wide text-muted-foreground dark:text-white/45 uppercase">
                 {t('landing.bracket_main')} ·{' '}
                 {roundName(card.bracket.main[0]?.round_size ?? 0, t)}
               </p>
@@ -195,7 +200,7 @@ export async function BracketPreviewSection({ locale }: Props) {
 
             {card.bracket.consolation.length > 0 && (
               <div>
-                <p className="mb-1.5 text-xs tracking-wide text-white/45 uppercase">
+                <p className="mb-1.5 text-xs tracking-wide text-muted-foreground dark:text-white/45 uppercase">
                   {t('landing.bracket_consolation')} ·{' '}
                   {roundName(card.bracket.consolation[0]?.round_size ?? 0, t)}
                 </p>

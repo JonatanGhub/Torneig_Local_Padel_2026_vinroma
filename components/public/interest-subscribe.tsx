@@ -33,8 +33,8 @@ export function InterestSubscribe({ locale, source }: { locale: Locale; source?:
 
   if (status === 'success' || status === 'already') {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-sm text-white">
-        <Check className="text-crimson-300 size-4" />
+      <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted px-5 py-4 text-sm text-foreground dark:border-white/15 dark:bg-white/5 dark:text-white">
+        <Check className="text-crimson-500 dark:text-crimson-300 size-4" />
         <p>{status === 'already' ? t('already_subscribed') : t('thanks')}</p>
       </div>
     );
@@ -48,7 +48,7 @@ export function InterestSubscribe({ locale, source }: { locale: Locale; source?:
           name="email"
           required
           placeholder={t('email_placeholder')}
-          className="focus:border-crimson-400 focus:ring-crimson-400/40 flex-1 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm text-white placeholder-white/45 focus:ring-2 focus:outline-none"
+          className="focus:border-crimson-400 focus:ring-crimson-400/40 flex-1 rounded-full border border-border bg-background px-5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:outline-none dark:border-white/15 dark:bg-white/5 dark:text-white dark:placeholder:text-white/45"
         />
         <button
           type="submit"
@@ -59,7 +59,7 @@ export function InterestSubscribe({ locale, source }: { locale: Locale; source?:
           {!isPending && <ArrowRight className="size-4" />}
         </button>
       </div>
-      <p className="text-xs text-white/55">{t('disclaimer')}</p>
+      <p className="text-xs text-muted-foreground dark:text-white/55">{t('disclaimer')}</p>
       {errorMessage && <p className="text-crimson-300 text-xs">{errorMessage}</p>}
     </form>
   );
