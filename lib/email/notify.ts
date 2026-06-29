@@ -135,7 +135,7 @@ export async function notifyRescheduleProposed(proposalId: string) {
         newDateText: formatDateCA(proposal.new_scheduled_at),
         newCourtLabel: proposal.new_court_label,
         message: proposal.message,
-        actionUrl: `${SITE_URL}/ca/captain/matches/${proposal.match_id}`,
+        actionUrl: `${SITE_URL}/ca/captain/matches/${proposal.match_id}/reschedule`,
       }),
     });
   } catch (err) {
