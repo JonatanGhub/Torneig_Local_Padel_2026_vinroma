@@ -462,7 +462,12 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
 }
 
 // 7) Canvi de partit acceptat → missatge al grup amb la nova data/pista.
-export async function notifyRescheduleAcceptedToGroup(proposalId: string): Promise<void> {
+//    Si el canvi afecta avui (l'hora antiga o la nova és avui), re-envia el
+//    resum diari actualitzat perquè el "Avui es juga" del matí no quedi obsolet.
+export async function notifyRescheduleAcceptedToGroup(
+  proposalId: string,
+  oldScheduledAt?: string | null,
+): Promise<void> {
   try {
     const supabase = createServiceClient();
     const { data: proposal } = await supabase
@@ -509,6 +514,17 @@ export async function notifyRescheduleAcceptedToGroup(proposalId: string): Promi
       `🗓️ Calendari complet:\n${SITE_URL}/ca/calendari`;
 
     await sendWhatsAppToGroup(text);
+
+    // Si avui és el dia afectat (l'hora vella o la nova), re-enviem el resum
+    // del dia actualitzat perquè el missatge "Avui es juga" del matí no indueixi
+    // a error als jugadors.
+    const todayKey = madridDateKey(new Date().toISOString());
+    const affectsToday =
+      (proposal.new_scheduled_at && madridDateKey(proposal.new_scheduled_at) === todayKey) ||
+      (oldScheduledAt && madridDateKey(oldScheduledAt) === todayKey);
+    if (affectsToday) {
+      await sendDailyGroupSummary({ isUpdate: true });
+    }
   } catch (err) {
     console.warn('[whatsapp] notifyRescheduleAcceptedToGroup failed', err);
   }
@@ -568,7 +584,7 @@ function formatMadridTime(iso: string | null): string {
   }
 }
 
-export async function sendDailyGroupSummary(): Promise<void> {
+export async function sendDailyGroupSummary(opts?: { isUpdate?: boolean }): Promise<void> {
   try {
     const supabase = createServiceClient();
     const { startIso, endIso } = madridDayWindowIso();
@@ -624,8 +640,11 @@ export async function sendDailyGroupSummary(): Promise<void> {
     });
 
     const day = formatMadridDateLong(new Date(startIso));
+    const header = opts?.isUpdate
+      ? `🔄 *Avui es juga — actualitzat (${day})*`
+      : `🎾 *Avui es juga (${day})*`;
     const text =
-      `🎾 *Avui es juga (${day})*\n\n${lines.join('\n')}\n\n` +
+      `${header}\n\n${lines.join('\n')}\n\n` +
       `🗓️ Calendari complet:\n${SITE_URL}/ca/calendari\n` +
       `Bona sort!`;
 
