@@ -10,6 +10,7 @@ import {
   listAllGroups,
   discoverGroupsAction,
   restartInstanceAction,
+  resendMatchNotification,
 } from './actions';
 import type {
   WhatsAppDebugResult,
@@ -35,6 +36,8 @@ export function DebugPanel({ config }: Props) {
   const [discovered, setDiscovered] = useState<DiscoverGroupsResult | null>(null);
   const [restart, setRestart] = useState<RawEvolutionResponse | null>(null);
   const [phone, setPhone] = useState('');
+  const [resendMatchId, setResendMatchId] = useState('');
+  const [resendResult, setResendResult] = useState<{ ok: boolean; error?: string } | null>(null);
   // Candidat fort per a "TORNEIG ESTIU TOTS" (primer JID de findChats). L'admin
   // el pot canviar per provar qualsevol altre JID de la llista descoberta.
   const [manualJid, setManualJid] = useState('120363043943785701@g.us');
@@ -47,6 +50,7 @@ export function DebugPanel({ config }: Props) {
   const [pGroup, sGroup] = useTransition();
   const [pDm, sDm] = useTransition();
   const [pCron, sCron] = useTransition();
+  const [pResend, sResend] = useTransition();
 
   if (!config) return <p className="text-sm text-red-600">No autoritzat.</p>;
 
@@ -193,6 +197,48 @@ export function DebugPanel({ config }: Props) {
         />
         {cronResult && <CronResultView result={cronResult} />}
       </Section>
+
+      <section className="space-y-3 rounded-lg border-2 border-blue-400 bg-blue-50 p-4 dark:bg-blue-950/30">
+        <header>
+          <h2 className="text-lg font-semibold">🔁 Re-enviar notificació de resultat</h2>
+          <p className="text-muted-foreground text-sm">
+            Si Evolution estava caigut quan es va validar un resultat, usa això per tornar a enviar
+            el WA als dos capitans i al grup. Entra l&apos;ID (UUID) del partit.
+          </p>
+        </header>
+        <form
+          action={(fd) =>
+            sResend(async () => {
+              fd.set('matchId', resendMatchId);
+              setResendResult(await resendMatchNotification(resendMatchId));
+            })
+          }
+          className="flex flex-wrap items-center gap-2"
+        >
+          <input
+            type="text"
+            value={resendMatchId}
+            onChange={(e) => setResendMatchId(e.target.value)}
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            className="min-w-[22rem] rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono text-sm"
+          />
+          <PrimaryButton
+            type="submit"
+            pending={pResend}
+            disabled={!resendMatchId.trim()}
+            label="Re-enviar WA"
+          />
+        </form>
+        {resendResult && (
+          <div
+            className={`rounded-md border p-3 text-sm ${resendResult.ok ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200' : 'border-red-300 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-200'}`}
+          >
+            {resendResult.ok
+              ? "✓ Notificacions enviades (comprova els logs de Vercel per confirmar l'entrega)"
+              : `✗ Error: ${resendResult.error}`}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
