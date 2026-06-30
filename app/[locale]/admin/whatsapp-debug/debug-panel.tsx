@@ -44,7 +44,11 @@ export function DebugPanel({ config }: Props) {
   const [recreateRes, setRecreateRes] = useState<RecreateInstanceResult | null>(null);
   const [phone, setPhone] = useState('');
   const [resendMatchId, setResendMatchId] = useState('');
-  const [resendResult, setResendResult] = useState<{ ok: boolean; error?: string } | null>(null);
+  const [resendResult, setResendResult] = useState<{
+    ok: boolean;
+    error?: string;
+    sent?: string;
+  } | null>(null);
   // Candidat fort per a "TORNEIG ESTIU TOTS" (primer JID de findChats). L'admin
   // el pot canviar per provar qualsevol altre JID de la llista descoberta.
   const [manualJid, setManualJid] = useState('120363043943785701@g.us');
@@ -301,7 +305,7 @@ export function DebugPanel({ config }: Props) {
             className={`rounded-md border p-3 text-sm ${resendResult.ok ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200' : 'border-red-300 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-200'}`}
           >
             {resendResult.ok
-              ? "✓ Notificacions enviades (comprova els logs de Vercel per confirmar l'entrega)"
+              ? `✓ Enviat (${resendResult.sent ?? 'notificació'}) — comprova els logs de Vercel per confirmar l'entrega`
               : `✗ Error: ${resendResult.error}`}
           </div>
         )}
