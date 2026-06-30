@@ -12,7 +12,9 @@ import {
   restartInstanceRaw,
   connectInstanceRaw,
   logoutInstanceRaw,
+  recreateInstanceRaw,
   type ConnectInstanceResult,
+  type RecreateInstanceResult,
 } from '@/lib/whatsapp/send';
 import {
   sendDailyGroupSummary,
@@ -204,6 +206,13 @@ export async function connectInstanceAction(): Promise<ConnectInstanceResult | n
 export async function logoutInstanceAction(): Promise<RawEvolutionResponse | null> {
   if (!(await assertAdmin())) return null;
   return logoutInstanceRaw();
+}
+
+// Recrea la instància (delete + create) quan està en estat zombie i ni logout
+// ni connect la desencallen. Retorna el QR per re-vincular.
+export async function recreateInstanceAction(): Promise<RecreateInstanceResult | null> {
+  if (!(await assertAdmin())) return null;
+  return recreateInstanceRaw();
 }
 
 // Re-envia les notificacions de resultat (validated o walkover) per a un

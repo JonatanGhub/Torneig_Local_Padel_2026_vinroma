@@ -12,9 +12,10 @@ import {
   restartInstanceAction,
   connectInstanceAction,
   logoutInstanceAction,
+  recreateInstanceAction,
   resendMatchNotification,
 } from './actions';
-import type { ConnectInstanceResult } from '@/lib/whatsapp/send';
+import type { ConnectInstanceResult, RecreateInstanceResult } from '@/lib/whatsapp/send';
 import type {
   WhatsAppDebugResult,
   WhatsAppConfigSnapshot,
@@ -40,6 +41,7 @@ export function DebugPanel({ config }: Props) {
   const [restart, setRestart] = useState<RawEvolutionResponse | null>(null);
   const [connectRes, setConnectRes] = useState<ConnectInstanceResult | null>(null);
   const [logoutRes, setLogoutRes] = useState<RawEvolutionResponse | null>(null);
+  const [recreateRes, setRecreateRes] = useState<RecreateInstanceResult | null>(null);
   const [phone, setPhone] = useState('');
   const [resendMatchId, setResendMatchId] = useState('');
   const [resendResult, setResendResult] = useState<{ ok: boolean; error?: string } | null>(null);
@@ -51,6 +53,7 @@ export function DebugPanel({ config }: Props) {
   const [pRestart, sRestart] = useTransition();
   const [pConnect, sConnect] = useTransition();
   const [pLogout, sLogout] = useTransition();
+  const [pRecreate, sRecreate] = useTransition();
   const [pInfo, sInfo] = useTransition();
   const [pList, sList] = useTransition();
   const [pDiscover, sDiscover] = useTransition();
@@ -151,6 +154,26 @@ export function DebugPanel({ config }: Props) {
             {pLogout ? 'Carregant…' : 'Logout (tancar sessió)'}
           </button>
           {logoutRes && <RawResponseView resp={logoutRes} />}
+        </div>
+
+        <div className="mt-3 border-t border-red-400 pt-3 dark:border-red-700">
+          <p className="text-muted-foreground mb-2 text-xs">
+            <strong>Última opció (recrear instància):</strong> si «Reconnectar» diu state:open sense
+            QR i «Logout» falla amb Connection Closed, la instància està en estat zombie. Això
+            l&apos;esborra i la torna a crear amb el mateix nom per generar un{' '}
+            <strong>QR completament net</strong>. ⚠️ Caldrà escanejar el QR amb el telèfon del
+            torneig. Si apareix una «nova API key», caldrà actualitzar{' '}
+            <code>EVOLUTION_API_KEY</code> (avisa&apos;m amb el valor).
+          </p>
+          <button
+            type="button"
+            onClick={() => sRecreate(async () => setRecreateRes(await recreateInstanceAction()))}
+            disabled={pRecreate}
+            className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {pRecreate ? 'Carregant…' : 'Recrear instància (delete + create → QR)'}
+          </button>
+          {recreateRes && <RecreateView res={recreateRes} />}
         </div>
       </section>
 
@@ -487,6 +510,70 @@ function ConnectView({ res }: { res: ConnectInstanceResult }) {
       <pre className="overflow-x-auto rounded bg-black/10 p-2 text-xs break-all whitespace-pre-wrap dark:bg-white/10">
         {res.body || '(cos buit)'}
       </pre>
+    </div>
+  );
+}
+
+function RecreateView({ res }: { res: RecreateInstanceResult }) {
+  const tone = res.ok
+    ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+    : 'border-red-300 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-200';
+  const imgSrc = res.qrBase64
+    ? res.qrBase64.startsWith('data:')
+      ? res.qrBase64
+      : `data:image/png;base64,${res.qrBase64}`
+    : null;
+
+  return (
+    <div className={`mt-2 space-y-2 rounded-md border p-3 text-sm ${tone}`}>
+      <div className="font-medium">
+        {res.ok ? '✓ Instància recreada' : '✗ No s’ha pogut recrear'} · delete HTTP{' '}
+        {res.deleteStatus || '—'} · create HTTP {res.createStatus || '—'}
+      </div>
+
+      {res.newApiKey && (
+        <div className="rounded-md border border-amber-400 bg-amber-100 p-3 text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          <p className="text-xs font-semibold tracking-wider uppercase">⚠️ Nova API key generada</p>
+          <p className="font-mono text-sm break-all">{res.newApiKey}</p>
+          <p className="mt-1 text-xs">
+            Cal actualitzar <code>EVOLUTION_API_KEY</code> a Vercel amb aquest valor. Passa&apos;l a
+            l&apos;assistent.
+          </p>
+        </div>
+      )}
+
+      {imgSrc && (
+        <div className="rounded-md border border-current/30 bg-white p-3 text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imgSrc} alt="QR per vincular WhatsApp" className="mx-auto h-56 w-56" />
+          <p className="mt-1 text-xs text-black/70">
+            Escaneja amb WhatsApp → Dispositius vinculats → Vincular un dispositiu.
+          </p>
+        </div>
+      )}
+
+      {res.pairingCode && (
+        <div className="rounded-md border border-current/30 bg-white/60 p-3 dark:bg-black/30">
+          <p className="text-xs tracking-wider uppercase opacity-70">Codi d&apos;emparellament</p>
+          <p className="font-mono text-2xl font-bold tracking-[0.3em]">{res.pairingCode}</p>
+        </div>
+      )}
+
+      {!imgSrc && !res.pairingCode && (
+        <p className="text-xs">
+          Sense QR a la resposta. Si el create ha fallat amb «already in use» o similar, la
+          instància no s&apos;ha pogut esborrar i cal{' '}
+          <strong>reiniciar el contenidor d&apos;Evolution al servidor</strong>. Mira els detalls
+          sota.
+        </p>
+      )}
+
+      <details className="text-xs">
+        <summary className="cursor-pointer opacity-80">Detalls (delete / create)</summary>
+        <pre className="mt-1 overflow-x-auto rounded bg-black/10 p-2 break-all whitespace-pre-wrap dark:bg-white/10">
+          {`DELETE → ${res.deleteBody || '(buit)'}\n\nCREATE → ${res.createBody || '(buit)'}`}
+        </pre>
+      </details>
     </div>
   );
 }

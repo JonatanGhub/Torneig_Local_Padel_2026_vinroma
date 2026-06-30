@@ -619,3 +619,127 @@ export async function logoutInstanceRaw(): Promise<{
     return { ok: false, status: 0, body: String(err) };
   }
 }
+
+// Opció DEFINITIVA quan la instància està en estat zombie (state:open però tot
+// falla amb "Connection Closed", i ni logout ni connect la desencallen):
+// esborra la instància i la torna a crear amb el MATEIX nom, cosa que força un
+// QR completament net. Després cal escanejar-lo amb el telèfon del torneig.
+//
+//   DELETE /instance/delete/{instance}   (força esborrat de l'estat encallat)
+//   POST   /instance/create              (recrea + genera QR nou)
+//
+// ⚠️ Si Evolution fa servir una apikey PER INSTÀNCIA (no la global), la nova
+// instància tindrà una apikey nova (camp `hash`) i caldrà actualitzar
+// EVOLUTION_API_KEY. Per això retornem `newApiKey` perquè es vegi al panell.
+export type RecreateInstanceResult = {
+  ok: boolean;
+  deleteStatus: number;
+  deleteBody: string;
+  createStatus: number;
+  createBody: string;
+  pairingCode: string | null;
+  qrBase64: string | null;
+  qrCode: string | null;
+  newApiKey: string | null;
+};
+
+export async function recreateInstanceRaw(): Promise<RecreateInstanceResult> {
+  const empty: RecreateInstanceResult = {
+    ok: false,
+    deleteStatus: 0,
+    deleteBody: '',
+    createStatus: 0,
+    createBody: '',
+    pairingCode: null,
+    qrBase64: null,
+    qrCode: null,
+    newApiKey: null,
+  };
+  if (!whatsappConfigured()) {
+    return { ...empty, deleteBody: 'evolution_not_configured' };
+  }
+
+  // 1) Esborrar la instància encallada. Continuem encara que falli: si l'estat
+  //    és tan corrupte que el delete peta, el create amb el mateix nom sol
+  //    netejar-ho igualment (o retorna "already in use" i caldrà el restart
+  //    del contenidor).
+  let deleteStatus = 0;
+  let deleteBody = '';
+  try {
+    const delRes = await evolutionFetch(
+      `/instance/delete/${INSTANCE}`,
+      { method: 'DELETE', headers: { apikey: API_KEY! } },
+      30_000,
+    );
+    deleteStatus = delRes.status;
+    deleteBody = (await delRes.text().catch(() => '')).slice(0, 500);
+    console.log('[whatsapp:recreate] delete', { status: deleteStatus, body: deleteBody });
+  } catch (err) {
+    deleteBody = String(err);
+    console.error('[whatsapp:recreate] delete threw', { error: String(err) });
+  }
+
+  // 2) Recrear la instància amb el mateix nom i demanar QR.
+  let createStatus = 0;
+  let createBody = '';
+  let pairingCode: string | null = null;
+  let qrBase64: string | null = null;
+  let qrCode: string | null = null;
+  let newApiKey: string | null = null;
+  try {
+    const createRes = await evolutionFetch(
+      `/instance/create`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
+        body: JSON.stringify({
+          instanceName: INSTANCE,
+          integration: 'WHATSAPP-BAILEYS',
+          qrcode: true,
+        }),
+      },
+      30_000,
+    );
+    createStatus = createRes.status;
+    const rawCreate = await createRes.text().catch(() => '');
+    createBody = rawCreate.slice(0, 2000);
+    try {
+      const parsed = JSON.parse(rawCreate) as Record<string, unknown>;
+      if (typeof parsed.hash === 'string') newApiKey = parsed.hash;
+      else if (parsed.hash && typeof (parsed.hash as Record<string, unknown>).apikey === 'string') {
+        newApiKey = (parsed.hash as Record<string, unknown>).apikey as string;
+      }
+      const qrObj = parsed.qrcode as Record<string, unknown> | undefined;
+      if (qrObj) {
+        if (typeof qrObj.pairingCode === 'string') pairingCode = qrObj.pairingCode;
+        if (typeof qrObj.base64 === 'string') qrBase64 = qrObj.base64;
+        if (typeof qrObj.code === 'string') qrCode = qrObj.code;
+      }
+      if (!qrBase64 && typeof parsed.base64 === 'string') qrBase64 = parsed.base64;
+      if (!qrCode && typeof parsed.code === 'string') qrCode = parsed.code;
+    } catch {
+      // body no JSON
+    }
+    console.log('[whatsapp:recreate] create', {
+      status: createStatus,
+      hasQr: Boolean(qrBase64 || qrCode),
+      hasNewKey: Boolean(newApiKey),
+      body: createBody.slice(0, 200),
+    });
+  } catch (err) {
+    createBody = String(err);
+    console.error('[whatsapp:recreate] create threw', { error: String(err) });
+  }
+
+  return {
+    ok: createStatus >= 200 && createStatus < 300,
+    deleteStatus,
+    deleteBody,
+    createStatus,
+    createBody,
+    pairingCode,
+    qrBase64,
+    qrCode,
+    newApiKey,
+  };
+}
