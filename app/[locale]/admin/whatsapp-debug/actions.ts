@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import {
   sendWhatsApp,
   sendWhatsAppToGroup,
@@ -21,6 +22,8 @@ import {
   notifyFeePhaseChangeToGroup,
   notifyMatchValidatedWhatsApp,
   notifyValidatedToGroup,
+  notifyResultPendingValidationWhatsApp,
+  notifyMatchDisputedWhatsApp,
 } from '@/lib/whatsapp/notify';
 import type {
   CronRunResult,
@@ -220,14 +223,48 @@ export async function recreateInstanceAction(): Promise<RecreateInstanceResult |
 // desconnectat en el moment de la validació.
 export async function resendMatchNotification(
   matchId: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; sent?: string }> {
   if (!(await assertAdmin())) return { ok: false, error: 'forbidden' };
   const trimmed = matchId.trim();
   if (!trimmed || !/^[0-9a-f-]{36}$/.test(trimmed)) return { ok: false, error: 'invalid_uuid' };
   try {
-    await notifyMatchValidatedWhatsApp(trimmed);
-    await notifyValidatedToGroup(trimmed);
-    return { ok: true };
+    // Detecta l'estat del partit i re-envia la notificació adequada.
+    const service = createServiceClient();
+    const { data: match } = await service
+      .from('matches')
+      .select('status')
+      .eq('id', trimmed)
+      .maybeSingle();
+    if (!match) return { ok: false, error: 'match_not_found' };
+
+    if (match.status === 'validated' || match.status === 'walkover') {
+      await notifyMatchValidatedWhatsApp(trimmed);
+      await notifyValidatedToGroup(trimmed);
+      return { ok: true, sent: `validat/walkover` };
+    }
+
+    if (match.status === 'pending_validation') {
+      // Cal saber quin costat va reportar per avisar el RIVAL perquè confirmi.
+      const { data: report } = await service
+        .from('match_reports')
+        .select('reporter_pair_side')
+        .eq('match_id', trimmed)
+        .in('reporter_pair_side', ['a', 'b'])
+        .order('reported_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const side = report?.reporter_pair_side;
+      if (side !== 'a' && side !== 'b') return { ok: false, error: 'no_report_found' };
+      await notifyResultPendingValidationWhatsApp(trimmed, side);
+      return { ok: true, sent: `pendent de validar (avís al rival)` };
+    }
+
+    if (match.status === 'disputed') {
+      await notifyMatchDisputedWhatsApp(trimmed);
+      return { ok: true, sent: `disputa (avís a admin)` };
+    }
+
+    return { ok: false, error: `estat '${match.status}' sense notificació` };
   } catch (err) {
     return { ok: false, error: String(err) };
   }

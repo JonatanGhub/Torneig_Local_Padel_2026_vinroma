@@ -322,6 +322,16 @@ export type IssueReportRow = {
   updated_at: string;
 };
 
+export type WhatsAppHealthRow = {
+  id: boolean;
+  is_healthy: boolean;
+  last_ok_at: string | null;
+  last_failure_at: string | null;
+  last_alert_at: string | null;
+  last_detail: string | null;
+  updated_at: string;
+};
+
 type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
 
 export type Database = {
@@ -347,6 +357,7 @@ export type Database = {
       sponsor_requests: Tbl<SponsorRequestRow>;
       tournament_budget_entries: Tbl<TournamentBudgetEntryRow>;
       issue_reports: Tbl<IssueReportRow>;
+      whatsapp_health: Tbl<WhatsAppHealthRow>;
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };
