@@ -86,15 +86,28 @@ export async function notifyMatchValidatedWhatsApp(matchId: string) {
       .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
       .in('id', allPlayerIds);
 
-    let scoreText = 'Walkover';
+    let sets: { set_number: number; games_a: number; games_b: number }[] = [];
     if (!isWalkover) {
-      const { data: sets } = await supabase
+      const { data: setsData } = await supabase
         .from('sets')
         .select('set_number, games_a, games_b')
         .eq('match_id', matchId)
         .order('set_number', { ascending: true });
-      scoreText = (sets ?? []).map((s) => `${s.games_a}-${s.games_b}`).join(', ') || '—';
+      sets = setsData ?? [];
     }
+
+    // El marcador es desa sempre en l'ordre pair_a-pair_b. Si el missatge és
+    // per a la parella B (que es mostra primera al text), cal INVERTIR cada
+    // set; sinó el text mostra "la teva parella vs rival" amb un marcador que
+    // en realitat és rival-tu, donant la falsa impressió d'haver guanyat.
+    const scoreTextFor = (forPairId: string) => {
+      const flip = forPairId === match.pair_b_id;
+      return (
+        sets
+          .map((s) => (flip ? `${s.games_b}-${s.games_a}` : `${s.games_a}-${s.games_b}`))
+          .join(', ') || '—'
+      );
+    };
 
     const pairLabelOf = (pairId: string) => {
       const pair = pairs.find((p) => p.id === pairId);
@@ -117,7 +130,7 @@ export async function notifyMatchValidatedWhatsApp(matchId: string) {
           `${SITE_URL}/ca/captain`
         : `🎾 *Resultat validat*\n` +
           `${pairLabelOf(pair.id)} vs ${pairLabelOf(rivalPairId)}\n` +
-          `Marcador: ${scoreText}\n` +
+          `Marcador: ${scoreTextFor(pair.id)}\n` +
           `${won ? '✅ Heu guanyat!' : 'Sort la propera!'}\n\n` +
           `${SITE_URL}/ca/captain`;
       await sendWhatsApp({ to: captain.phone, text });
