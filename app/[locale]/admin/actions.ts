@@ -53,10 +53,36 @@ export async function setWalkover(formData: FormData) {
   });
   if (error) return { ok: false, error: error.message } as const;
 
+  // Notificació als capitans i al grup (walkover inclòs)
+  await notifyMatchValidatedWhatsApp(parsed.data.matchId);
+  await notifyValidatedToGroup(parsed.data.matchId);
+
   revalidatePath('/[locale]/admin/disputes', 'page');
   revalidatePath('/[locale]/admin/matches', 'page');
   revalidatePath('/[locale]/captain', 'page');
   revalidatePath('/[locale]/captain/matches/[id]', 'page');
   revalidatePath('/[locale]/grups/[level]', 'page');
+  return { ok: true } as const;
+}
+
+export async function adminResendMatchNotification(formData: FormData) {
+  const matchId = formData.get('matchId');
+  if (typeof matchId !== 'string' || !matchId) {
+    return { ok: false, error: 'invalid_input' } as const;
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if ((user?.app_metadata?.role as string | undefined) !== 'admin') {
+    return { ok: false, error: 'forbidden' } as const;
+  }
+
+  // Re-envia les notificacions de resultat (validat o walkover).
+  // La funció comprova internament l'estat del partit; és segur cridar-la
+  // per a qualsevol matchId sense risc de notificacions falses.
+  await notifyMatchValidatedWhatsApp(matchId);
+  await notifyValidatedToGroup(matchId);
   return { ok: true } as const;
 }

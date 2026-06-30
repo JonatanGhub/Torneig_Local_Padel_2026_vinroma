@@ -11,7 +11,12 @@ import {
   discoverGroups,
   restartInstanceRaw,
 } from '@/lib/whatsapp/send';
-import { sendDailyGroupSummary, notifyFeePhaseChangeToGroup } from '@/lib/whatsapp/notify';
+import {
+  sendDailyGroupSummary,
+  notifyFeePhaseChangeToGroup,
+  notifyMatchValidatedWhatsApp,
+  notifyValidatedToGroup,
+} from '@/lib/whatsapp/notify';
 import type {
   CronRunResult,
   DiscoverGroupsResult,
@@ -181,6 +186,24 @@ export async function discoverGroupsAction(): Promise<DiscoverGroupsResult | nul
 export async function restartInstanceAction(): Promise<RawEvolutionResponse | null> {
   if (!(await assertAdmin())) return null;
   return restartInstanceRaw();
+}
+
+// Re-envia les notificacions de resultat (validated o walkover) per a un
+// matchId concret. Útil per recuperar missatges perduts quan Evolution estava
+// desconnectat en el moment de la validació.
+export async function resendMatchNotification(
+  matchId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(await assertAdmin())) return { ok: false, error: 'forbidden' };
+  const trimmed = matchId.trim();
+  if (!trimmed || !/^[0-9a-f-]{36}$/.test(trimmed)) return { ok: false, error: 'invalid_uuid' };
+  try {
+    await notifyMatchValidatedWhatsApp(trimmed);
+    await notifyValidatedToGroup(trimmed);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
 }
 
 // Llista tots els grups que el bot coneix. Útil per descobrir el JID real

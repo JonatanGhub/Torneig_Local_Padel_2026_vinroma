@@ -57,7 +57,7 @@ function formatDateCA(iso: string | null): string {
   }
 }
 
-// 1) Resultat validat → WhatsApp als dos capitans
+// 1) Resultat validat o walkover → WhatsApp als dos capitans
 export async function notifyMatchValidatedWhatsApp(matchId: string) {
   try {
     const supabase = createServiceClient();
@@ -66,7 +66,13 @@ export async function notifyMatchValidatedWhatsApp(matchId: string) {
       .select('id, pair_a_id, pair_b_id, status, winner_pair_id')
       .eq('id', matchId)
       .maybeSingle();
-    if (!match || match.status !== 'validated') return;
+
+    console.log('[whatsapp:notify] notifyMatchValidatedWhatsApp', {
+      matchId,
+      status: match?.status ?? 'not_found',
+    });
+    if (!match || (match.status !== 'validated' && match.status !== 'walkover')) return;
+    const isWalkover = match.status === 'walkover';
 
     const { data: pairs } = await supabase
       .from('pairs')
@@ -80,12 +86,15 @@ export async function notifyMatchValidatedWhatsApp(matchId: string) {
       .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
       .in('id', allPlayerIds);
 
-    const { data: sets } = await supabase
-      .from('sets')
-      .select('set_number, games_a, games_b')
-      .eq('match_id', matchId)
-      .order('set_number', { ascending: true });
-    const scoreText = (sets ?? []).map((s) => `${s.games_a}-${s.games_b}`).join(', ') || '—';
+    let scoreText = 'Walkover';
+    if (!isWalkover) {
+      const { data: sets } = await supabase
+        .from('sets')
+        .select('set_number, games_a, games_b')
+        .eq('match_id', matchId)
+        .order('set_number', { ascending: true });
+      scoreText = (sets ?? []).map((s) => `${s.games_a}-${s.games_b}`).join(', ') || '—';
+    }
 
     const pairLabelOf = (pairId: string) => {
       const pair = pairs.find((p) => p.id === pairId);
@@ -101,12 +110,16 @@ export async function notifyMatchValidatedWhatsApp(matchId: string) {
       if (!canWhatsApp(captain)) continue;
       const won = match.winner_pair_id === pair.id;
       const rivalPairId = pair.id === match.pair_a_id ? match.pair_b_id : match.pair_a_id;
-      const text =
-        `🎾 *Resultat validat*\n` +
-        `${pairLabelOf(pair.id)} vs ${pairLabelOf(rivalPairId)}\n` +
-        `Marcador: ${scoreText}\n` +
-        `${won ? '✅ Heu guanyat!' : 'Sort la propera!'}\n\n` +
-        `${SITE_URL}/ca/captain`;
+      const text = isWalkover
+        ? `🎾 *Resultat: Walkover*\n` +
+          `${pairLabelOf(pair.id)} vs ${pairLabelOf(rivalPairId)}\n` +
+          `${won ? '✅ Heu guanyat per walkover!' : '❌ Heu perdut per walkover.'}\n\n` +
+          `${SITE_URL}/ca/captain`
+        : `🎾 *Resultat validat*\n` +
+          `${pairLabelOf(pair.id)} vs ${pairLabelOf(rivalPairId)}\n` +
+          `Marcador: ${scoreText}\n` +
+          `${won ? '✅ Heu guanyat!' : 'Sort la propera!'}\n\n` +
+          `${SITE_URL}/ca/captain`;
       await sendWhatsApp({ to: captain.phone, text });
     }
   } catch (err) {
@@ -396,7 +409,7 @@ function lastNamesPairFromPlayers(
   );
 }
 
-// 6) Resultat validat → missatge al grup amb el marcador oficial.
+// 6) Resultat validat o walkover → missatge al grup amb el marcador oficial.
 export async function notifyValidatedToGroup(matchId: string): Promise<void> {
   try {
     const supabase = createServiceClient();
@@ -405,7 +418,13 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
       .select('id, pair_a_id, pair_b_id, status, winner_pair_id, category_id, group_label')
       .eq('id', matchId)
       .maybeSingle();
-    if (!match || match.status !== 'validated') return;
+
+    console.log('[whatsapp:notify] notifyValidatedToGroup', {
+      matchId,
+      status: match?.status ?? 'not_found',
+    });
+    if (!match || (match.status !== 'validated' && match.status !== 'walkover')) return;
+    const isWalkover = match.status === 'walkover';
 
     const { data: pairs } = await supabase
       .from('pairs')
@@ -419,12 +438,15 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
       .select('id, first_name, last_name')
       .in('id', playerIds);
 
-    const { data: sets } = await supabase
-      .from('sets')
-      .select('set_number, games_a, games_b')
-      .eq('match_id', matchId)
-      .order('set_number', { ascending: true });
-    const scoreText = (sets ?? []).map((s) => `${s.games_a}-${s.games_b}`).join(', ') || '—';
+    let scoreText = 'Walkover';
+    if (!isWalkover) {
+      const { data: sets } = await supabase
+        .from('sets')
+        .select('set_number, games_a, games_b')
+        .eq('match_id', matchId)
+        .order('set_number', { ascending: true });
+      scoreText = (sets ?? []).map((s) => `${s.games_a}-${s.games_b}`).join(', ') || '—';
+    }
 
     const { data: category } = await supabase
       .from('categories')
@@ -447,13 +469,18 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
       ? `${SITE_URL}/ca/grups/${category.level}`
       : `${SITE_URL}/ca/grups`;
 
-    const text =
-      `✅ *Resultat oficial*\n` +
-      `${labelA}  vs  ${labelB}\n` +
-      `Marcador: ${scoreText}\n` +
-      (winnerLabel ? `Guanya: ${winnerLabel}\n` : '') +
-      `Categoria: ${categoryName}${groupSuffix}\n\n` +
-      `📊 Classificació actualitzada:\n${standingsUrl}`;
+    const text = isWalkover
+      ? `🎾 *Resultat oficial — Walkover*\n` +
+        `${labelA}  vs  ${labelB}\n` +
+        (winnerLabel ? `Guanya: ${winnerLabel}\n` : '') +
+        `Categoria: ${categoryName}${groupSuffix}\n\n` +
+        `📊 Classificació actualitzada:\n${standingsUrl}`
+      : `✅ *Resultat oficial*\n` +
+        `${labelA}  vs  ${labelB}\n` +
+        `Marcador: ${scoreText}\n` +
+        (winnerLabel ? `Guanya: ${winnerLabel}\n` : '') +
+        `Categoria: ${categoryName}${groupSuffix}\n\n` +
+        `📊 Classificació actualitzada:\n${standingsUrl}`;
 
     await sendWhatsAppToGroup(text);
   } catch (err) {
