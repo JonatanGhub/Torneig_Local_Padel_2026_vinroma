@@ -1,10 +1,9 @@
-import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { fullName } from '@/lib/player-name';
 import { WalkoverButton } from '../walkover-button';
+import { AcceptReportButton } from '../accept-report-button';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -77,7 +76,6 @@ export default async function DisputesAdminPage({ params }: Props) {
         reports={reports ?? []}
         pairLabel={pairLabel}
         scoreToText={scoreToText}
-        locale={locale}
         emphasizeDispute
       />
 
@@ -88,7 +86,6 @@ export default async function DisputesAdminPage({ params }: Props) {
         reports={reports ?? []}
         pairLabel={pairLabel}
         scoreToText={scoreToText}
-        locale={locale}
       />
     </section>
   );
@@ -120,7 +117,6 @@ function DisputeBlock({
   reports,
   pairLabel,
   scoreToText,
-  locale,
   emphasizeDispute = false,
 }: {
   title: string;
@@ -129,7 +125,6 @@ function DisputeBlock({
   reports: ReportRow[];
   pairLabel: (pairId: string) => string;
   scoreToText: (score: unknown) => string;
-  locale: Locale;
   emphasizeDispute?: boolean;
 }) {
   return (
@@ -145,7 +140,7 @@ function DisputeBlock({
             const reportB = matchReports.find((r) => r.reporter_pair_side === 'b');
             return (
               <li key={m.id} className={emphasizeDispute ? 'bg-destructive/5 p-4' : 'p-4'}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">
                       {pairLabel(m.pair_a_id)} <span className="text-muted-foreground">vs</span>{' '}
@@ -154,19 +149,15 @@ function DisputeBlock({
                     <p className="text-muted-foreground text-xs">
                       {m.group_label ? `Grup ${m.group_label} · ` : ''}
                       {m.scheduled_at
-                        ? new Date(m.scheduled_at).toLocaleString(
-                            locale === 'ca' ? 'ca-ES' : 'es-ES',
-                          )
-                        : '—'}{' '}
-                      · {m.court_label ?? '—'}
+                        ? new Date(m.scheduled_at).toLocaleString('ca-ES')
+                        : '—'} · {m.court_label ?? '—'}
                     </p>
                   </div>
-                  <Link
-                    href={`/${locale}/captain/matches/${m.id}`}
-                    className="text-crimson-700 dark:text-crimson-400 inline-flex items-center gap-1 text-xs"
-                  >
-                    Resoldre <ArrowRight className="size-3" />
-                  </Link>
+                  {/* Botons per acceptar el resultat d'un dels capitans */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {reportA && <AcceptReportButton matchId={m.id} side="a" label={`Acceptar A`} />}
+                    {reportB && <AcceptReportButton matchId={m.id} side="b" label={`Acceptar B`} />}
+                  </div>
                 </div>
                 {(reportA || reportB) && (
                   <div className="text-muted-foreground mt-2 grid grid-cols-2 gap-2 text-xs">
@@ -175,13 +166,15 @@ function DisputeBlock({
                   </div>
                 )}
                 {emphasizeDispute && (
-                  <WalkoverButton
-                    matchId={m.id}
-                    pairAId={m.pair_a_id}
-                    pairBId={m.pair_b_id}
-                    pairALabel={pairLabel(m.pair_a_id)}
-                    pairBLabel={pairLabel(m.pair_b_id)}
-                  />
+                  <div className="mt-2">
+                    <WalkoverButton
+                      matchId={m.id}
+                      pairAId={m.pair_a_id}
+                      pairBId={m.pair_b_id}
+                      pairALabel={pairLabel(m.pair_a_id)}
+                      pairBLabel={pairLabel(m.pair_b_id)}
+                    />
+                  </div>
                 )}
               </li>
             );

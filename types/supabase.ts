@@ -409,6 +409,10 @@ export type Database = {
         Args: { p_match_id: string; p_winner_pair_id: string; p_reason?: string | null };
         Returns: undefined;
       };
+      admin_accept_report: {
+        Args: { p_match_id: string; p_side: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       user_role: 'anon' | 'captain' | 'admin';

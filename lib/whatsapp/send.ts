@@ -19,6 +19,17 @@ const INSTANCE = process.env.EVOLUTION_INSTANCE ?? null;
 // pengat el server action també es penja i la UI mostra spinner per sempre.
 const EVOLUTION_TIMEOUT_MS = 15_000;
 
+// Reintents per a DMs quan Evolution retorna "Connection Closed" (la sessió
+// de Baileys s'ha caigut momentàniament). Màxim 2 reintents, 1.5s entre ells.
+const DM_MAX_RETRIES = 2;
+const DM_RETRY_DELAY_MS = 1_500;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+function isConnectionClosed(status: number, body: string): boolean {
+  return status === 500 && body.includes('Connection Closed');
+}
+
 export function whatsappConfigured(): boolean {
   return Boolean(API_URL && API_KEY && INSTANCE);
 }
@@ -73,32 +84,54 @@ export async function sendWhatsApp({
     return { ok: true, skipped: true, reason: 'invalid_number' };
   }
 
-  try {
-    const res = await evolutionFetch(`/message/sendText/${INSTANCE}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
-      body: JSON.stringify({ number, text }),
-    });
-    const bodyText = await res.text().catch(() => '');
-    if (!res.ok) {
-      console.error('[whatsapp:dm] Evolution API non-2xx', {
-        status: res.status,
-        body: bodyText.slice(0, 500),
+  let lastResult: SendWhatsAppResult = { ok: false, skipped: false, error: 'unknown' };
+
+  for (let attempt = 0; attempt <= DM_MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      console.warn(`[whatsapp:dm] retry ${attempt}/${DM_MAX_RETRIES} after Connection Closed`, {
         number,
       });
-      return {
-        ok: false,
-        skipped: false,
-        error: `Evolution API ${res.status}: ${bodyText.slice(0, 200)}`,
-        status: res.status,
-        body: bodyText.slice(0, 500),
-      };
+      await sleep(DM_RETRY_DELAY_MS);
     }
-    return { ok: true, skipped: false, status: res.status, responseBody: bodyText.slice(0, 1000) };
-  } catch (err) {
-    console.error('[whatsapp:dm] send threw', { error: String(err), number });
-    return { ok: false, skipped: false, error: String(err) };
+    try {
+      const res = await evolutionFetch(`/message/sendText/${INSTANCE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: API_KEY! },
+        body: JSON.stringify({ number, text }),
+      });
+      const bodyText = await res.text().catch(() => '');
+      if (!res.ok) {
+        console.error('[whatsapp:dm] Evolution API non-2xx', {
+          status: res.status,
+          body: bodyText.slice(0, 500),
+          number,
+          attempt,
+        });
+        lastResult = {
+          ok: false,
+          skipped: false,
+          error: `Evolution API ${res.status}: ${bodyText.slice(0, 200)}`,
+          status: res.status,
+          body: bodyText.slice(0, 500),
+        };
+        // Reintent només per "Connection Closed" (caiguda transitòria de sessió)
+        if (isConnectionClosed(res.status, bodyText)) continue;
+        break;
+      }
+      return {
+        ok: true,
+        skipped: false,
+        status: res.status,
+        responseBody: bodyText.slice(0, 1000),
+      };
+    } catch (err) {
+      console.error('[whatsapp:dm] send threw', { error: String(err), number, attempt });
+      lastResult = { ok: false, skipped: false, error: String(err) };
+      // Errors de xarxa: reintent
+    }
   }
+
+  return lastResult;
 }
 
 /**
