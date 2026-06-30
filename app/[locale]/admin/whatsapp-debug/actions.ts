@@ -10,6 +10,9 @@ import {
   fetchConnectionStateRaw,
   discoverGroups,
   restartInstanceRaw,
+  connectInstanceRaw,
+  logoutInstanceRaw,
+  type ConnectInstanceResult,
 } from '@/lib/whatsapp/send';
 import {
   sendDailyGroupSummary,
@@ -186,6 +189,21 @@ export async function discoverGroupsAction(): Promise<DiscoverGroupsResult | nul
 export async function restartInstanceAction(): Promise<RawEvolutionResponse | null> {
   if (!(await assertAdmin())) return null;
   return restartInstanceRaw();
+}
+
+// Força reconnexió REAL del socket. Si el dispositiu està desvinculat, retorna
+// un QR + codi d'emparellament per tornar a vincular. És la recuperació quan
+// `restart` diu state:open però tot falla amb "Connection Closed".
+export async function connectInstanceAction(): Promise<ConnectInstanceResult | null> {
+  if (!(await assertAdmin())) return null;
+  return connectInstanceRaw();
+}
+
+// Logout (opció nuclear): tanca la sessió perquè la propera connexió generi un
+// QR net. Després cal clicar "Reconnectar / obtenir QR".
+export async function logoutInstanceAction(): Promise<RawEvolutionResponse | null> {
+  if (!(await assertAdmin())) return null;
+  return logoutInstanceRaw();
 }
 
 // Re-envia les notificacions de resultat (validated o walkover) per a un

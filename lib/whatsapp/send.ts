@@ -482,3 +482,140 @@ export async function fetchConnectionStateRaw(): Promise<{
     return { ok: false, status: 0, body: String(err) };
   }
 }
+
+// Força una reconnexió REAL del socket de Baileys i, si el dispositiu està
+// desvinculat, retorna un QR + codi d'emparellament per tornar-lo a vincular.
+//
+//   GET /instance/connect/{instance}
+//
+// És el pas de recuperació quan `restart` retorna `state: open` però totes les
+// operacions reals fallen amb "Connection Closed" (sessió zombie). A diferència
+// de restart, connect reobre el WebSocket i, si les credencials ja no són
+// vàlides (WhatsApp ha desvinculat el dispositiu), genera un QR nou.
+//
+// Resposta típica:
+//   - Si cal re-vincular: { pairingCode, code, base64, count }
+//   - Si ja està connectat: { instance: { state: 'open' } }
+export type ConnectInstanceResult = {
+  ok: boolean;
+  status: number;
+  body: string;
+  pairingCode: string | null;
+  qrBase64: string | null;
+  qrCode: string | null;
+};
+
+export async function connectInstanceRaw(): Promise<ConnectInstanceResult> {
+  if (!whatsappConfigured()) {
+    return {
+      ok: false,
+      status: 0,
+      body: 'evolution_not_configured',
+      pairingCode: null,
+      qrBase64: null,
+      qrCode: null,
+    };
+  }
+  try {
+    const res = await evolutionFetch(
+      `/instance/connect/${INSTANCE}`,
+      { method: 'GET', headers: { apikey: API_KEY! } },
+      30_000,
+    );
+    const body = await res.text().catch(() => '');
+
+    let pairingCode: string | null = null;
+    let qrBase64: string | null = null;
+    let qrCode: string | null = null;
+    try {
+      const parsed = JSON.parse(body) as Record<string, unknown>;
+      if (typeof parsed.pairingCode === 'string') pairingCode = parsed.pairingCode;
+      if (typeof parsed.base64 === 'string') qrBase64 = parsed.base64;
+      if (typeof parsed.code === 'string') qrCode = parsed.code;
+      // Algunes versions embolcallen el QR dins de `qrcode`.
+      const qrObj = parsed.qrcode as Record<string, unknown> | undefined;
+      if (qrObj) {
+        if (!pairingCode && typeof qrObj.pairingCode === 'string') pairingCode = qrObj.pairingCode;
+        if (!qrBase64 && typeof qrObj.base64 === 'string') qrBase64 = qrObj.base64;
+        if (!qrCode && typeof qrObj.code === 'string') qrCode = qrObj.code;
+      }
+    } catch {
+      // body no JSON; el retornem cru igualment
+    }
+
+    if (res.ok) {
+      console.log('[whatsapp:connect] instance connect', {
+        status: res.status,
+        hasPairingCode: Boolean(pairingCode),
+        hasQr: Boolean(qrBase64 || qrCode),
+        body: body.slice(0, 200),
+        instance: INSTANCE,
+      });
+    } else {
+      console.error('[whatsapp:connect] non-2xx', {
+        status: res.status,
+        body: body.slice(0, 300),
+        instance: INSTANCE,
+      });
+    }
+
+    return {
+      ok: res.ok,
+      status: res.status,
+      body: body.slice(0, 2000),
+      pairingCode,
+      qrBase64,
+      qrCode,
+    };
+  } catch (err) {
+    console.error('[whatsapp:connect] threw', { error: String(err), instance: INSTANCE });
+    return {
+      ok: false,
+      status: 0,
+      body: String(err),
+      pairingCode: null,
+      qrBase64: null,
+      qrCode: null,
+    };
+  }
+}
+
+// Tanca la sessió (logout) — força que la propera vegada calgui escanejar el QR.
+// És l'opció "nuclear" quan `connect` no revifa la sessió. Després de logout,
+// crida connect per obtenir un QR net.
+//
+//   DELETE /instance/logout/{instance}
+export async function logoutInstanceRaw(): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+}> {
+  if (!whatsappConfigured()) {
+    return { ok: false, status: 0, body: 'evolution_not_configured' };
+  }
+  try {
+    const res = await evolutionFetch(
+      `/instance/logout/${INSTANCE}`,
+      { method: 'DELETE', headers: { apikey: API_KEY! } },
+      30_000,
+    );
+    const body = await res.text().catch(() => '');
+    if (res.ok) {
+      console.log('[whatsapp:logout] instance logged out', {
+        status: res.status,
+        body: body.slice(0, 200),
+        instance: INSTANCE,
+      });
+    } else {
+      console.error('[whatsapp:logout] non-2xx', {
+        status: res.status,
+        body: body.slice(0, 300),
+        instance: INSTANCE,
+      });
+    }
+    return { ok: res.ok, status: res.status, body: body.slice(0, 1000) };
+  } catch (err) {
+    console.error('[whatsapp:logout] threw', { error: String(err), instance: INSTANCE });
+    return { ok: false, status: 0, body: String(err) };
+  }
+}
