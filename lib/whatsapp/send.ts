@@ -118,6 +118,14 @@ export async function sendWhatsApp({
         if (isConnectionClosed(res.status, bodyText)) continue;
         break;
       }
+      // Log sempre (inclús en èxit) per detectar el cas "200 OK però mai entregat"
+      // que Evolution retorna quan la sessió Baileys està degradada. El cos conté
+      // el `status` del missatge (p.ex. PENDING/SENT/ERROR) que permet distingir-ho.
+      console.log('[whatsapp:dm] Evolution accepted', {
+        status: res.status,
+        body: bodyText.slice(0, 500),
+        number,
+      });
       return {
         ok: true,
         skipped: false,
