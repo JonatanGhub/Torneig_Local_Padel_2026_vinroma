@@ -10,8 +10,11 @@ import {
   listAllGroups,
   discoverGroupsAction,
   restartInstanceAction,
+  connectInstanceAction,
+  logoutInstanceAction,
   resendMatchNotification,
 } from './actions';
+import type { ConnectInstanceResult } from '@/lib/whatsapp/send';
 import type {
   WhatsAppDebugResult,
   WhatsAppConfigSnapshot,
@@ -35,6 +38,8 @@ export function DebugPanel({ config }: Props) {
   } | null>(null);
   const [discovered, setDiscovered] = useState<DiscoverGroupsResult | null>(null);
   const [restart, setRestart] = useState<RawEvolutionResponse | null>(null);
+  const [connectRes, setConnectRes] = useState<ConnectInstanceResult | null>(null);
+  const [logoutRes, setLogoutRes] = useState<RawEvolutionResponse | null>(null);
   const [phone, setPhone] = useState('');
   const [resendMatchId, setResendMatchId] = useState('');
   const [resendResult, setResendResult] = useState<{ ok: boolean; error?: string } | null>(null);
@@ -44,6 +49,8 @@ export function DebugPanel({ config }: Props) {
 
   const [pConn, sConn] = useTransition();
   const [pRestart, sRestart] = useTransition();
+  const [pConnect, sConnect] = useTransition();
+  const [pLogout, sLogout] = useTransition();
   const [pInfo, sInfo] = useTransition();
   const [pList, sList] = useTransition();
   const [pDiscover, sDiscover] = useTransition();
@@ -108,6 +115,43 @@ export function DebugPanel({ config }: Props) {
           label="Reiniciar instància Evolution"
         />
         {restart && <RawResponseView resp={restart} />}
+      </section>
+
+      <section className="space-y-3 rounded-lg border-2 border-red-500 bg-red-50 p-4 dark:bg-red-950/30">
+        <header>
+          <h2 className="text-lg font-semibold">🆘 Reconnectar / obtenir QR (sessió morta)</h2>
+          <p className="text-muted-foreground text-sm">
+            Si «Comprovar connexió» diu <code>state: open</code> però <strong>tot</strong> falla amb{' '}
+            <strong>Connection Closed</strong> (DMs, grup, info del grup), el socket de WhatsApp
+            està mort i el reinici no l&apos;ha revifat. Això sol passar quan WhatsApp ha{' '}
+            <strong>desvinculat el dispositiu</strong>. Clica aquí: si encara hi ha credencials
+            vàlides, reconnecta; si no, et donarà un <strong>QR / codi d&apos;emparellament</strong>{' '}
+            per tornar a vincular el número.
+          </p>
+        </header>
+        <PrimaryButton
+          pending={pConnect}
+          onClick={() => sConnect(async () => setConnectRes(await connectInstanceAction()))}
+          label="Reconnectar / obtenir QR"
+        />
+        {connectRes && <ConnectView res={connectRes} />}
+
+        <div className="mt-3 border-t border-red-300 pt-3 dark:border-red-800">
+          <p className="text-muted-foreground mb-2 text-xs">
+            Si «Reconnectar» no dóna cap QR i segueix fallant, fes <strong>logout</strong> (tanca la
+            sessió) i després torna a clicar «Reconnectar / obtenir QR» per generar un QR net. ⚠️
+            Després caldrà escanejar el QR amb el telèfon del torneig.
+          </p>
+          <button
+            type="button"
+            onClick={() => sLogout(async () => setLogoutRes(await logoutInstanceAction()))}
+            disabled={pLogout}
+            className="rounded-md border border-red-400 bg-transparent px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-900/40"
+          >
+            {pLogout ? 'Carregant…' : 'Logout (tancar sessió)'}
+          </button>
+          {logoutRes && <RawResponseView resp={logoutRes} />}
+        </div>
       </section>
 
       <Section
@@ -390,6 +434,59 @@ function ResultView({ result }: { result: WhatsAppDebugResult }) {
           {result.body}
         </pre>
       )}
+    </div>
+  );
+}
+
+function ConnectView({ res }: { res: ConnectInstanceResult }) {
+  const hasQr = Boolean(res.qrBase64 || res.qrCode);
+  const tone = res.ok
+    ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+    : 'border-red-300 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-200';
+  // El base64 d'Evolution sol venir ja com a data URL; si no, l'afegim.
+  const imgSrc = res.qrBase64
+    ? res.qrBase64.startsWith('data:')
+      ? res.qrBase64
+      : `data:image/png;base64,${res.qrBase64}`
+    : null;
+
+  return (
+    <div className={`space-y-2 rounded-md border p-3 text-sm ${tone}`}>
+      <div className="font-medium">
+        {res.ok ? '✓' : '✗'} HTTP {res.status || '(no resposta)'}
+      </div>
+
+      {res.pairingCode && (
+        <div className="rounded-md border border-current/30 bg-white/60 p-3 dark:bg-black/30">
+          <p className="text-xs tracking-wider uppercase opacity-70">Codi d&apos;emparellament</p>
+          <p className="font-mono text-2xl font-bold tracking-[0.3em]">{res.pairingCode}</p>
+          <p className="mt-1 text-xs opacity-80">
+            Al telèfon del torneig: WhatsApp → Dispositius vinculats → Vincular un dispositiu →
+            «Vincular amb número de telèfon» → escriu aquest codi.
+          </p>
+        </div>
+      )}
+
+      {imgSrc && (
+        <div className="rounded-md border border-current/30 bg-white p-3 text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imgSrc} alt="QR per vincular WhatsApp" className="mx-auto h-56 w-56" />
+          <p className="mt-1 text-xs text-black/70">
+            Escaneja amb WhatsApp → Dispositius vinculats → Vincular un dispositiu.
+          </p>
+        </div>
+      )}
+
+      {!hasQr && !res.pairingCode && res.ok && (
+        <p className="text-xs">
+          Sense QR — la instància diu que ja està connectada. Espera ~10 s i torna a provar «Enviar
+          DM» o «Enviar prova al grup». Si segueix fallant, fes Logout i torna a clicar aquí.
+        </p>
+      )}
+
+      <pre className="overflow-x-auto rounded bg-black/10 p-2 text-xs break-all whitespace-pre-wrap dark:bg-white/10">
+        {res.body || '(cos buit)'}
+      </pre>
     </div>
   );
 }
