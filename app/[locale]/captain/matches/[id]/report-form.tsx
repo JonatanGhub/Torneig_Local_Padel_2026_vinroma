@@ -184,7 +184,7 @@ function NumberInput({
         max={7}
         value={value}
         onChange={(e) => onChange(Math.max(0, Math.min(7, Number(e.target.value) || 0)))}
-        className="h-14 w-full rounded-md border border-[hsl(var(--input))] bg-[hsl(var(--background))] text-center font-mono text-2xl font-semibold focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:outline-none"
+        className="h-14 w-full rounded-md border border-[hsl(var(--input))] bg-[hsl(var(--background))] text-center font-mono text-2xl font-semibold text-[hsl(var(--foreground))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:outline-none"
       />
     </label>
   );
