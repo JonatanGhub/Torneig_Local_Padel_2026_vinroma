@@ -37,7 +37,7 @@ export default async function SponsorsPage({ params }: Props) {
   }
 
   return (
-    <div className="bg-ink-950 relative min-h-screen text-white">
+    <div className="dark bg-ink-950 relative min-h-screen text-white">
       <div className="hero-gradient pointer-events-none absolute inset-0 -z-10" />
 
       <div className="bg-ink-950/85 sticky top-0 z-40 border-b border-white/10 backdrop-blur-md">

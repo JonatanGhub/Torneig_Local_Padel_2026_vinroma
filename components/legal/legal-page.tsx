@@ -18,7 +18,7 @@ export function LegalPage({
   children: ReactNode;
 }) {
   return (
-    <div className="bg-ink-950 relative min-h-screen overflow-hidden text-white">
+    <div className="dark bg-ink-950 relative min-h-screen overflow-hidden text-white">
       <div className="hero-gradient pointer-events-none absolute inset-0 -z-10 opacity-60" />
       <main className="mx-auto max-w-3xl px-6 py-16">
         <Link

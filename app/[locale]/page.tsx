@@ -119,7 +119,7 @@ export default async function LandingPage({ params }: Props) {
   const pricingCard = buildPricingCard(relevantFee, locale, t, shortDateFormatter);
 
   return (
-    <div className="bg-ink-950 relative min-h-screen overflow-hidden text-white">
+    <div className="dark bg-ink-950 relative min-h-screen overflow-hidden text-white">
       <div className="hero-gradient pointer-events-none absolute inset-0 -z-10" />
 
       <div className="sticky top-4 z-40 mx-auto flex max-w-6xl items-center justify-between px-4">

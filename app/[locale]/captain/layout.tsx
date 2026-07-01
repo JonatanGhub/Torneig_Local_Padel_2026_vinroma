@@ -33,7 +33,11 @@ export default async function CaptainLayout({ children, params }: Props) {
   ];
 
   return (
-    <div className="bg-ink-950 relative min-h-screen text-white">
+    // `dark` força que TOTS els tokens de tema (--background, --secondary...)
+    // resolguin als valors foscos dins d'aquesta secció, encara que el mòbil
+    // de l'usuari estigui en mode clar: el fons és ink-950 fix, i sense això
+    // els inputs sortien blancs amb text blanc heretat (invisible en escriure).
+    <div className="dark bg-ink-950 relative min-h-screen text-white">
       <div className="hero-gradient pointer-events-none absolute inset-0 -z-10" />
 
       <div className="bg-ink-950/85 sticky top-0 z-40 border-b border-white/10 backdrop-blur-md">
