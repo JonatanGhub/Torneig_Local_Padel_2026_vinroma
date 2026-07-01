@@ -48,17 +48,25 @@ export function ReportForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Un cop enviat amb èxit, bloquegem el botó perquè un segon toc (impacient,
+  // sense veure encara el missatge de confirmació) no torni a enviar el
+  // mateix resultat i disparin les notificacions per duplicat. Es desbloqueja
+  // si l'usuari torna a tocar algun marcador (vol enviar un canvi real).
+  const [justSubmitted, setJustSubmitted] = useState(false);
 
   function updateSet(idx: number, side: 'a' | 'b', value: number) {
     setSets((prev) => prev.map((s, i) => (i === idx ? { ...s, [side]: value } : s)));
+    setJustSubmitted(false);
   }
 
   function addThirdSet() {
     setSets((prev) => (prev.length < 3 ? [...prev, { set: 3, a: 0, b: 0 }] : prev));
+    setJustSubmitted(false);
   }
 
   function removeThirdSet() {
     setSets((prev) => (prev.length > 2 ? prev.slice(0, 2) : prev));
+    setJustSubmitted(false);
   }
 
   const setsAWon = sets.filter((s) => s.a > s.b).length;
@@ -79,6 +87,7 @@ export function ReportForm({
         return;
       }
       setSuccess(t('submitted_ok'));
+      setJustSubmitted(true);
     });
   }
 
@@ -150,7 +159,7 @@ export function ReportForm({
       {error && <p className="text-destructive text-sm">{error}</p>}
       {success && <p className="text-sm text-green-600">{success}</p>}
 
-      <Button type="submit" disabled={isPending} className="w-full">
+      <Button type="submit" disabled={isPending || justSubmitted} className="w-full">
         {isPending ? '…' : t('submit')}
       </Button>
     </form>

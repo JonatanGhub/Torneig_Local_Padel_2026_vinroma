@@ -37,6 +37,32 @@ function isValidPadelSet(games_a: number, games_b: number) {
   return false;
 }
 
+type StoredSet = { set: number; a: number; b: number };
+
+// Compara el marcador que s'està enviant amb el que ja hi havia desat per al
+// mateix reporter, per detectar un reenviament idèntic (doble clic, retry de
+// xarxa...) i no tornar a disparar les notificacions. L'ordre dels sets pot
+// variar segons com vingui de la BD, per això s'ordena abans de comparar.
+function sameScore(a: unknown, b: StoredSet[]): boolean {
+  if (!Array.isArray(a)) return false;
+  const normalize = (arr: unknown[]) =>
+    arr
+      .filter(
+        (s): s is StoredSet =>
+          typeof s === 'object' &&
+          s !== null &&
+          typeof (s as StoredSet).set === 'number' &&
+          typeof (s as StoredSet).a === 'number' &&
+          typeof (s as StoredSet).b === 'number',
+      )
+      .map((s) => ({ set: s.set, a: s.a, b: s.b }))
+      .sort((x, y) => x.set - y.set);
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (na.length !== nb.length) return false;
+  return na.every((s, i) => s.set === nb[i]!.set && s.a === nb[i]!.a && s.b === nb[i]!.b);
+}
+
 export async function submitReport(formData: FormData) {
   const matchId = formData.get('matchId');
   const raw = formData.get('score');
@@ -63,43 +89,81 @@ export async function submitReport(formData: FormData) {
   if (setsA < 2 && setsB < 2) return { ok: false, error: 'no_winner' } as const;
 
   const supabase = await createClient();
+
+  // Comprova ABANS del RPC si aquest jugador ja tenia un report desat amb
+  // exactament el mateix marcador. submit_match_report fa un upsert (mai
+  // falla en un reenviament), així que sense aquesta comprovació un doble
+  // clic o un retry de xarxa reenviaria les notificacions (WA/email) encara
+  // que el resultat no hagi canviat gens.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let previousScore: unknown = null;
+  if (user) {
+    const { data: player } = await supabase
+      .from('players')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+    if (player) {
+      const { data: existingReport } = await supabase
+        .from('match_reports')
+        .select('score_json')
+        .eq('match_id', matchId)
+        .eq('reporter_player_id', player.id)
+        .maybeSingle();
+      previousScore = existingReport?.score_json ?? null;
+    }
+  }
+  const isDuplicateResubmission =
+    previousScore !== null && sameScore(previousScore, validated.data);
+
   const { data, error } = await supabase.rpc('submit_match_report', {
     p_match_id: matchId,
     p_score: validated.data,
   });
   if (error) return { ok: false, error: error.message } as const;
 
-  // Tras el RPC, el trigger ya ha actualizado matches.status. Releemos
-  // para decidir qué notificar. Errores de email no rompen la mutación.
-  const { data: matchAfter } = await supabase
-    .from('matches')
-    .select('status, phase, category_id')
-    .eq('id', matchId)
-    .maybeSingle();
-  const reporterSide = data === 'a' || data === 'b' ? (data as 'a' | 'b') : null;
-  if (matchAfter?.status === 'validated') {
-    await notifyMatchValidated(matchId);
-    await notifyMatchValidatedWhatsApp(matchId);
-    await notifyValidatedToGroup(matchId);
-    // Si era l'últim partit de grup de la categoria, genera el quadre
-    // automàticament (amb client de servei, que salta RLS). Errors aïllats.
-    if (matchAfter.phase === 'group' && matchAfter.category_id) {
-      try {
-        const service = createServiceClient();
-        if (await categoryReadyForKnockout(service, matchAfter.category_id)) {
-          await generateKnockoutForCategory(service, matchAfter.category_id);
+  if (isDuplicateResubmission) {
+    console.log(
+      '[submitReport] duplicate resubmission with identical score; skipping notifications',
+      {
+        matchId,
+      },
+    );
+  } else {
+    // Tras el RPC, el trigger ya ha actualizado matches.status. Releemos
+    // para decidir qué notificar. Errores de email no rompen la mutación.
+    const { data: matchAfter } = await supabase
+      .from('matches')
+      .select('status, phase, category_id')
+      .eq('id', matchId)
+      .maybeSingle();
+    const reporterSide = data === 'a' || data === 'b' ? (data as 'a' | 'b') : null;
+    if (matchAfter?.status === 'validated') {
+      await notifyMatchValidated(matchId);
+      await notifyMatchValidatedWhatsApp(matchId);
+      await notifyValidatedToGroup(matchId);
+      // Si era l'últim partit de grup de la categoria, genera el quadre
+      // automàticament (amb client de servei, que salta RLS). Errors aïllats.
+      if (matchAfter.phase === 'group' && matchAfter.category_id) {
+        try {
+          const service = createServiceClient();
+          if (await categoryReadyForKnockout(service, matchAfter.category_id)) {
+            await generateKnockoutForCategory(service, matchAfter.category_id);
+          }
+        } catch (err) {
+          console.warn('[knockout] auto-generate failed', err);
         }
-      } catch (err) {
-        console.warn('[knockout] auto-generate failed', err);
       }
+    } else if (matchAfter?.status === 'disputed') {
+      await notifyMatchDisputed(matchId);
+      await notifyMatchDisputedWhatsApp(matchId);
+    } else if (matchAfter?.status === 'pending_validation' && reporterSide) {
+      // Primer report: avisa el capità rival perquè el confirmi.
+      await notifyResultPendingValidation(matchId, reporterSide);
+      await notifyResultPendingValidationWhatsApp(matchId, reporterSide);
     }
-  } else if (matchAfter?.status === 'disputed') {
-    await notifyMatchDisputed(matchId);
-    await notifyMatchDisputedWhatsApp(matchId);
-  } else if (matchAfter?.status === 'pending_validation' && reporterSide) {
-    // Primer report: avisa el capità rival perquè el confirmi.
-    await notifyResultPendingValidation(matchId, reporterSide);
-    await notifyResultPendingValidationWhatsApp(matchId, reporterSide);
   }
 
   revalidatePath('/[locale]/captain', 'page');
