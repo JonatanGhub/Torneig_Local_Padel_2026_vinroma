@@ -504,6 +504,29 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
 // 7) Canvi de partit acceptat → missatge al grup amb la nova data/pista.
 //    Si el canvi afecta avui (l'hora antiga o la nova és avui), re-envia el
 //    resum diari actualitzat perquè el "Avui es juga" del matí no quedi obsolet.
+// Hora (Madrid) del cron oficial "Avui es juga" (vercel.json: "0 6 * * *" =
+// 06:00 UTC = 08:00 Madrid a l'estiu/CEST). Ha de coincidir amb aquell cron.
+const DAILY_SUMMARY_HOUR_MADRID = 8;
+
+// Si ja ha passat l'hora del resum oficial d'avui, un canvi de partit d'avui
+// ha d'enviar una actualització immediata (l'oficial ja es va enviar sense
+// aquest canvi). Si encara no ha passat, no cal res: el cron oficial d'avui
+// encara no s'ha executat i ja recollirà l'estat actual quan es dispari.
+function isPastDailySummaryTime(now: Date = new Date()): boolean {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Madrid',
+      hour: '2-digit',
+      hour12: false,
+    }).formatToParts(now);
+    let hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+    if (hour === 24) hour = 0;
+    return hour >= DAILY_SUMMARY_HOUR_MADRID;
+  } catch {
+    return true; // si no podem determinar l'hora, enviem l'avís per seguretat
+  }
+}
+
 export async function notifyRescheduleAcceptedToGroup(
   proposalId: string,
   oldScheduledAt?: string | null,
@@ -555,15 +578,26 @@ export async function notifyRescheduleAcceptedToGroup(
 
     await sendWhatsAppToGroup(text);
 
-    // Si avui és el dia afectat (l'hora vella o la nova), re-enviem el resum
-    // del dia actualitzat perquè el missatge "Avui es juga" del matí no indueixi
-    // a error als jugadors.
+    // Si avui és el dia afectat (l'hora vella o la nova), cal decidir si
+    // reenviem el resum "actualitzat":
+    //  - Si encara NO ha passat l'hora del resum oficial d'avui (08:00 Madrid),
+    //    NO enviem res ara: el cron oficial encara no s'ha disparat i ja
+    //    recollirà aquest canvi ell mateix quan s'executi. Enviar-ne un altre
+    //    ara només duplicaria l'avís (el que vam veure abans de les 08:00).
+    //  - Si l'oficial d'avui YA s'ha enviat (som després de les 08:00), el
+    //    canvi l'ha deixat desactualitzat, així que sí que cal l'actualització.
     const todayKey = madridDateKey(new Date().toISOString());
     const affectsToday =
       (proposal.new_scheduled_at && madridDateKey(proposal.new_scheduled_at) === todayKey) ||
       (oldScheduledAt && madridDateKey(oldScheduledAt) === todayKey);
     if (affectsToday) {
-      await sendDailyGroupSummary({ isUpdate: true });
+      if (isPastDailySummaryTime()) {
+        await sendDailyGroupSummary({ isUpdate: true });
+      } else {
+        console.log(
+          '[whatsapp] reschedule affects today but before the official daily summary time; skipping immediate update (the official cron will include it)',
+        );
+      }
     }
   } catch (err) {
     console.warn('[whatsapp] notifyRescheduleAcceptedToGroup failed', err);
@@ -571,7 +605,7 @@ export async function notifyRescheduleAcceptedToGroup(
 }
 
 // 8) Resum diari "Avui es juga" → missatge al grup amb tots els partits del dia.
-//    Cridat des del cron diari (09:00 Madrid).
+//    Cridat des del cron diari (08:00 Madrid).
 const MADRID_TZ = 'Europe/Madrid';
 
 function madridYmdToday(now: Date = new Date()): { y: number; m: number; d: number } {
@@ -1003,7 +1037,7 @@ export async function sendValidationReminders(): Promise<{ sent: number; skipped
 }
 
 // 11) Canvi de tram de preu → avís al grup quan falten <24h.
-// El cron diari (09:00 Madrid) crida aquesta funció: si algun tram de tarifa
+// El cron diari (08:00 Madrid) crida aquesta funció: si algun tram de tarifa
 // comença dins de les pròximes 24 hores, avisa el grup que és l'últim dia al
 // preu actual. Com que el cron corre cada 24h, el missatge s'envia exactament
 // una vegada per tram.
@@ -1018,12 +1052,12 @@ export async function notifyFeePhaseChangeToGroup(): Promise<void> {
     if (!tournament) return;
 
     const now = new Date();
-    // Finestra de mirada endavant. El cron corre cada dia a les 09:00 Madrid;
+    // Finestra de mirada endavant. El cron corre cada dia a les 08:00 Madrid;
     // amb 24h, l'avís cau exactament al matí del dia en què canvia el preu
-    // (p.ex. canvi a les 19:00 → avís el mateix dia a les 09:00, ~10h abans).
-    // No es fa servir una finestra de 10h "exacta" perquè un cron diari mai
-    // coincideix amb les 10h justes; 24h garanteix que el matí del dia del
-    // canvi sempre l'atrapa, i la marca d'enviat evita repeticions.
+    // (p.ex. canvi a les 19:00 → avís el mateix dia a les 08:00, ~11h abans).
+    // No es fa servir una finestra "exacta" perquè un cron diari mai coincideix
+    // amb l'hora justa; 24h garanteix que el matí del dia del canvi sempre
+    // l'atrapa, i la marca d'enviat evita repeticions.
     const WARNING_WINDOW_HOURS = 24;
     const windowEnd = new Date(now.getTime() + WARNING_WINDOW_HOURS * 60 * 60 * 1000);
 

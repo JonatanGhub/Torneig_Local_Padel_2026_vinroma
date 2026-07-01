@@ -259,7 +259,7 @@ export function DebugPanel({ config }: Props) {
       <Section
         n={6}
         title="Executa el cron diari ara"
-        description="sendDailyGroupSummary + notifyFeePhaseChangeToGroup, sense esperar les 09:00."
+        description="sendDailyGroupSummary + notifyFeePhaseChangeToGroup, sense esperar les 08:00."
       >
         <PrimaryButton
           pending={pCron}

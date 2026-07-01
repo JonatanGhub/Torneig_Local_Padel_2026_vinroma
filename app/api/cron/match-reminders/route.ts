@@ -8,7 +8,7 @@ import { whatsappConfigured } from '@/lib/whatsapp/send';
 
 export const dynamic = 'force-dynamic';
 
-// Cron diari (Vercel Cron, 09:00 Madrid). Avisos al GRUP i DMs als capitans:
+// Cron diari (Vercel Cron, 08:00 Madrid). Avisos al GRUP i DMs als capitans:
 //  1. Resum dels partits que es juguen avui ("Avui es juga ...").
 //  2. Si demà canvia el tram de preu de la inscripció, avís d'últim dia.
 //  3. DM a ambdós capitans si un partit ja fa >20h que hauria d'estar jugat
