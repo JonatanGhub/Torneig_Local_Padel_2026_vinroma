@@ -803,7 +803,7 @@ export async function notifyInscriptionReceivedWhatsApp(params: {
 }
 
 // 10) Recordatori de validació → DM a ambdós capitans quan un partit ja hauria
-//     d'estar jugat (>24h del scheduled_at) i el resultat no s'ha validat.
+//     d'estar jugat (>20h del scheduled_at) i el resultat no s'ha validat.
 //     Cridat des del cron diari. Marca reminder_sent_at per evitar repeticions.
 //     Finestra de 7 dies per no rescatar partits molt antics si el WA s'activa
 //     tard o el cron ha fallat diverses vegades.
@@ -813,7 +813,7 @@ export async function sendValidationReminders(): Promise<{ sent: number; skipped
   try {
     const supabase = createServiceClient();
     const now = new Date();
-    const cutoff24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const cutoff20h = new Date(now.getTime() - 20 * 60 * 60 * 1000).toISOString();
     const cutoff7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: matches } = await supabase
@@ -821,7 +821,7 @@ export async function sendValidationReminders(): Promise<{ sent: number; skipped
       .select('id, pair_a_id, pair_b_id, scheduled_at')
       .in('status', ['scheduled', 'pending_validation'])
       .not('scheduled_at', 'is', null)
-      .lt('scheduled_at', cutoff24h)
+      .lt('scheduled_at', cutoff20h)
       .gte('scheduled_at', cutoff7d)
       .is('reminder_sent_at', null);
 
