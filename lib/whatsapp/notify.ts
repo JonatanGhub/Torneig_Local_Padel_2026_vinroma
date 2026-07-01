@@ -694,6 +694,122 @@ export async function sendDailyGroupSummary(opts?: { isUpdate?: boolean }): Prom
   }
 }
 
+function formatMadridDayMonth(date: Date): string {
+  try {
+    return new Intl.DateTimeFormat('ca-ES', {
+      timeZone: MADRID_TZ,
+      day: 'numeric',
+      month: 'long',
+    }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+function weekdayCA(iso: string): string {
+  try {
+    const label = new Intl.DateTimeFormat('ca-ES', {
+      timeZone: MADRID_TZ,
+      weekday: 'long',
+    }).format(new Date(iso));
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  } catch {
+    return '';
+  }
+}
+
+// Finestra [dilluns 00:00, divendres 00:00) en hora de Madrid de la propera
+// setmana. Pensada per executar-se en diumenge (el cron setmanal), però si es
+// crida un altre dia calcula el proper dilluns endavant (avui inclòs si avui
+// ja és dilluns).
+function nextMonToThuWindowIso(now: Date = new Date()): {
+  startIso: string;
+  endIso: string;
+  mondayDate: Date;
+  thursdayDate: Date;
+} {
+  const { y, m, d } = madridYmdToday(now);
+  const todayUTC = new Date(Date.UTC(y, m - 1, d));
+  const dow = todayUTC.getUTCDay(); // 0=diumenge, 1=dilluns, ...
+  const daysUntilMonday = (8 - dow) % 7;
+  const mondayDate = new Date(todayUTC.getTime() + daysUntilMonday * 24 * 60 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const startIso = `${mondayDate.getUTCFullYear()}-${pad(mondayDate.getUTCMonth() + 1)}-${pad(mondayDate.getUTCDate())}T00:00:00+02:00`;
+  // Dilluns a dijous = 4 dies; el final és divendres 00:00.
+  const endIso = new Date(new Date(startIso).getTime() + 4 * 24 * 60 * 60 * 1000).toISOString();
+  const thursdayDate = new Date(mondayDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+  return { startIso, endIso, mondayDate, thursdayDate };
+}
+
+// 8b) Resum setmanal → missatge al grup cada diumenge amb tots els partits de
+//     dilluns a dijous de la setmana següent (a més del "Avui es juga" diari).
+export async function notifyWeeklyScheduleToGroup(): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { startIso, endIso, mondayDate, thursdayDate } = nextMonToThuWindowIso();
+
+    const { data: matches } = await supabase
+      .from('matches')
+      .select('id, scheduled_at, court_label, pair_a_id, pair_b_id, category_id, status')
+      .in('status', ['scheduled', 'pending_validation'])
+      .gte('scheduled_at', startIso)
+      .lt('scheduled_at', endIso)
+      .order('scheduled_at', { ascending: true });
+
+    if (!matches || matches.length === 0) {
+      // Sense partits programats la setmana vinent: no enviem res.
+      return;
+    }
+
+    const pairIds = Array.from(new Set(matches.flatMap((m) => [m.pair_a_id, m.pair_b_id])));
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, player_a_id, player_b_id')
+      .in('id', pairIds);
+
+    const playerIds = Array.from(
+      new Set((pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id])),
+    );
+    const { data: players } = await supabase
+      .from('players')
+      .select('id, first_name, last_name')
+      .in('id', playerIds);
+
+    const categoryIds = Array.from(new Set(matches.map((m) => m.category_id)));
+    const { data: categories } = await supabase
+      .from('categories')
+      .select('id, name_ca')
+      .in('id', categoryIds);
+
+    const pairLabelOf = (pairId: string) => {
+      const pair = pairs?.find((p) => p.id === pairId);
+      if (!pair) return '—';
+      return lastNamesPairFromPlayers(players, pair.player_a_id, pair.player_b_id);
+    };
+    const categoryNameOf = (categoryId: string) =>
+      categories?.find((c) => c.id === categoryId)?.name_ca ?? '—';
+
+    const lines = matches.map((m) => {
+      const day = weekdayCA(m.scheduled_at!);
+      const time = formatMadridTime(m.scheduled_at);
+      const court = m.court_label ?? '—';
+      const cat = categoryNameOf(m.category_id);
+      const labelA = pairLabelOf(m.pair_a_id);
+      const labelB = pairLabelOf(m.pair_b_id);
+      return `• ${day} ${time} · ${court} · ${cat} · ${labelA} vs ${labelB}`;
+    });
+
+    const rangeLabel = `${formatMadridDayMonth(mondayDate)} – ${formatMadridDayMonth(thursdayDate)}`;
+    const text =
+      `📅 *Partits de la setmana (${rangeLabel})*\n\n${lines.join('\n')}\n\n` +
+      `🗓️ Calendari complet:\n${SITE_URL}/ca/calendari`;
+
+    await sendWhatsAppToGroup(text);
+  } catch (err) {
+    console.warn('[whatsapp] notifyWeeklyScheduleToGroup failed', err);
+  }
+}
+
 // 9) Sorteig de grups fet → WhatsApp a tots els capitans de la categoria.
 export async function notifyDrawDoneWhatsApp(categoryId: string) {
   try {
