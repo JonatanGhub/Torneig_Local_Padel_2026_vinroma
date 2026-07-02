@@ -6,6 +6,7 @@ import { formatMatchDateTime } from '@/lib/format-date';
 import { ScheduleForm } from './schedule-form';
 import { AutoScheduleControls } from './auto-schedule-button';
 import { SchedulerProvider } from './scheduler-context';
+import { WalkoverButton } from '../walkover-button';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
@@ -127,6 +128,19 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
                   scheduledAt={m.scheduled_at}
                   courtLabel={m.court_label}
                 />
+                {/* Walkover disponible per a qualsevol partit no resolt encara
+                    (incompareixença, però també retirada/lesió a mig partit,
+                    que deixa el partit en 'scheduled' sense cap report). Els
+                    ja 'validated'/'walkover' no es toquen des d'aquí. */}
+                {m.status !== 'validated' && m.status !== 'walkover' && (
+                  <WalkoverButton
+                    matchId={m.id}
+                    pairAId={m.pair_a_id}
+                    pairBId={m.pair_b_id}
+                    pairALabel={pairLabel(m.pair_a_id)}
+                    pairBLabel={pairLabel(m.pair_b_id)}
+                  />
+                )}
               </li>
             ))}
           </ul>
