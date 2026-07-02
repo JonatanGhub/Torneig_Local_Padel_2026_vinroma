@@ -2,85 +2,108 @@
 
 ## El problema recurrent: sessió "zombie"
 
-Cada 1–2 dies, la sessió de Baileys (el motor de WhatsApp d'Evolution) es cau
-amb `Connection Closed` (error 428 "Precondition Required" als logs del
-contenidor). Quan passa:
+Cada 1–2 dies, la sessió de Baileys (el motor de WhatsApp d'Evolution) d'una
+instància es cau amb `Connection Closed` (error 428 "Precondition Required"
+als logs del contenidor). Quan passa:
 
 - `connectionState` segueix dient `state: "open"` (MENTEIX — és estat en memòria)
-- Tots els enviaments fallen: DMs (500), grup (400), `findGroupInfos` (404)
-- Els endpoints de recuperació de l'API **no** ho arreglen:
-  `restart` retorna 200 però no revifa el socket; `logout` falla amb 500;
-  `delete` falla amb 400 i `create` amb 403 "already in use"
+- Tots els enviaments d'aquella instància fallen: DMs (500), grup (400)
+- Els endpoints de recuperació de l'API **no** ho arreglen: `restart` retorna
+  200 però no revifa el socket; `logout` falla amb 500; `delete` falla amb
+  400 i `create` amb 403 "already in use"
 - **L'únic remei fiable és `docker restart` del contenidor.** En arrencar,
-  Evolution rellegeix les credencials de la seva BD i es reconnecta sol,
-  sense re-escanejar el QR.
+  Evolution rellegeix les credencials de la seva BD i TOTES les instàncies
+  es reconnecten soles, sense re-escanejar cap QR (~1 min de tall).
 
-Als logs no hi ha `loggedOut` ni `conflict` ni cap indici de baneig: les
-credencials segueixen vàlides. És un bug d'estabilitat conegut de
-Evolution/Baileys (el client no oficial de WhatsApp Web). L'única solució
-definitiva seria migrar a l'API oficial de WhatsApp Business (Meta Cloud
-API); mentrestant, l'automatització de sota fa que la caiguda es recuperi
-sola en ~4 minuts.
+Als logs no hi ha `loggedOut` ni `conflict` ni indicis de baneig: les
+credencials segueixen vàlides. És un bug d'estabilitat conegut
+d'Evolution/Baileys (client no oficial de WhatsApp Web). L'única solució
+definitiva seria l'API oficial de WhatsApp Business (Meta Cloud API);
+mentrestant, el watchdog de sota fa que qualsevol caiguda es recuperi sola
+en ~4–6 minuts i t'avisa al mòbil.
 
-## Capa 1 — Watchdog al VPS (auto-recuperació)
+## Watchdog multi-instància al VPS (auto-recuperació + avisos push)
 
 Script: [`scripts/vps/evolution-watchdog.sh`](../scripts/vps/evolution-watchdog.sh)
 
-Cada 2 minuts fa una prova REAL contra WhatsApp (llegir la info del grup del
-torneig, read-only). Si falla amb "Connection Closed" dues comprovacions
-seguides, reinicia el contenidor automàticament i ho apunta a
-`/var/log/evolution-watchdog.log`.
+Cada 3 minuts:
 
-### Instal·lació (una sola vegada, al VPS com a root)
+1. **Descobreix TOTES les instàncies** d'Evolution automàticament
+   (`fetchInstances`) — les noves instàncies de clients queden cobertes
+   sense tocar res.
+2. Per a cada instància "open", fa una **prova REAL del socket** (consulta
+   read-only "aquest número té WhatsApp?" — no envia res a ningú). El
+   `connectionState` no serveix perquè menteix quan la sessió és zombie.
+3. Actua segons el cas:
+   - **API no respon** (contenidor penjat) → `docker restart` + push
+   - **Instància zombie** (open però Connection Closed) → `docker restart` + push
+   - **Instància desconnectada de debò** (close/connecting: QR desvinculat)
+     → push d'avís (una vegada); el restart NO arregla això, cal re-vincular
+   - **Recuperació** → push de confirmació
+4. Proteccions: llindar de 2 fallades seguides (no reinicia per un microtall),
+   cooldown de 10 min entre restarts (mai bucles), fitxer de pausa per a
+   manteniments, `flock` contra execucions solapades, log amb rotació.
+
+### Instal·lació pas a pas (al VPS, com a root)
 
 ```bash
-# 1. Baixa l'script del repo (o copia'l a mà)
-curl -fsSL https://raw.githubusercontent.com/JonatanGhub/Torneig_Local_Padel_2026_vinroma/main/scripts/vps/evolution-watchdog.sh \
-  -o /root/evolution-watchdog.sh
+# 0. Dependència
+apt-get update && apt-get install -y jq
 
-# 2. Edita les variables de CONFIG (sobretot APIKEY)
+# 1. Copia l'script del repo a /root/evolution-watchdog.sh
+#    (repo privat: el més senzill és copiar-lo a mà)
 nano /root/evolution-watchdog.sh
+#    → enganxa el contingut de scripts/vps/evolution-watchdog.sh
 
-# 3. Fes-lo executable i prova'l
+# 2. Edita el bloc CONFIG de l'script:
+#    APIKEY        → la AUTHENTICATION_API_KEY global del docker-compose
+#    CONTAINER     → docker ps  (p.ex. evolution-evolution-api-1)
+#    NTFY_TOPIC    → un nom PRIVAT i impredictible, p.ex. evo-vinroma-x7k2m9q4
+#    PROBE_NUMBER  → qualsevol número amb WhatsApp (per defecte el del club)
+
+# 3. Permisos i prova manual
 chmod +x /root/evolution-watchdog.sh
 /root/evolution-watchdog.sh
-cat /var/log/evolution-watchdog.log   # hauria de dir "healthy" o res
+cat /var/log/evolution-watchdog.log   # buit o sense errors = tot sa
 
-# 4. Programa'l cada 2 minuts
-(crontab -l 2>/dev/null; echo "*/2 * * * * /root/evolution-watchdog.sh") | crontab -
+# 4. Programa'l cada 3 minuts
+(crontab -l 2>/dev/null; echo "*/3 * * * * /root/evolution-watchdog.sh") | crontab -
+crontab -l   # verifica
 
-# 5. Verifica que el cron ha quedat
-crontab -l
+# 5. Avisos al mòbil: instal·la l'app "ntfy" (Android/iOS o https://ntfy.sh)
+#    i subscriu-te al tema que has posat a NTFY_TOPIC. Fes una prova:
+curl -d "Prova del watchdog" https://ntfy.sh/EL_TEU_TOPIC
 ```
 
-Nota: el repo és privat, així que el `curl` del pas 1 pot demanar credencials;
-si és més fàcil, copia el contingut del fitxer a mà amb `nano`.
+### Prova de foc (opcional però recomanada)
 
-### Com saber que funciona
+```bash
+docker stop evolution-evolution-api-1
+# Espera ~6-7 min: el watchdog ha de detectar-ho, arrencar-lo sol i
+# enviar-te el push "Evolution: reinici automàtic".
+tail -f /var/log/evolution-watchdog.log
+```
 
-- `cat /var/log/evolution-watchdog.log` — cada reinici hi queda apuntat
-- La propera vegada que Evolution es mori, hauria de recuperar-se sol en
-  ~2–4 minuts sense que ningú faci res
+### Manteniments (evitar que el watchdog interfereixi)
 
-## Capa 2 — Alertes per email (Vercel + GitHub Actions)
+```bash
+touch /tmp/evolution-watchdog-pause    # pausa el watchdog
+# ... fes el manteniment ...
+rm /tmp/evolution-watchdog-pause       # reactiva'l
+```
 
-El workflow `.github/workflows/wa-health.yml` crida `/api/cron/wa-health`
-cada 30 min: fa la mateixa prova real i, si falla, envia un email d'alerta
-a l'admin (via Resend, independent de WhatsApp) i re-avisa cada 3h com a
-màxim mentre duri la caiguda.
-
-**⚠️ Pendent de configurar:** el workflow es salta silenciosament si el
-secret no hi és. Cal afegir a GitHub:
-
-1. Repo → Settings → Secrets and variables → Actions → New repository secret
-2. Nom: `CRON_SECRET` — Valor: el mateix que a Vercel (Project Settings →
-   Environment Variables → `CRON_SECRET`)
-
-## Capa 3 — Recuperació manual (si tot lo demés falla)
+## Recuperació manual (si mai cal)
 
 1. `/admin/whatsapp-debug` → "Comprovar connexió" + "Llegir info del grup"
 2. Si tot falla amb Connection Closed → SSH al VPS:
    `docker restart evolution-evolution-api-1`
-3. Espera ~30 s → torna a provar "Enviar DM" des del panell
+3. Espera ~30 s → prova "Enviar DM" des del panell
 4. Re-envia les notificacions perdudes amb "Re-enviar WA" + l'UUID del partit
-   (les trobaràs a `/admin/matches` o demanant-los a l'assistent)
+
+## Nota històrica
+
+Hi havia una capa d'alertes per email via GitHub Actions
+(`.github/workflows/wa-health.yml` → `/api/cron/wa-health`), retirada el
+2026-07-02 en favor del watchdog del VPS amb push ntfy (més directe i sense
+dependre de secrets de GitHub). L'endpoint `/api/cron/wa-health` segueix
+existint per si es vol reactivar.
