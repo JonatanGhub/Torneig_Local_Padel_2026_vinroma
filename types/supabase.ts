@@ -180,6 +180,7 @@ type RescheduleProposalRow = {
   status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
   responded_by_player_id: string | null;
   responded_at: string | null;
+  reminder_sent_at: string | null;
   created_at: string;
 };
 
