@@ -73,6 +73,17 @@ export default async function CaptainMatchPage({ params }: Props) {
     reports?.find((r) => r.reporter_pair_side !== mySide && r.reporter_pair_side !== 'admin') ??
     null;
 
+  // El marcador es desa relatiu a QUI reporta ("a"=el seu propi equip,
+  // "b"=el rival), no en termes absoluts pair_a/pair_b. El report del rival,
+  // per tant, té "a"/"b" CAPGIRATS respecte al meu punt de vista — si el
+  // mostréssim tal qual sota les etiquetes "Nosaltres"/"Rivals" (com passava
+  // abans), un capità podria confirmar sense adonar-se'n el marcador
+  // exactament invertit del real, atorgant la victòria a qui ha perdut.
+  // Això és EXACTAMENT el que va passar el 2/7 (partit Jordi/Mariano vs
+  // Ainoa/Agnés): Jordi va confirmar el pre-emplenat sense capgirar-lo i el
+  // sistema va validar el guanyador equivocat.
+  const rivalReportFlipped = rivalReport ? flipScore(rivalReport.score_json) : null;
+
   // El resultat només es pot pujar si el partit ja s'ha jugat: la data de
   // programació ha de ser al passat. Si no hi ha data, encara no es pot.
   // Excepció: si el partit ja està pending_validation/disputed/validated, ja hi
@@ -118,16 +129,17 @@ export default async function CaptainMatchPage({ params }: Props) {
       )}
 
       {match.status === 'pending_validation' && rivalReport && !myReport && (
-        <p className="mb-4 rounded-md bg-[hsl(var(--secondary))] p-3 text-sm">
-          {t('captain.rival_reported', { score: scoreToText(rivalReport.score_json) })}
-        </p>
+        <div className="mb-4 space-y-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
+          <p>{t('captain.rival_reported', { score: scoreToText(rivalReportFlipped) })}</p>
+          <p className="text-xs font-medium">{t('captain.rival_reported_warning')}</p>
+        </div>
       )}
 
       {canReport ? (
         <div className="space-y-3">
           <ReportForm
             matchId={match.id}
-            defaultScore={myReport?.score_json ?? rivalReport?.score_json ?? null}
+            defaultScore={myReport?.score_json ?? rivalReportFlipped}
             readOnly={match.status === 'validated' || match.status === 'walkover'}
           />
           {match.status !== 'validated' && match.status !== 'walkover' && (
@@ -155,6 +167,23 @@ export default async function CaptainMatchPage({ params }: Props) {
       )}
     </main>
   );
+}
+
+// Capgira els camps a/b de cada set d'un marcador. Cal per mostrar el report
+// del RIVAL des del meu propi punt de vista: el rival el va desar amb
+// "a"=el seu equip, "b"=el meu — jo necessito veure-ho a l'inrevés.
+function flipScore(score: unknown): { set: number; a: number; b: number }[] | null {
+  if (!Array.isArray(score)) return null;
+  return score
+    .filter(
+      (s): s is { set: number; a: number; b: number } =>
+        typeof s === 'object' &&
+        s !== null &&
+        typeof (s as { set: unknown }).set === 'number' &&
+        typeof (s as { a: unknown }).a === 'number' &&
+        typeof (s as { b: unknown }).b === 'number',
+    )
+    .map((s) => ({ set: s.set, a: s.b, b: s.a }));
 }
 
 function scoreToText(score: unknown): string {
