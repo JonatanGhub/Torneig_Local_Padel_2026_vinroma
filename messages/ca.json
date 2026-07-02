@@ -713,6 +713,8 @@
     "error_match_already_resolved": "Aquest partit ja té un resultat tancat.",
     "error_invalid_claim": "Opció no vàlida.",
     "error_match_not_found": "No s'ha trobat el partit.",
+    "error_invalid_real_score": "El marcador parcial no és vàlid.",
+    "error_unknown": "S'ha produït un error inesperat. Torna-ho a provar; si persisteix, avisa l'organització.",
     "walkover_toggle_cta": "El partit no s'ha pogut acabar (retirada o incompareixença)",
     "walkover_title": "Reportar per retirada o incompareixença",
     "walkover_subtitle": "Fes servir això si el partit no s'ha pogut completar (lesió, retirada a mig partit o incompareixença) enlloc d'introduir un marcador. El rival haurà de confirmar-ho, igual que amb un resultat normal.",

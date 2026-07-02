@@ -713,6 +713,8 @@
     "error_match_already_resolved": "Este partido ya tiene un resultado cerrado.",
     "error_invalid_claim": "Opción no válida.",
     "error_match_not_found": "No se ha encontrado el partido.",
+    "error_invalid_real_score": "El marcador parcial no es válido.",
+    "error_unknown": "Se ha producido un error inesperado. Vuelve a intentarlo; si persiste, avisa a la organización.",
     "walkover_toggle_cta": "El partido no se ha podido terminar (retirada o incomparecencia)",
     "walkover_title": "Reportar por retirada o incomparecencia",
     "walkover_subtitle": "Usa esto si el partido no se ha podido completar (lesión, retirada a mitad de partido o incomparecencia) en lugar de introducir un marcador. El rival tendrá que confirmarlo, igual que con un resultado normal.",

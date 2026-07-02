@@ -216,7 +216,26 @@ export async function submitWalkoverReport(formData: FormData) {
     p_claim: parsedClaim.data,
     p_real_score: realScore,
   });
-  if (error) return { ok: false, error: error.message } as const;
+  if (error) {
+    // Log sempre: sense això, un RPC fallit no deixa CAP rastre als logs de
+    // Vercel (el POST retorna 200 amb {ok:false}) i diagnosticar "no em va
+    // el botó" es torna impossible a posteriori.
+    console.error('[submitWalkoverReport] rpc failed', { matchId, message: error.message });
+    // Tradueix només codis coneguts; qualsevol altre missatge cru (p.ex. un
+    // error de PostgREST) es mapeja a 'unknown' perquè t() no rebi una clau
+    // inexistent i el capità vegi un error llegible.
+    const known = [
+      'invalid_claim',
+      'invalid_real_score',
+      'unauthenticated',
+      'no_player_profile',
+      'match_not_found',
+      'match_already_resolved',
+      'not_captain_of_this_match',
+    ] as const;
+    const code = known.find((k) => error.message.includes(k)) ?? 'unknown';
+    return { ok: false, error: code } as const;
+  }
 
   const { data: matchAfter } = await supabase
     .from('matches')
