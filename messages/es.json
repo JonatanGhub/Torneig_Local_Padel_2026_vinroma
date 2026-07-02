@@ -706,6 +706,7 @@
     "error_invalid_score": "Marcador no válido.",
     "error_invalid_set_score": "Uno de los sets tiene un marcador imposible en pádel (p.ej. 6-5 no es válido).",
     "error_no_winner": "El marcador no determina ganador (hay que llegar a 2 sets ganados).",
+    "error_hint_walkover": "¿El partido no se pudo terminar (lesión o retirada)? No introduzcas el marcador aquí: usa el botón \"El partido no se ha podido terminar\" de abajo.",
     "error_not_captain_of_this_match": "No eres el capitán de este partido.",
     "error_unauthenticated": "Debes volver a iniciar sesión.",
     "error_no_player_profile": "No se ha encontrado tu perfil de jugador.",

@@ -706,6 +706,7 @@
     "error_invalid_score": "Marcador no vàlid.",
     "error_invalid_set_score": "Un dels sets té un marcador impossible al pàdel (p.ex. 6-5 no és vàlid).",
     "error_no_winner": "El marcador no determina guanyador (cal arribar a 2 sets guanyats).",
+    "error_hint_walkover": "El partit no es va poder acabar (lesió o retirada)? No introdueixis el marcador aquí: fes servir el botó \"El partit no s'ha pogut acabar\" de sota.",
     "error_not_captain_of_this_match": "No ets el capità d'aquest partit.",
     "error_unauthenticated": "Has de tornar a iniciar sessió.",
     "error_no_player_profile": "No s'ha trobat el teu perfil de jugador.",

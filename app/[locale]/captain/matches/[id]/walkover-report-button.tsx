@@ -63,13 +63,16 @@ export function WalkoverReportButton({ matchId }: { matchId: string }) {
   }
 
   if (!open) {
+    // Botó destacat (no un enllaç petit): un capità que ve d'un partit
+    // interromput per lesió ha de trobar aquesta sortida a simple vista,
+    // sobretot després que el formulari normal li rebutgi el marcador.
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+        className="w-full rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-sm font-medium text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
       >
-        {t('walkover_toggle_cta')}
+        🚑 {t('walkover_toggle_cta')}
       </button>
     );
   }

@@ -87,7 +87,9 @@ export default async function CaptainMatchPage({ params }: Props) {
   const canReport = isPlayed || hasReportHistory;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-8">
+    // pb-28: el botó flotant "Reportar problema" tapava l'última opció de la
+    // pàgina (el botó de walkover) en mòbil.
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 pt-8 pb-28">
       <Link
         href={`/${locale}/captain`}
         className="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-1 text-sm"
