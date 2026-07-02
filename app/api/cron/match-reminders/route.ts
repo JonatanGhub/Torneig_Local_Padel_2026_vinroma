@@ -3,6 +3,7 @@ import {
   sendDailyGroupSummary,
   notifyFeePhaseChangeToGroup,
   sendValidationReminders,
+  sendRescheduleReminders,
 } from '@/lib/whatsapp/notify';
 import { whatsappConfigured } from '@/lib/whatsapp/send';
 
@@ -13,6 +14,8 @@ export const dynamic = 'force-dynamic';
 //  2. Si demà canvia el tram de preu de la inscripció, avís d'últim dia.
 //  3. DM a ambdós capitans si un partit ja fa >20h que hauria d'estar jugat
 //     i el resultat encara no s'ha validat (màxim 7 dies endarrere).
+//  4. DM al capità que ha de respondre una proposta de canvi de data que
+//     porta >24h pendent.
 //
 // Protegit amb CRON_SECRET (Vercel envia Authorization: Bearer <CRON_SECRET>).
 export async function GET(request: Request) {
@@ -38,5 +41,9 @@ export async function GET(request: Request) {
   // màxim un cop (reminder_sent_at en marca l'enviament).
   const reminders = await sendValidationReminders();
 
-  return NextResponse.json({ ok: true, reminders });
+  // Recordatori de proposta de canvi de data pendent >24h: DM al capità que
+  // ha de respondre. Un cop per proposta.
+  const rescheduleReminders = await sendRescheduleReminders();
+
+  return NextResponse.json({ ok: true, reminders, rescheduleReminders });
 }

@@ -1060,6 +1060,106 @@ export async function sendValidationReminders(): Promise<{ sent: number; skipped
   return { sent, skipped };
 }
 
+// 10b) Recordatori de proposta de canvi de data sense resposta → DM al capità
+//      que ha de respondre quan la proposta porta >24h en 'pending'.
+//      Cridat des del cron diari (08:00 Madrid). Marca reminder_sent_at per
+//      no repetir-lo cada dia. Finestra de 7 dies pel mateix motiu que els
+//      recordatoris de validació (no rescatar propostes antigues si el cron
+//      ha estat aturat una temporada).
+export async function sendRescheduleReminders(): Promise<{ sent: number; skipped: number }> {
+  let sent = 0;
+  let skipped = 0;
+  try {
+    const supabase = createServiceClient();
+    const now = new Date();
+    const cutoff24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const cutoff7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: proposals } = await supabase
+      .from('match_reschedule_proposals')
+      .select('id, match_id, proposer_pair_side, new_scheduled_at, new_court_label, created_at')
+      .eq('status', 'pending')
+      .lt('created_at', cutoff24h)
+      .gte('created_at', cutoff7d)
+      .is('reminder_sent_at', null);
+
+    if (!proposals || proposals.length === 0) return { sent: 0, skipped: 0 };
+
+    for (const proposal of proposals) {
+      const { data: match } = await supabase
+        .from('matches')
+        .select('id, pair_a_id, pair_b_id, status')
+        .eq('id', proposal.match_id)
+        .maybeSingle();
+
+      // Si el partit ja s'ha resolt mentre la proposta quedava penjada, no té
+      // sentit recordar res: marquem i seguim.
+      if (!match || match.status === 'validated' || match.status === 'walkover') {
+        await supabase
+          .from('match_reschedule_proposals')
+          .update({ reminder_sent_at: now.toISOString() })
+          .eq('id', proposal.id);
+        skipped++;
+        continue;
+      }
+
+      const { data: pairs } = await supabase
+        .from('pairs')
+        .select('id, captain_id, player_a_id, player_b_id')
+        .in('id', [match.pair_a_id, match.pair_b_id]);
+      const playerIds = (pairs ?? []).flatMap((p) => [p.captain_id, p.player_a_id, p.player_b_id]);
+      const { data: players } = playerIds.length
+        ? await supabase
+            .from('players')
+            .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
+            .in('id', playerIds)
+        : { data: [] };
+
+      const pairLabelOf = (pairId: string) => {
+        const pair = pairs?.find((p) => p.id === pairId);
+        if (!pair) return '—';
+        return lastNamesPair(
+          players?.find((p) => p.id === pair.player_a_id),
+          players?.find((p) => p.id === pair.player_b_id),
+        );
+      };
+
+      // Qui ha de respondre és el capità RIVAL del proposant.
+      const rivalPairId = proposal.proposer_pair_side === 'a' ? match.pair_b_id : match.pair_a_id;
+      const proposerPairId =
+        proposal.proposer_pair_side === 'a' ? match.pair_a_id : match.pair_b_id;
+      const rivalPair = pairs?.find((p) => p.id === rivalPairId);
+      const rivalCaptain = players?.find((p) => p.id === rivalPair?.captain_id) as
+        | Captain
+        | undefined;
+
+      if (canWhatsApp(rivalCaptain)) {
+        const text =
+          `⏰ *Recordatori: proposta de canvi pendent*\n` +
+          `${pairLabelOf(proposerPairId)} et va proposar fa més d'un dia canviar el partit a:\n` +
+          `📅 ${formatDateCA(proposal.new_scheduled_at)}` +
+          (proposal.new_court_label ? `  ·  ${proposal.new_court_label}` : '') +
+          `\n\nAccepta-la o rebutja-la perquè el partit no quedi penjat:\n` +
+          `${SITE_URL}/ca/captain/matches/${proposal.match_id}/reschedule`;
+        await sendWhatsApp({ to: rivalCaptain.phone, text });
+        sent++;
+      } else {
+        skipped++;
+      }
+
+      // Marca sempre (fins i tot si el capità no té WA) per no reintentar
+      // cada dia contra un destinatari que mai el podrà rebre.
+      await supabase
+        .from('match_reschedule_proposals')
+        .update({ reminder_sent_at: now.toISOString() })
+        .eq('id', proposal.id);
+    }
+  } catch (err) {
+    console.warn('[whatsapp] sendRescheduleReminders failed', err);
+  }
+  return { sent, skipped };
+}
+
 // 11) Canvi de tram de preu → avís al grup quan falten <24h.
 // El cron diari (08:00 Madrid) crida aquesta funció: si algun tram de tarifa
 // comença dins de les pròximes 24 hores, avisa el grup que és l'últim dia al
