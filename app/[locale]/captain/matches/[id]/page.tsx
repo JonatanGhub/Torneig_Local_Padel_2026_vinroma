@@ -8,6 +8,7 @@ import { fullName } from '@/lib/player-name';
 import { getCaptainPlayerIds } from '@/lib/captain/data';
 import { formatMatchDateTime, formatMatchDateTimeLong } from '@/lib/format-date';
 import { ReportForm } from './report-form';
+import { WalkoverReportButton } from './walkover-report-button';
 
 type Props = { params: Promise<{ locale: Locale; id: string }> };
 
@@ -121,11 +122,16 @@ export default async function CaptainMatchPage({ params }: Props) {
       )}
 
       {canReport ? (
-        <ReportForm
-          matchId={match.id}
-          defaultScore={myReport?.score_json ?? rivalReport?.score_json ?? null}
-          readOnly={match.status === 'validated' || match.status === 'walkover'}
-        />
+        <div className="space-y-3">
+          <ReportForm
+            matchId={match.id}
+            defaultScore={myReport?.score_json ?? rivalReport?.score_json ?? null}
+            readOnly={match.status === 'validated' || match.status === 'walkover'}
+          />
+          {match.status !== 'validated' && match.status !== 'walkover' && (
+            <WalkoverReportButton matchId={match.id} />
+          )}
+        </div>
       ) : (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/40">
           <div className="flex items-start gap-3">

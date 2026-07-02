@@ -399,6 +399,10 @@ export type Database = {
         Args: { p_match_id: string; p_score: Json };
         Returns: string;
       };
+      submit_match_walkover_report: {
+        Args: { p_match_id: string; p_claim: string };
+        Returns: string;
+      };
       propose_reschedule: {
         Args: {
           p_match_id: string;
