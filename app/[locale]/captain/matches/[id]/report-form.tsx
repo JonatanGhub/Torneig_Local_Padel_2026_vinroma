@@ -9,6 +9,34 @@ import { submitReport } from './actions';
 
 type SetScore = { set: number; a: number; b: number };
 
+// Un walkover desa un marcador placeholder (6-0/6-0) que no reflecteix cap
+// joc real; en la vista de només lectura val més dir-ho clarament (i, si el
+// capità hi va afegir un marcador parcial informatiu, mostrar-lo) que fer
+// veure que es va jugar un 6-0/6-0.
+function walkoverInfo(
+  json: Json | null,
+): { retired: true; realScoreText: string | null } | { retired: false } {
+  if (!Array.isArray(json) || json.length === 0) return { retired: false };
+  const first = json[0];
+  if (typeof first !== 'object' || first === null || (first as { wo?: unknown }).wo !== true) {
+    return { retired: false };
+  }
+  const real = (first as { wo_real_score?: unknown }).wo_real_score;
+  const realScoreText = Array.isArray(real)
+    ? real
+        .filter(
+          (s): s is { a: number; b: number } =>
+            typeof s === 'object' &&
+            s !== null &&
+            typeof (s as { a: unknown }).a === 'number' &&
+            typeof (s as { b: unknown }).b === 'number',
+        )
+        .map((s) => `${s.a}-${s.b}`)
+        .join(', ') || null
+    : null;
+  return { retired: true, realScoreText };
+}
+
 function parseInitialScore(json: Json | null): SetScore[] {
   if (!Array.isArray(json)) return [];
   return json
@@ -92,18 +120,33 @@ export function ReportForm({
   }
 
   if (readOnly) {
+    const wo = walkoverInfo(defaultScore);
     return (
       <div className="border-border bg-card rounded-md border p-4">
         <p className="text-muted-foreground text-xs tracking-wider uppercase">
           {t('final_result')}
         </p>
-        <p className="font-display mt-2 text-2xl font-semibold">
-          {sets.map((s, i) => (
-            <span key={i} className={cn(i > 0 && 'ml-3 border-l border-[hsl(var(--border))] pl-3')}>
-              {s.a}-{s.b}
-            </span>
-          ))}
-        </p>
+        {wo.retired ? (
+          <div className="mt-2">
+            <p className="font-display text-2xl font-semibold">{t('walkover_result_label')}</p>
+            {wo.realScoreText && (
+              <p className="text-muted-foreground mt-1 text-sm">
+                {t('walkover_real_score_label')}: {wo.realScoreText}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="font-display mt-2 text-2xl font-semibold">
+            {sets.map((s, i) => (
+              <span
+                key={i}
+                className={cn(i > 0 && 'ml-3 border-l border-[hsl(var(--border))] pl-3')}
+              >
+                {s.a}-{s.b}
+              </span>
+            ))}
+          </p>
+        )}
       </div>
     );
   }

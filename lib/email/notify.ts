@@ -259,7 +259,12 @@ export async function notifyResultPendingValidation(matchId: string, reporterSid
       .eq('reporter_pair_side', reporterSide)
       .maybeSingle();
     const walkoverSets = Array.isArray(report?.score_json)
-      ? (report!.score_json as { a: number; b: number; wo?: boolean }[])
+      ? (report!.score_json as {
+          a: number;
+          b: number;
+          wo?: boolean;
+          wo_real_score?: { a: number; b: number }[];
+        }[])
       : null;
     const isWalkoverClaim = walkoverSets?.[0]?.wo === true;
     // Igual que a la versió de WhatsApp: el marcador d'un walkover és
@@ -269,8 +274,10 @@ export async function notifyResultPendingValidation(matchId: string, reporterSid
         ? match.pair_a_id
         : match.pair_b_id;
     const retiredPairId = winnerPairId === match.pair_a_id ? match.pair_b_id : match.pair_a_id;
+    const realScoreText = walkoverSets?.[0]?.wo_real_score?.map((s) => `${s.a}-${s.b}`).join(', ');
     const scoreText = isWalkoverClaim
-      ? `Walkover — ${pairLabelOf(retiredPairId)} s'ha retirat o no s'ha presentat`
+      ? `Walkover — ${pairLabelOf(retiredPairId)} s'ha retirat o no s'ha presentat` +
+        (realScoreText ? ` (marcador quan s'ha aturat: ${realScoreText})` : '')
       : scoreToText(report?.score_json) || '—';
 
     await sendEmail({

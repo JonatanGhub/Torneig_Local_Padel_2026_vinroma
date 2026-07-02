@@ -298,7 +298,12 @@ export async function notifyResultPendingValidationWhatsApp(
       .eq('reporter_pair_side', reporterSide)
       .maybeSingle();
     const walkoverSets = Array.isArray(report?.score_json)
-      ? (report!.score_json as { a: number; b: number; wo?: boolean }[])
+      ? (report!.score_json as {
+          a: number;
+          b: number;
+          wo?: boolean;
+          wo_real_score?: { a: number; b: number }[];
+        }[])
       : null;
     const isWalkoverClaim = walkoverSets?.[0]?.wo === true;
     // El score_json d'un walkover es desa en termes ABSOLUTS (a=pair_a,
@@ -311,11 +316,15 @@ export async function notifyResultPendingValidationWhatsApp(
         : match.pair_b_id;
     const retiredPairId = winnerPairId === match.pair_a_id ? match.pair_b_id : match.pair_a_id;
     const scoreText = walkoverSets ? walkoverSets.map((s) => `${s.a}-${s.b}`).join(', ') : '—';
+    // Marcador parcial opcional que el capità pot haver afegit; purament
+    // informatiu, ja desat en termes absoluts com la resta del walkover.
+    const realScoreText = walkoverSets?.[0]?.wo_real_score?.map((s) => `${s.a}-${s.b}`).join(', ');
 
     const text = isWalkoverClaim
       ? `📝 *Walkover per confirmar*\n` +
-        `${pairLabelOf(reporterPairId)} indica que ${pairLabelOf(retiredPairId)} s'ha retirat o no s'ha presentat (guanyaria ${pairLabelOf(winnerPairId)}).\n\n` +
-        `Confirma-ho (o reporta el resultat real si el partit sí que s'ha jugat):\n` +
+        `${pairLabelOf(reporterPairId)} indica que ${pairLabelOf(retiredPairId)} s'ha retirat o no s'ha presentat (guanyaria ${pairLabelOf(winnerPairId)}).\n` +
+        (realScoreText ? `Marcador quan s'ha aturat: ${realScoreText}\n` : '') +
+        `\nConfirma-ho (o reporta el resultat real si el partit sí que s'ha jugat):\n` +
         `${SITE_URL}/ca/captain/matches/${matchId}`
       : `📝 *Resultat per confirmar*\n` +
         `${pairLabelOf(reporterPairId)} ha reportat: ${scoreText}\n` +

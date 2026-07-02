@@ -400,7 +400,7 @@ export type Database = {
         Returns: string;
       };
       submit_match_walkover_report: {
-        Args: { p_match_id: string; p_claim: string };
+        Args: { p_match_id: string; p_claim: string; p_real_score?: Json | null };
         Returns: string;
       };
       propose_reschedule: {
