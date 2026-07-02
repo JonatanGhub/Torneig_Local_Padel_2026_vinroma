@@ -74,6 +74,10 @@ export function ReportForm({
         ],
   );
   const [error, setError] = useState<string | null>(null);
+  // Codi cru de l'error, per poder afegir pistes contextuals (p.ex. si el
+  // marcador és "impossible" potser és perquè el partit es va interrompre
+  // i el que cal és l'opció de walkover de sota, no insistir amb el marcador).
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   // Un cop enviat amb èxit, bloquegem el botó perquè un segon toc (impacient,
@@ -104,6 +108,7 @@ export function ReportForm({
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setErrorCode(null);
     setSuccess(null);
     const fd = new FormData();
     fd.set('matchId', matchId);
@@ -112,6 +117,7 @@ export function ReportForm({
       const res = await submitReport(fd);
       if (!res.ok) {
         setError(t(`error_${res.error}` as 'error_invalid_input'));
+        setErrorCode(res.error);
         return;
       }
       setSuccess(t('submitted_ok'));
@@ -200,6 +206,11 @@ export function ReportForm({
       </div>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
+      {(errorCode === 'invalid_set_score' || errorCode === 'no_winner') && (
+        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+          {t('error_hint_walkover')}
+        </p>
+      )}
       {success && <p className="text-sm text-green-600">{success}</p>}
 
       <Button type="submit" disabled={isPending || justSubmitted} className="w-full">
