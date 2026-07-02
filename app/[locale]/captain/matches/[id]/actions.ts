@@ -172,6 +172,90 @@ export async function submitReport(formData: FormData) {
   return { ok: true, side: data as string } as const;
 }
 
+const WalkoverClaimSchema = z.enum(['we_retired', 'rival_retired']);
+
+// Marcador parcial OPCIONAL i purament informatiu (p.ex. "anàvem 1-1, 2-0 al
+// segon quan s'ha retirat"). No exigim sets complets vàlids de pàdel (per
+// això existeix aquest flux!) — només rang de jocs 0-7, com un input normal.
+const RealSetSchema = z.object({
+  set: z.number().int().min(1).max(3),
+  a: z.number().int().min(0).max(7),
+  b: z.number().int().min(0).max(7),
+});
+const RealScoreSchema = z.array(RealSetSchema).max(3);
+
+// Permet a un capità reportar un walkover (retirada/lesió o incompareixença)
+// quan el partit s'ha interromput abans que ningú hagi pogut reportar un
+// marcador vàlid (p.ex. una lesió deixa un set a mitges, que submitReport
+// rebutjaria per no ser un set complet vàlid). El capità només indica QUI
+// s'ha retirat; el RPC calcula el guanyador en termes absoluts i el desa
+// com un match_report més, així que segueix el mateix circuit de doble
+// confirmació (pending_validation/disputed) que un report normal. El
+// marcador parcial opcional viatja a part i mai afecta qui guanya.
+export async function submitWalkoverReport(formData: FormData) {
+  const matchId = formData.get('matchId');
+  if (typeof matchId !== 'string') return { ok: false, error: 'invalid_input' } as const;
+  const parsedClaim = WalkoverClaimSchema.safeParse(formData.get('claim'));
+  if (!parsedClaim.success) return { ok: false, error: 'invalid_input' } as const;
+
+  const rawRealScore = formData.get('realScore');
+  let realScore: z.infer<typeof RealScoreSchema> | null = null;
+  if (typeof rawRealScore === 'string' && rawRealScore.trim()) {
+    try {
+      const parsedRealScore = RealScoreSchema.safeParse(JSON.parse(rawRealScore));
+      if (!parsedRealScore.success) return { ok: false, error: 'invalid_score' } as const;
+      if (parsedRealScore.data.length > 0) realScore = parsedRealScore.data;
+    } catch {
+      return { ok: false, error: 'invalid_json' } as const;
+    }
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('submit_match_walkover_report', {
+    p_match_id: matchId,
+    p_claim: parsedClaim.data,
+    p_real_score: realScore,
+  });
+  if (error) return { ok: false, error: error.message } as const;
+
+  const { data: matchAfter } = await supabase
+    .from('matches')
+    .select('status, phase, category_id')
+    .eq('id', matchId)
+    .maybeSingle();
+  const reporterSide = data === 'a' || data === 'b' ? (data as 'a' | 'b') : null;
+
+  if (matchAfter?.status === 'validated' || matchAfter?.status === 'walkover') {
+    // notifyMatchValidated (email) només actua sobre status==='validated', així
+    // que per a un walkover ja tancat només s'envia WhatsApp (mateix criteri
+    // que fa servir l'admin quan marca un walkover manualment).
+    if (matchAfter.status === 'validated') await notifyMatchValidated(matchId);
+    await notifyMatchValidatedWhatsApp(matchId);
+    await notifyValidatedToGroup(matchId);
+    if (matchAfter.phase === 'group' && matchAfter.category_id) {
+      try {
+        const service = createServiceClient();
+        if (await categoryReadyForKnockout(service, matchAfter.category_id)) {
+          await generateKnockoutForCategory(service, matchAfter.category_id);
+        }
+      } catch (err) {
+        console.warn('[knockout] auto-generate failed', err);
+      }
+    }
+  } else if (matchAfter?.status === 'disputed') {
+    await notifyMatchDisputed(matchId);
+    await notifyMatchDisputedWhatsApp(matchId);
+  } else if (matchAfter?.status === 'pending_validation' && reporterSide) {
+    await notifyResultPendingValidation(matchId, reporterSide);
+    await notifyResultPendingValidationWhatsApp(matchId, reporterSide);
+  }
+
+  revalidatePath('/[locale]/captain', 'page');
+  revalidatePath('/[locale]/captain/matches/[id]', 'page');
+  revalidatePath('/[locale]/grups/[level]', 'page');
+  return { ok: true } as const;
+}
+
 // =========================================================================
 // Buscador de huecos OFICIALES libres para reprogramar.
 // Horario oficial del torneo 2026: lunes–jueves, Pista 2 i Pista 3, a les
