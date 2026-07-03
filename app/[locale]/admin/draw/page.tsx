@@ -20,26 +20,28 @@ export default async function DrawAdminPage({ params }: Props) {
     .eq('edition', 5)
     .maybeSingle();
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, level, name_ca, name_es')
-    .eq('tournament_id', tournament?.id ?? '')
-    .order('level');
-
-  const { data: groups } = await supabase
-    .from('groups')
-    .select('id, category_id, label, draw_seed, drawn_at')
-    .eq('tournament_id', tournament?.id ?? '');
-
-  const { data: pairs } = await supabase
-    .from('pairs')
-    .select('id, category_id, status, group_id')
-    .eq('tournament_id', tournament?.id ?? '');
-
-  const { data: matches } = await supabase
-    .from('matches')
-    .select('category_id, phase, status')
-    .eq('tournament_id', tournament?.id ?? '');
+  // Aquestes 4 consultes només depenen de tournament.id: es disparen totes
+  // alhora en lloc d'una darrere l'altra.
+  const [{ data: categories }, { data: groups }, { data: pairs }, { data: matches }] =
+    await Promise.all([
+      supabase
+        .from('categories')
+        .select('id, level, name_ca, name_es')
+        .eq('tournament_id', tournament?.id ?? '')
+        .order('level'),
+      supabase
+        .from('groups')
+        .select('id, category_id, label, draw_seed, drawn_at')
+        .eq('tournament_id', tournament?.id ?? ''),
+      supabase
+        .from('pairs')
+        .select('id, category_id, status, group_id')
+        .eq('tournament_id', tournament?.id ?? ''),
+      supabase
+        .from('matches')
+        .select('category_id, phase, status')
+        .eq('tournament_id', tournament?.id ?? ''),
+    ]);
 
   const summary = (categories ?? []).map((c) => {
     const catPairs = (pairs ?? []).filter((p) => p.category_id === c.id);

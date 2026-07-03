@@ -18,21 +18,38 @@ export default async function CaptainRescheduleMatchPage({ params }: Props) {
   const t = await getTranslations();
 
   const supabase = await createClient();
-  const { user, playerIds } = await getCaptainPlayerIds();
+  // Aquestes 4 no depenen l'una de l'altra (totes només necessiten matchId,
+  // no el resultat de cap altra consulta): es disparen totes alhora.
+  const [{ user, playerIds }, { data: match }, { data: proposals }, freeSlotsRes] =
+    await Promise.all([
+      getCaptainPlayerIds(),
+      supabase
+        .from('matches')
+        .select('id, pair_a_id, pair_b_id, status, scheduled_at, court_label')
+        .eq('id', matchId)
+        .maybeSingle(),
+      supabase
+        .from('match_reschedule_proposals')
+        .select(
+          'id, proposer_pair_side, new_scheduled_at, new_court_label, message, status, created_at',
+        )
+        .eq('match_id', matchId)
+        .order('created_at', { ascending: false }),
+      // Huecos oficiales libres (L–J, P2/P3, 20:30/22:00) hasta el 30 de julio.
+      getFreeOfficialSlots(matchId),
+    ]);
   if (!user) redirect(`/${locale}/login?next=/${locale}/captain/matches/${matchId}/reschedule`);
   if (playerIds.length === 0) redirect(`/${locale}/captain`);
-
-  const { data: match } = await supabase
-    .from('matches')
-    .select('id, pair_a_id, pair_b_id, status, scheduled_at, court_label')
-    .eq('id', matchId)
-    .maybeSingle();
   if (!match) notFound();
 
   // Si el partit ja està validat/walkover, no té sentit reprogramar.
   if (match.status === 'validated' || match.status === 'walkover') {
     redirect(`/${locale}/captain/matches/${matchId}`);
   }
+
+  const pendingProposal = proposals?.find((p) => p.status === 'pending') ?? null;
+  const historyProposals = (proposals ?? []).filter((p) => p.status !== 'pending');
+  const freeSlots = freeSlotsRes.ok ? freeSlotsRes.slots : [];
 
   const { data: pairs } = await supabase
     .from('pairs')
@@ -63,20 +80,6 @@ export default async function CaptainRescheduleMatchPage({ params }: Props) {
     const b = playerMap.get(pair.player_b_id);
     return `${fullName(a)} / ${fullName(b)}`;
   };
-
-  const { data: proposals } = await supabase
-    .from('match_reschedule_proposals')
-    .select(
-      'id, proposer_pair_side, new_scheduled_at, new_court_label, message, status, created_at',
-    )
-    .eq('match_id', matchId)
-    .order('created_at', { ascending: false });
-  const pendingProposal = proposals?.find((p) => p.status === 'pending') ?? null;
-  const historyProposals = (proposals ?? []).filter((p) => p.status !== 'pending');
-
-  // Huecos oficiales libres (L–J, P2/P3, 20:30/22:00) hasta el 30 de julio.
-  const freeSlotsRes = await getFreeOfficialSlots(matchId);
-  const freeSlots = freeSlotsRes.ok ? freeSlotsRes.slots : [];
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-8">

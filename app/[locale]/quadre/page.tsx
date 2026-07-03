@@ -18,16 +18,19 @@ export default async function BracketIndexPage({ params }: Props) {
     .eq('edition', 5)
     .maybeSingle();
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, level, name_ca, name_es')
-    .eq('tournament_id', tournament?.id ?? '')
-    .order('level');
-
-  const { data: koMatches } = await supabase
-    .from('matches')
-    .select('category_id, phase')
-    .eq('tournament_id', tournament?.id ?? '');
+  // `categories` i `koMatches` només depenen de tournament.id: es disparen
+  // alhora.
+  const [{ data: categories }, { data: koMatches }] = await Promise.all([
+    supabase
+      .from('categories')
+      .select('id, level, name_ca, name_es')
+      .eq('tournament_id', tournament?.id ?? '')
+      .order('level'),
+    supabase
+      .from('matches')
+      .select('category_id, phase')
+      .eq('tournament_id', tournament?.id ?? ''),
+  ]);
 
   const hasBracket = (categoryId: string) =>
     (koMatches ?? []).some(

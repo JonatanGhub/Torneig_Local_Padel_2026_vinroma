@@ -49,9 +49,22 @@ export default async function BracketPage({ params }: Props) {
   );
 
   const pairIds = Array.from(new Set(koMatches.flatMap((m) => [m.pair_a_id, m.pair_b_id])));
-  const { data: pairs } = pairIds.length
-    ? await supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', pairIds)
-    : { data: [] };
+  const matchIds = koMatches.map((m) => m.id);
+  // `pairs` i `setsData` només depenen de koMatches (ja calculat): es
+  // disparen alhora.
+  const [{ data: pairs }, { data: setsData }] = await Promise.all([
+    pairIds.length
+      ? supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', pairIds)
+      : Promise.resolve({ data: [] as { id: string; player_a_id: string; player_b_id: string }[] }),
+    matchIds.length
+      ? supabase
+          .from('sets')
+          .select('match_id, set_number, games_a, games_b')
+          .in('match_id', matchIds)
+      : Promise.resolve({
+          data: [] as { match_id: string; set_number: number; games_a: number; games_b: number }[],
+        }),
+  ]);
 
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: players } = playerIds.length
@@ -61,14 +74,6 @@ export default async function BracketPage({ params }: Props) {
         .in('id', playerIds)
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
-
-  const matchIds = koMatches.map((m) => m.id);
-  const { data: setsData } = matchIds.length
-    ? await supabase
-        .from('sets')
-        .select('match_id, set_number, games_a, games_b')
-        .in('match_id', matchIds)
-    : { data: [] };
 
   const pairLabel = (pairId: string) => {
     const pair = pairs?.find((p) => p.id === pairId);

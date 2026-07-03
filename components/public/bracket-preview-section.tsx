@@ -34,36 +34,39 @@ export async function BracketPreviewSection({ locale }: Props) {
     .maybeSingle();
   if (!tournament) return null;
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, level, name_ca, name_es')
-    .eq('tournament_id', tournament.id)
-    .order('level');
-
-  const { data: groups } = await supabase
-    .from('groups')
-    .select('id, category_id, label')
-    .eq('tournament_id', tournament.id);
+  // Cap d'aquestes 5 consultes depèn del resultat de les altres (totes
+  // necessiten com a molt tournament.id): es disparen totes alhora.
+  const [
+    { data: categories },
+    { data: groups },
+    { data: pairs },
+    { data: standings },
+    { data: groupMatches },
+  ] = await Promise.all([
+    supabase
+      .from('categories')
+      .select('id, level, name_ca, name_es')
+      .eq('tournament_id', tournament.id)
+      .order('level'),
+    supabase.from('groups').select('id, category_id, label').eq('tournament_id', tournament.id),
+    supabase
+      .from('pairs')
+      .select('id, category_id, group_id, player_a_id, player_b_id, status')
+      .eq('tournament_id', tournament.id)
+      .in('status', ['pending_payment', 'confirmed'])
+      .not('group_id', 'is', null),
+    supabase
+      .from('category_standings')
+      .select('pair_id, category_id, group_id, matches_played, matches_won, sets_diff, games_diff'),
+    supabase
+      .from('matches')
+      .select('category_id, group_label, status')
+      .eq('tournament_id', tournament.id)
+      .eq('phase', 'group'),
+  ]);
 
   // Sense grups sortejats no hi ha res a previsualitzar.
   if (!groups || groups.length === 0) return null;
-
-  const { data: pairs } = await supabase
-    .from('pairs')
-    .select('id, category_id, group_id, player_a_id, player_b_id, status')
-    .eq('tournament_id', tournament.id)
-    .in('status', ['pending_payment', 'confirmed'])
-    .not('group_id', 'is', null);
-
-  const { data: standings } = await supabase
-    .from('category_standings')
-    .select('pair_id, category_id, group_id, matches_played, matches_won, sets_diff, games_diff');
-
-  const { data: groupMatches } = await supabase
-    .from('matches')
-    .select('category_id, group_label, status')
-    .eq('tournament_id', tournament.id)
-    .eq('phase', 'group');
 
   // Etiquetes de parella (nom complet).
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);

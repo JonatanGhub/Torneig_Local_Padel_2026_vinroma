@@ -11,15 +11,19 @@ const intlMiddleware = createIntlMiddleware({
 });
 
 export async function middleware(request: NextRequest) {
+  const intlResponse = intlMiddleware(request);
+  // updateSession() ja crida auth.getUser() (refresca la sessió); reutilitzem
+  // el mateix user + client en lloc de tornar-lo a demanar a Supabase Auth.
+  const { response, user, supabase } = await updateSession(request, intlResponse);
+
   // Bloqueja l'acces al panell de capita si:
   // - encara no te PIN configurat (-> /captain/setup-pin)
   // - han passat >24h des de l'ultim PIN ok (-> /captain/unlock)
   // - el dispositiu actual no esta registrat com de confianca (-> unlock)
-  const captainRedirect = await captainGuardRedirect(request);
+  const captainRedirect = await captainGuardRedirect(request, user, supabase);
   if (captainRedirect) return captainRedirect;
 
-  const intlResponse = intlMiddleware(request);
-  return updateSession(request, intlResponse);
+  return response;
 }
 
 export const config = {

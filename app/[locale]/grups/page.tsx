@@ -18,16 +18,18 @@ export default async function GroupsIndexPage({ params }: Props) {
     .eq('edition', 5)
     .maybeSingle();
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, level, name_ca, name_es')
-    .eq('tournament_id', tournament?.id ?? '')
-    .order('level');
-
-  const { data: groups } = await supabase
-    .from('groups')
-    .select('id, category_id, label')
-    .eq('tournament_id', tournament?.id ?? '');
+  // `categories` i `groups` només depenen de tournament.id: es disparen alhora.
+  const [{ data: categories }, { data: groups }] = await Promise.all([
+    supabase
+      .from('categories')
+      .select('id, level, name_ca, name_es')
+      .eq('tournament_id', tournament?.id ?? '')
+      .order('level'),
+    supabase
+      .from('groups')
+      .select('id, category_id, label')
+      .eq('tournament_id', tournament?.id ?? ''),
+  ]);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-8">

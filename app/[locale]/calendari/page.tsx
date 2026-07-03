@@ -20,20 +20,24 @@ export default async function CalendariPage({ params }: Props) {
     .eq('edition', 5)
     .maybeSingle();
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, level, name_ca, name_es')
-    .eq('tournament_id', tournament?.id ?? '');
+  // `categories` i `matches` només depenen de tournament.id: es disparen alhora.
+  const [{ data: categories }, { data: matches }] = await Promise.all([
+    supabase
+      .from('categories')
+      .select('id, level, name_ca, name_es')
+      .eq('tournament_id', tournament?.id ?? ''),
+    supabase
+      .from('matches')
+      .select(
+        'id, category_id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status',
+      )
+      .eq('tournament_id', tournament?.id ?? '')
+      .not('scheduled_at', 'is', null)
+      .order('scheduled_at', { ascending: true }),
+  ]);
   const categoriesById = new Map(
     (categories ?? []).map((c) => [c.id, locale === 'ca' ? c.name_ca : c.name_es]),
   );
-
-  const { data: matches } = await supabase
-    .from('matches')
-    .select('id, category_id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status')
-    .eq('tournament_id', tournament?.id ?? '')
-    .not('scheduled_at', 'is', null)
-    .order('scheduled_at', { ascending: true });
 
   const pairIds = (matches ?? []).flatMap((m) => [m.pair_a_id, m.pair_b_id]);
   const { data: pairs } = pairIds.length

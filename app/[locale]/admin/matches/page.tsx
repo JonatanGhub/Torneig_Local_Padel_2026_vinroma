@@ -43,13 +43,7 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
     .eq('edition', 5)
     .maybeSingle();
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, level, name_ca, name_es')
-    .eq('tournament_id', tournament?.id ?? '')
-    .order('level');
-
-  let query = supabase
+  let matchesQuery = supabase
     .from('matches')
     .select(
       'id, category_id, phase, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status',
@@ -58,20 +52,37 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
     .order('scheduled_at', { ascending: true, nullsFirst: true })
     .limit(200);
 
-  if (sp.category) query = query.eq('category_id', sp.category);
+  if (sp.category) matchesQuery = matchesQuery.eq('category_id', sp.category);
   const matchStatus = asMatchStatus(sp.status);
-  if (matchStatus) query = query.eq('status', matchStatus);
+  if (matchStatus) matchesQuery = matchesQuery.eq('status', matchStatus);
 
-  const { data: matches } = await query;
+  // `categories` i `matches` només depenen de tournament.id: es disparen alhora.
+  const [{ data: categories }, { data: matches }] = await Promise.all([
+    supabase
+      .from('categories')
+      .select('id, level, name_ca, name_es')
+      .eq('tournament_id', tournament?.id ?? '')
+      .order('level'),
+    matchesQuery,
+  ]);
 
   const matchIds = (matches ?? []).map((m) => m.id);
-  const { data: sets } = matchIds.length
-    ? await supabase
-        .from('sets')
-        .select('match_id, set_number, games_a, games_b')
-        .in('match_id', matchIds)
-        .order('set_number', { ascending: true })
-    : { data: [] };
+  const pairIds = (matches ?? []).flatMap((m) => [m.pair_a_id, m.pair_b_id]);
+  // `sets` i `pairs` només depenen de `matches`: es disparen alhora.
+  const [{ data: sets }, { data: pairs }] = await Promise.all([
+    matchIds.length
+      ? supabase
+          .from('sets')
+          .select('match_id, set_number, games_a, games_b')
+          .in('match_id', matchIds)
+          .order('set_number', { ascending: true })
+      : Promise.resolve({
+          data: [] as { match_id: string; set_number: number; games_a: number; games_b: number }[],
+        }),
+    pairIds.length
+      ? supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', pairIds)
+      : Promise.resolve({ data: [] as { id: string; player_a_id: string; player_b_id: string }[] }),
+  ]);
   const setsByMatch = new Map<string, { set: number; a: number; b: number }[]>();
   for (const s of sets ?? []) {
     const list = setsByMatch.get(s.match_id) ?? [];
@@ -83,11 +94,6 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
     if (!matchSets || matchSets.length === 0) return null;
     return matchSets.map((s) => `${s.a}-${s.b}`).join(', ');
   };
-
-  const pairIds = (matches ?? []).flatMap((m) => [m.pair_a_id, m.pair_b_id]);
-  const { data: pairs } = pairIds.length
-    ? await supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', pairIds)
-    : { data: [] };
 
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: players } = playerIds.length

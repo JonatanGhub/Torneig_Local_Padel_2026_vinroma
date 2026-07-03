@@ -127,17 +127,43 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     .in('captain_id', myPlayerIds);
   const myPairs: CaptainPair[] = (myPairsRaw ?? []) as CaptainPair[];
   const myPairIds = myPairs.map((p) => p.id);
+  const myGroupIds = Array.from(
+    new Set(myPairs.map((p) => p.group_id).filter((id): id is string => !!id)),
+  );
+  // El "company" de cada parella és el jugador que NO és cap dels meus
+  // (perquè jo puc ser-hi com a player_a o player_b).
+  const myPlayerIdSet = new Set(myPlayerIds);
+  const partnerIds = Array.from(
+    new Set(myPairs.map((p) => (myPlayerIdSet.has(p.player_a_id) ? p.player_b_id : p.player_a_id))),
+  );
 
-  const { data: matchesRaw } = myPairIds.length
-    ? await supabase
-        .from('matches')
-        .select(
-          'id, category_id, phase, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id',
-        )
-        .or(myPairIds.map((id) => `pair_a_id.eq.${id},pair_b_id.eq.${id}`).join(','))
-        .order('scheduled_at', { ascending: true, nullsFirst: true })
-    : { data: [] };
-  const matches: CaptainMatch[] = (matchesRaw ?? []) as CaptainMatch[];
+  // Aquestes 4 consultes són independents entre si (cap depèn del resultat de
+  // les altres) — es disparen totes alhora en lloc d'una darrere l'altra.
+  const [matchesResult, groupPairsResult, partnerRowsResult, categoriesResult] = await Promise.all([
+    myPairIds.length
+      ? supabase
+          .from('matches')
+          .select(
+            'id, category_id, phase, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id',
+          )
+          .or(myPairIds.map((id) => `pair_a_id.eq.${id},pair_b_id.eq.${id}`).join(','))
+          .order('scheduled_at', { ascending: true, nullsFirst: true })
+      : Promise.resolve({ data: [] as CaptainMatch[] }),
+    myGroupIds.length
+      ? supabase.from('pairs').select('id').in('group_id', myGroupIds)
+      : Promise.resolve({ data: [] as { id: string }[] }),
+    // Cal service client per llegir noms de companys d'altres parelles (la RLS
+    // de `players` només deixa veure el propi). Sense això sortirien com a '—'.
+    partnerIds.length
+      ? service.from('players').select('id, first_name, last_name').in('id', partnerIds)
+      : Promise.resolve({
+          data: [] as { id: string; first_name: string | null; last_name: string | null }[],
+        }),
+    supabase.from('categories').select('id, name_ca, name_es'),
+  ]);
+  const matches: CaptainMatch[] = (matchesResult.data ?? []) as CaptainMatch[];
+  const categories = categoriesResult.data;
+  const partnerRows = partnerRowsResult.data;
 
   // Collect all pair IDs we need labels for: my pairs + their group-mates +
   // rivals from matches.
@@ -146,17 +172,7 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     allPairIds.add(m.pair_a_id);
     allPairIds.add(m.pair_b_id);
   }
-
-  const myGroupIds = Array.from(
-    new Set(myPairs.map((p) => p.group_id).filter((id): id is string => !!id)),
-  );
-  if (myGroupIds.length) {
-    const { data: groupPairs } = await supabase
-      .from('pairs')
-      .select('id')
-      .in('group_id', myGroupIds);
-    for (const p of groupPairs ?? []) allPairIds.add(p.id);
-  }
+  for (const p of groupPairsResult.data ?? []) allPairIds.add(p.id);
 
   const { data: pairsData } = allPairIds.size
     ? await supabase
@@ -165,12 +181,6 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
         .in('id', Array.from(allPairIds))
     : { data: [] };
 
-  // El "company" de cada parella és el jugador que NO és cap dels meus
-  // (perquè jo puc ser-hi com a player_a o player_b).
-  const myPlayerIdSet = new Set(myPlayerIds);
-  const partnerIds = Array.from(
-    new Set(myPairs.map((p) => (myPlayerIdSet.has(p.player_a_id) ? p.player_b_id : p.player_a_id))),
-  );
   const allPlayerIds = Array.from(
     new Set([...(pairsData ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]), ...partnerIds]),
   );
@@ -182,11 +192,6 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     : { data: [] };
   const nameMap = new Map(pubNames?.map((p) => [p.id, fullName(p)]) ?? []);
 
-  // Cal service client per llegir noms de companys d'altres parelles (la RLS
-  // de `players` només deixa veure el propi). Sense això sortirien com a '—'.
-  const { data: partnerRows } = partnerIds.length
-    ? await service.from('players').select('id, first_name, last_name').in('id', partnerIds)
-    : { data: [] };
   const partnerNameById = new Map(
     (partnerRows ?? []).map((p) => [
       p.id,
@@ -207,7 +212,6 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     partnerLabels.set(p.id, partnerNameById.get(partnerId) ?? '—');
   }
 
-  const { data: categories } = await supabase.from('categories').select('id, name_ca, name_es');
   const categoryLabels = new Map(
     (categories ?? []).map((c) => [c.id, locale === 'ca' ? c.name_ca : c.name_es]),
   );

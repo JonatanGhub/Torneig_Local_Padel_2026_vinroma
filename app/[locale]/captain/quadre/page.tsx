@@ -54,36 +54,43 @@ export default async function CaptainQuadrePage({ params }: Props) {
   );
 
   const matchIds = koMatches.map((m) => m.id);
-  const { data: setsData } = matchIds.length
-    ? await supabase
-        .from('sets')
-        .select('match_id, set_number, games_a, games_b')
-        .in('match_id', matchIds)
-    : { data: [] };
-
   // Top up pair labels for any new pair ids in the bracket.
   const allPairIds = Array.from(new Set(koMatches.flatMap((m) => [m.pair_a_id, m.pair_b_id])));
   const missing = allPairIds.filter((id) => !pairLabels.has(id));
-  if (missing.length) {
-    const { data: extra } = await supabase
-      .from('pairs')
-      .select('id, player_a_id, player_b_id')
-      .in('id', missing);
-    const playerIds = (extra ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
-    const { data: names } = playerIds.length
-      ? await supabase
-          .from('public_player_names')
-          .select('id, first_name, last_name')
-          .in('id', playerIds)
-      : { data: [] };
-    const nameMap = new Map((names ?? []).map((p) => [p.id, fullName(p)]));
-    for (const p of extra ?? []) {
-      pairLabels.set(
-        p.id,
-        `${nameMap.get(p.player_a_id) ?? '—'} / ${nameMap.get(p.player_b_id) ?? '—'}`,
-      );
-    }
-  }
+
+  // `setsData` i l'ompliment de pairLabels que falten són independents: es
+  // disparen alhora.
+  const [{ data: setsData }] = await Promise.all([
+    matchIds.length
+      ? supabase
+          .from('sets')
+          .select('match_id, set_number, games_a, games_b')
+          .in('match_id', matchIds)
+      : Promise.resolve({
+          data: [] as { match_id: string; set_number: number; games_a: number; games_b: number }[],
+        }),
+    (async () => {
+      if (missing.length === 0) return;
+      const { data: extra } = await supabase
+        .from('pairs')
+        .select('id, player_a_id, player_b_id')
+        .in('id', missing);
+      const playerIds = (extra ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
+      const { data: names } = playerIds.length
+        ? await supabase
+            .from('public_player_names')
+            .select('id, first_name, last_name')
+            .in('id', playerIds)
+        : { data: [] };
+      const nameMap = new Map((names ?? []).map((p) => [p.id, fullName(p)]));
+      for (const p of extra ?? []) {
+        pairLabels.set(
+          p.id,
+          `${nameMap.get(p.player_a_id) ?? '—'} / ${nameMap.get(p.player_b_id) ?? '—'}`,
+        );
+      }
+    })(),
+  ]);
 
   const highlight = new Set(myPairIds);
   const bracketLabels = defaultBracketLabels(t);
