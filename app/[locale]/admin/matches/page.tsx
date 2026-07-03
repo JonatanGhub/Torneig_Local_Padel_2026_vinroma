@@ -7,6 +7,7 @@ import { ScheduleForm } from './schedule-form';
 import { AutoScheduleControls } from './auto-schedule-button';
 import { SchedulerProvider } from './scheduler-context';
 import { WalkoverButton } from '../walkover-button';
+import { EditScoreButton } from '../edit-score-button';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
@@ -62,6 +63,26 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
   if (matchStatus) query = query.eq('status', matchStatus);
 
   const { data: matches } = await query;
+
+  const matchIds = (matches ?? []).map((m) => m.id);
+  const { data: sets } = matchIds.length
+    ? await supabase
+        .from('sets')
+        .select('match_id, set_number, games_a, games_b')
+        .in('match_id', matchIds)
+        .order('set_number', { ascending: true })
+    : { data: [] };
+  const setsByMatch = new Map<string, { set: number; a: number; b: number }[]>();
+  for (const s of sets ?? []) {
+    const list = setsByMatch.get(s.match_id) ?? [];
+    list.push({ set: s.set_number, a: s.games_a, b: s.games_b });
+    setsByMatch.set(s.match_id, list);
+  }
+  const scoreText = (matchId: string) => {
+    const matchSets = setsByMatch.get(matchId);
+    if (!matchSets || matchSets.length === 0) return null;
+    return matchSets.map((s) => `${s.a}-${s.b}`).join(', ');
+  };
 
   const pairIds = (matches ?? []).flatMap((m) => [m.pair_a_id, m.pair_b_id]);
   const { data: pairs } = pairIds.length
@@ -123,24 +144,30 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
                     · {m.court_label ?? t('match_no_court')}
                   </p>
                 </div>
+                {scoreText(m.id) && (
+                  <p className="font-mono text-sm font-medium">{scoreText(m.id)}</p>
+                )}
                 <ScheduleForm
                   matchId={m.id}
                   scheduledAt={m.scheduled_at}
                   courtLabel={m.court_label}
                 />
-                {/* Walkover disponible per a qualsevol partit no resolt encara
-                    (incompareixença, però també retirada/lesió a mig partit,
-                    que deixa el partit en 'scheduled' sense cap report). Els
-                    ja 'validated'/'walkover' no es toquen des d'aquí. */}
-                {m.status !== 'validated' && m.status !== 'walkover' && (
-                  <WalkoverButton
-                    matchId={m.id}
-                    pairAId={m.pair_a_id}
-                    pairBId={m.pair_b_id}
-                    pairALabel={pairLabel(m.pair_a_id)}
-                    pairBLabel={pairLabel(m.pair_b_id)}
-                  />
-                )}
+                <div className="flex flex-wrap gap-2">
+                  {/* Walkover disponible per a qualsevol partit no resolt encara
+                      (incompareixença, però també retirada/lesió a mig partit,
+                      que deixa el partit en 'scheduled' sense cap report). Els
+                      ja 'validated'/'walkover' no es toquen des d'aquí. */}
+                  {m.status !== 'validated' && m.status !== 'walkover' && (
+                    <WalkoverButton
+                      matchId={m.id}
+                      pairAId={m.pair_a_id}
+                      pairBId={m.pair_b_id}
+                      pairALabel={pairLabel(m.pair_a_id)}
+                      pairBLabel={pairLabel(m.pair_b_id)}
+                    />
+                  )}
+                  <EditScoreButton matchId={m.id} initialSets={setsByMatch.get(m.id) ?? []} />
+                </div>
               </li>
             ))}
           </ul>

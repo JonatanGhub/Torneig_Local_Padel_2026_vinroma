@@ -7,6 +7,13 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { categoryReadyForKnockout, generateKnockoutForCategory } from '@/lib/knockout';
 import { madridInputToISO, madridDateKey } from '@/lib/format-date';
 import {
+  OFFICIAL_TIMES,
+  OFFICIAL_COURTS,
+  SUMMER_OFFSET,
+  GROUP_PHASE_LAST_DAY,
+  officialDaysMonToThu,
+} from '@/lib/scheduling/official-slots';
+import {
   notifyMatchDisputed,
   notifyMatchValidated,
   notifyRescheduleProposed,
@@ -286,11 +293,6 @@ export async function submitWalkoverReport(formData: FormData) {
 //     encadenar dos partits en una nit).
 // =========================================================================
 
-const OFFICIAL_TIMES = ['20:30', '22:00'] as const;
-const OFFICIAL_COURTS = ['Pista 2', 'Pista 3'] as const;
-const SUMMER_OFFSET = '+02:00';
-const GROUP_PHASE_LAST_DAY = '2026-07-30';
-
 export type FreeSlot = {
   // Valor per a <input datetime-local>: hora de paret de Madrid `YYYY-MM-DDTHH:mm`.
   scheduledAtInput: string;
@@ -302,27 +304,6 @@ export type FreeSlot = {
 export type FreeSlotsResult =
   | { ok: true; slots: FreeSlot[] }
   | { ok: false; error: 'match_not_found' | string };
-
-function officialDaysMonToThu(fromISO: string, toISO: string): string[] {
-  const days: string[] = [];
-  const startKey = madridDateKey(fromISO);
-  const endKey = madridDateKey(toISO);
-  const [sy, sm, sd] = startKey.split('-').map(Number);
-  const [ey, em, ed] = endKey.split('-').map(Number);
-  const cur = new Date(Date.UTC(sy!, sm! - 1, sd!, 12));
-  const last = new Date(Date.UTC(ey!, em! - 1, ed!, 12));
-  while (cur <= last) {
-    const dow = cur.getUTCDay();
-    if (dow >= 1 && dow <= 4) {
-      const y = cur.getUTCFullYear();
-      const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(cur.getUTCDate()).padStart(2, '0');
-      days.push(`${y}-${m}-${d}`);
-    }
-    cur.setUTCDate(cur.getUTCDate() + 1);
-  }
-  return days;
-}
 
 export async function getFreeOfficialSlots(matchId: string): Promise<FreeSlotsResult> {
   const supabase = await createClient();

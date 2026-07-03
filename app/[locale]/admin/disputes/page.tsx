@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { fullName } from '@/lib/player-name';
 import { WalkoverButton } from '../walkover-button';
 import { AcceptReportButton } from '../accept-report-button';
+import { EditScoreButton } from '../edit-score-button';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -166,7 +167,7 @@ function DisputeBlock({
                   </div>
                 )}
                 {emphasizeDispute && (
-                  <div className="mt-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <WalkoverButton
                       matchId={m.id}
                       pairAId={m.pair_a_id}
@@ -174,6 +175,7 @@ function DisputeBlock({
                       pairALabel={pairLabel(m.pair_a_id)}
                       pairBLabel={pairLabel(m.pair_b_id)}
                     />
+                    <EditScoreButton matchId={m.id} initialSets={[]} />
                   </div>
                 )}
               </li>
