@@ -776,15 +776,20 @@ function weekdayCA(iso: string): string {
   }
 }
 
-// Finestra [dilluns 00:00, divendres 00:00) en hora de Madrid de la propera
-// setmana. Pensada per executar-se en diumenge (el cron setmanal), però si es
-// crida un altre dia calcula el proper dilluns endavant (avui inclòs si avui
-// ja és dilluns).
-function nextMonToThuWindowIso(now: Date = new Date()): {
+// Finestra [dilluns 00:00, dilluns següent 00:00) en hora de Madrid de la
+// propera setmana sencera (dilluns a diumenge). Pensada per executar-se en
+// diumenge (el cron setmanal), però si es crida un altre dia calcula el
+// proper dilluns endavant (avui inclòs si avui ja és dilluns).
+//
+// Cobreix tota la setmana (no només dilluns-dijous de l'horari oficial)
+// perquè un partit reprogramat fora d'horari (divendres, dissabte o
+// diumenge) també surti en aquest avís previ — el resum diari ja l'anuncia
+// el dia que toca, però sense aquesta finestra ampliada no sortiria aquí.
+function nextWeekWindowIso(now: Date = new Date()): {
   startIso: string;
   endIso: string;
   mondayDate: Date;
-  thursdayDate: Date;
+  sundayDate: Date;
 } {
   const { y, m, d } = madridYmdToday(now);
   const todayUTC = new Date(Date.UTC(y, m - 1, d));
@@ -793,18 +798,18 @@ function nextMonToThuWindowIso(now: Date = new Date()): {
   const mondayDate = new Date(todayUTC.getTime() + daysUntilMonday * 24 * 60 * 60 * 1000);
   const pad = (n: number) => String(n).padStart(2, '0');
   const startIso = `${mondayDate.getUTCFullYear()}-${pad(mondayDate.getUTCMonth() + 1)}-${pad(mondayDate.getUTCDate())}T00:00:00+02:00`;
-  // Dilluns a dijous = 4 dies; el final és divendres 00:00.
-  const endIso = new Date(new Date(startIso).getTime() + 4 * 24 * 60 * 60 * 1000).toISOString();
-  const thursdayDate = new Date(mondayDate.getTime() + 3 * 24 * 60 * 60 * 1000);
-  return { startIso, endIso, mondayDate, thursdayDate };
+  // Setmana sencera = 7 dies; el final és el dilluns següent a les 00:00.
+  const endIso = new Date(new Date(startIso).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const sundayDate = new Date(mondayDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+  return { startIso, endIso, mondayDate, sundayDate };
 }
 
 // 8b) Resum setmanal → missatge al grup cada diumenge amb tots els partits de
-//     dilluns a dijous de la setmana següent (a més del "Avui es juga" diari).
+//     la setmana següent sencera (a més del "Avui es juga" diari).
 export async function notifyWeeklyScheduleToGroup(): Promise<void> {
   try {
     const supabase = createServiceClient();
-    const { startIso, endIso, mondayDate, thursdayDate } = nextMonToThuWindowIso();
+    const { startIso, endIso, mondayDate, sundayDate } = nextWeekWindowIso();
 
     const { data: matches } = await supabase
       .from('matches')
@@ -857,7 +862,7 @@ export async function notifyWeeklyScheduleToGroup(): Promise<void> {
       return `• ${day} ${time} · ${court} · ${cat} · ${labelA} vs ${labelB}`;
     });
 
-    const rangeLabel = `${formatMadridDayMonth(mondayDate)} – ${formatMadridDayMonth(thursdayDate)}`;
+    const rangeLabel = `${formatMadridDayMonth(mondayDate)} – ${formatMadridDayMonth(sundayDate)}`;
     const text =
       `📅 *Partits de la setmana (${rangeLabel})*\n\n${lines.join('\n')}\n\n` +
       `🗓️ Calendari complet:\n${SITE_URL}/ca/calendari`;
