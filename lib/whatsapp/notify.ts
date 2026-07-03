@@ -7,7 +7,7 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { getSiteUrl } from '@/lib/site-url';
 import { formatMatchTime, formatMatchDateTimeLong, madridDateKey } from '@/lib/format-date';
-import { sendWhatsApp, sendWhatsAppToGroup } from './send';
+import { sendWhatsApp, sendWhatsAppToGroup, whatsappConfigured } from './send';
 
 // Per obtenir el JID del grup de gestió:
 //   GET <EVOLUTION_API_URL>/group/fetchAllGroups/<EVOLUTION_INSTANCE>
@@ -868,6 +868,15 @@ export async function notifyWeeklyScheduleToGroup(): Promise<void> {
   }
 }
 
+// Feina del cron setmanal (oficialment diumenge 19:00 Madrid), compartida amb
+// el self-heal (lib/cron/self-heal.ts).
+export async function runWeeklyScheduleCron(): Promise<{ ran: boolean }> {
+  if (!whatsappConfigured()) return { ran: false };
+  const ran = await claimDailyRun('weekly_schedule');
+  if (ran) await notifyWeeklyScheduleToGroup();
+  return { ran };
+}
+
 // 9) Sorteig de grups fet → WhatsApp a tots els capitans de la categoria.
 export async function notifyDrawDoneWhatsApp(categoryId: string) {
   try {
@@ -1158,6 +1167,63 @@ export async function sendRescheduleReminders(): Promise<{ sent: number; skipped
     console.warn('[whatsapp] sendRescheduleReminders failed', err);
   }
   return { sent, skipped };
+}
+
+// "Pany" d'idempotència: qui aconsegueix inserir la fila per (job, dia
+// Madrid) és qui executa el job. Com que hi ha dos disparadors possibles pel
+// mateix job (el cron real de Vercel i el self-heal via trànsit del lloc —
+// vegeu lib/cron/self-heal.ts), això garanteix que el missatge només s'envia
+// una vegada al dia encara que ambdós es disparin.
+async function claimDailyRun(jobName: string): Promise<boolean> {
+  try {
+    const supabase = createServiceClient();
+    const runDate = madridDateKey(new Date().toISOString());
+    const { error } = await supabase
+      .from('cron_daily_runs')
+      .insert({ job_name: jobName, run_date: runDate });
+    if (error) {
+      if (error.code === '23505') return false; // ja reclamat avui
+      console.warn('[cron] claimDailyRun failed', jobName, error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[cron] claimDailyRun threw', jobName, err);
+    return false;
+  }
+}
+
+// Feina diària completa del cron "match-reminders" (oficialment 08:00
+// Madrid). Compartida entre la ruta de cron real i el self-heal perquè mai
+// se'n dupliqui la lògica.
+export async function runDailyReminderCron(): Promise<{
+  dailyBroadcastRan: boolean;
+  reminders: { sent: number; skipped: number };
+  rescheduleReminders: { sent: number; skipped: number };
+}> {
+  if (!whatsappConfigured()) {
+    return {
+      dailyBroadcastRan: false,
+      reminders: { sent: 0, skipped: 0 },
+      rescheduleReminders: { sent: 0, skipped: 0 },
+    };
+  }
+
+  // El resum diari i l'avís de canvi de tram només tenen sentit un cop al
+  // dia: es reclamen amb el pany. Els recordatoris de validació/canvi de data
+  // ja són idempotents per si mateixos (reminder_sent_at per partit/proposta),
+  // així que és segur —i desitjable— re-executar-los sempre que es cridi
+  // aquesta funció, encara que sigui més d'un cop al dia.
+  const dailyBroadcastRan = await claimDailyRun('daily_broadcast');
+  if (dailyBroadcastRan) {
+    await sendDailyGroupSummary();
+    await notifyFeePhaseChangeToGroup();
+  }
+
+  const reminders = await sendValidationReminders();
+  const rescheduleReminders = await sendRescheduleReminders();
+
+  return { dailyBroadcastRan, reminders, rescheduleReminders };
 }
 
 // 11) Canvi de tram de preu → avís al grup quan falten <24h.
