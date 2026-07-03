@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-import {
-  sendDailyGroupSummary,
-  notifyFeePhaseChangeToGroup,
-  sendValidationReminders,
-  sendRescheduleReminders,
-} from '@/lib/whatsapp/notify';
-import { whatsappConfigured } from '@/lib/whatsapp/send';
+import { runDailyReminderCron } from '@/lib/whatsapp/notify';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +11,12 @@ export const dynamic = 'force-dynamic';
 //  4. DM al capità que ha de respondre una proposta de canvi de data que
 //     porta >24h pendent.
 //
+// El pla Hobby de Vercel no garanteix la sincronia horària dels crons (hem
+// tingut misses reals), així que aquesta mateixa feina també la dispara
+// lib/cron/self-heal.ts des del trànsit normal del lloc si detecta que no
+// s'ha executat avui. runDailyReminderCron() és idempotent (cron_daily_runs)
+// per evitar missatges duplicats si ambdós es disparen el mateix dia.
+//
 // Protegit amb CRON_SECRET (Vercel envia Authorization: Bearer <CRON_SECRET>).
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -25,25 +25,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  if (!whatsappConfigured()) {
-    return NextResponse.json({ ok: true, reason: 'whatsapp_not_configured' });
-  }
-
-  // Resum diari al grup: "Avui es juga ...". No-op si no hi ha partits avui
-  // o si WHATSAPP_GROUP_JID no està definit.
-  await sendDailyGroupSummary();
-
-  // Últim dia al preu actual (si demà comença un tram nou de tarifa).
-  await notifyFeePhaseChangeToGroup();
-
-  // Recordatori de validació: DM a ambdós capitans si el resultat d'un partit
-  // jugat fa >20h encara no s'ha validat. Cada partit rep el recordatori
-  // màxim un cop (reminder_sent_at en marca l'enviament).
-  const reminders = await sendValidationReminders();
-
-  // Recordatori de proposta de canvi de data pendent >24h: DM al capità que
-  // ha de respondre. Un cop per proposta.
-  const rescheduleReminders = await sendRescheduleReminders();
-
-  return NextResponse.json({ ok: true, reminders, rescheduleReminders });
+  const result = await runDailyReminderCron();
+  return NextResponse.json({ ok: true, ...result });
 }

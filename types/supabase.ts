@@ -333,6 +333,12 @@ export type WhatsAppHealthRow = {
   updated_at: string;
 };
 
+export type CronDailyRunRow = {
+  job_name: string;
+  run_date: string;
+  ran_at: string;
+};
+
 type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
 
 export type Database = {
@@ -359,6 +365,7 @@ export type Database = {
       tournament_budget_entries: Tbl<TournamentBudgetEntryRow>;
       issue_reports: Tbl<IssueReportRow>;
       whatsapp_health: Tbl<WhatsAppHealthRow>;
+      cron_daily_runs: Tbl<CronDailyRunRow>;
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };
