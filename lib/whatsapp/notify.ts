@@ -7,6 +7,7 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { getSiteUrl } from '@/lib/site-url';
 import { formatMatchTime, formatMatchDateTimeLong, madridDateKey } from '@/lib/format-date';
+import { GROUP_PHASE_LAST_DAY } from '@/lib/scheduling/official-slots';
 import { sendWhatsApp, sendWhatsAppToGroup, whatsappConfigured } from './send';
 
 // Per obtenir el JID del grup de gestió:
@@ -804,10 +805,119 @@ function nextWeekWindowIso(now: Date = new Date()): {
   return { startIso, endIso, mondayDate, sundayDate };
 }
 
+type CategoryStandingsLite = {
+  pair_id: string;
+  category_id: string;
+  group_id: string;
+  matches_won: number;
+  matches_lost: number;
+  sets_diff: number;
+  games_diff: number;
+};
+
+// Classificació actual per categoria/grup, amb el mateix criteri de
+// desempat que /grups/[level] (victòries, diferència de sets, diferència de
+// jocs i, finalment, enfrontament directe — §7 del reglament). Retorna null
+// si encara no hi ha grups sortejats o cap categoria amb dades per mostrar.
+async function buildStandingsSummaryText(
+  supabase: ReturnType<typeof createServiceClient>,
+  tournamentId: string,
+): Promise<string | null> {
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, level, name_ca')
+    .eq('tournament_id', tournamentId)
+    .order('level');
+  if (!categories || categories.length === 0) return null;
+
+  const categoryIds = categories.map((c) => c.id);
+  const { data: groups } = await supabase
+    .from('groups')
+    .select('id, label, category_id')
+    .in('category_id', categoryIds)
+    .order('label');
+  if (!groups || groups.length === 0) return null;
+
+  const { data: standings } = await supabase
+    .from('category_standings')
+    .select('pair_id, category_id, group_id, matches_won, matches_lost, sets_diff, games_diff')
+    .in('category_id', categoryIds);
+
+  const { data: pairs } = await supabase
+    .from('pairs')
+    .select('id, player_a_id, player_b_id, group_id, category_id')
+    .in('category_id', categoryIds)
+    .not('group_id', 'is', null);
+
+  const playerIds = Array.from(
+    new Set((pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id])),
+  );
+  const { data: players } = playerIds.length
+    ? await supabase.from('players').select('id, first_name, last_name').in('id', playerIds)
+    : { data: [] };
+
+  const { data: groupMatches } = await supabase
+    .from('matches')
+    .select('pair_a_id, pair_b_id, winner_pair_id, category_id')
+    .in('category_id', categoryIds)
+    .eq('phase', 'group')
+    .in('status', ['validated', 'walkover']);
+
+  const pairLabelOf = (pairId: string) => {
+    const pair = pairs?.find((p) => p.id === pairId);
+    if (!pair) return '—';
+    return lastNamesPairFromPlayers(players, pair.player_a_id, pair.player_b_id);
+  };
+
+  const sortGroupStandings = (rows: CategoryStandingsLite[]) =>
+    [...rows].sort((a, b) => {
+      if (a.matches_won !== b.matches_won) return b.matches_won - a.matches_won;
+      if (a.sets_diff !== b.sets_diff) return b.sets_diff - a.sets_diff;
+      if (a.games_diff !== b.games_diff) return b.games_diff - a.games_diff;
+      const direct = (groupMatches ?? []).find(
+        (m) =>
+          m.winner_pair_id != null &&
+          ((m.pair_a_id === a.pair_id && m.pair_b_id === b.pair_id) ||
+            (m.pair_a_id === b.pair_id && m.pair_b_id === a.pair_id)),
+      );
+      if (direct?.winner_pair_id === a.pair_id) return -1;
+      if (direct?.winner_pair_id === b.pair_id) return 1;
+      return 0;
+    });
+
+  const blocks: string[] = [];
+  for (const cat of categories) {
+    const catGroups = groups.filter((g) => g.category_id === cat.id);
+    const groupLines: string[] = [];
+    for (const g of catGroups) {
+      const groupStandings = sortGroupStandings(
+        (standings ?? []).filter((s) => s.group_id === g.id),
+      );
+      if (groupStandings.length === 0) continue;
+      const ranked = groupStandings
+        .map(
+          (s, idx) => `${idx + 1}. ${pairLabelOf(s.pair_id)} (${s.matches_won}-${s.matches_lost})`,
+        )
+        .join(' · ');
+      groupLines.push(`Grup ${g.label}: ${ranked}`);
+    }
+    if (groupLines.length === 0) continue;
+    blocks.push(`*${cat.name_ca}*\n${groupLines.join('\n')}`);
+  }
+
+  if (blocks.length === 0) return null;
+  return `📊 *Classificació actual*\n\n${blocks.join('\n\n')}`;
+}
+
 // 8b) Resum setmanal → missatge al grup cada diumenge amb tots els partits de
-//     la setmana següent sencera (a més del "Avui es juga" diari).
+//     la setmana següent sencera i la classificació actual de cada categoria
+//     (a més del "Avui es juga" diari). Deixa d'enviar-se un cop acabada la
+//     fase de grups (GROUP_PHASE_LAST_DAY): la classificació ja no canvia i
+//     el calendari de l'eliminatòria el gestiona l'organització directament.
 export async function notifyWeeklyScheduleToGroup(): Promise<void> {
   try {
+    if (madridDateKey(new Date().toISOString()) > GROUP_PHASE_LAST_DAY) return;
+
     const supabase = createServiceClient();
     const { startIso, endIso, mondayDate, sundayDate } = nextWeekWindowIso();
 
@@ -863,8 +973,19 @@ export async function notifyWeeklyScheduleToGroup(): Promise<void> {
     });
 
     const rangeLabel = `${formatMadridDayMonth(mondayDate)} – ${formatMadridDayMonth(sundayDate)}`;
+
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('id')
+      .eq('edition', 5)
+      .maybeSingle();
+    const standingsText = tournament
+      ? await buildStandingsSummaryText(supabase, tournament.id)
+      : null;
+
     const text =
       `📅 *Partits de la setmana (${rangeLabel})*\n\n${lines.join('\n')}\n\n` +
+      (standingsText ? `${standingsText}\n\n` : '') +
       `🗓️ Calendari complet:\n${SITE_URL}/ca/calendari`;
 
     await sendWhatsAppToGroup(text);
