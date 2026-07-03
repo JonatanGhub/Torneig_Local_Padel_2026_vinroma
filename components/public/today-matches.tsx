@@ -62,23 +62,23 @@ export async function TodayMatches({ locale, title, emptyLabel }: Props) {
 
   const [startISO, endISO] = madridDayBoundsISO();
 
-  const { data: matchesRaw } = await supabase
-    .from('matches')
-    .select(
-      'id, category_id, phase, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id',
-    )
-    .eq('tournament_id', tournament.id)
-    .gte('scheduled_at', startISO)
-    .lte('scheduled_at', endISO)
-    .in('status', ['scheduled', 'pending_validation'])
-    .order('scheduled_at', { ascending: true });
+  // `matchesRaw` i `categories` només depenen de tournament.id: es disparen
+  // alhora.
+  const [{ data: matchesRaw }, { data: categories }] = await Promise.all([
+    supabase
+      .from('matches')
+      .select(
+        'id, category_id, phase, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id',
+      )
+      .eq('tournament_id', tournament.id)
+      .gte('scheduled_at', startISO)
+      .lte('scheduled_at', endISO)
+      .in('status', ['scheduled', 'pending_validation'])
+      .order('scheduled_at', { ascending: true }),
+    supabase.from('categories').select('id, name_ca, name_es').eq('tournament_id', tournament.id),
+  ]);
 
   const matches = matchesRaw ?? [];
-
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, name_ca, name_es')
-    .eq('tournament_id', tournament.id);
   const categoryLabels = new Map(
     (categories ?? []).map((c) => [c.id, locale === 'ca' ? c.name_ca : c.name_es]),
   );

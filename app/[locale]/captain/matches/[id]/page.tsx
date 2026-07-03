@@ -18,15 +18,23 @@ export default async function CaptainMatchPage({ params }: Props) {
   const t = await getTranslations();
 
   const supabase = await createClient();
-  const { user, playerIds } = await getCaptainPlayerIds();
+  // Les 3 consultes següents no depenen l'una de l'altra (cap necessita el
+  // resultat de les altres), així que es disparen totes alhora.
+  const [{ user, playerIds }, { data: match }, { data: reports }] = await Promise.all([
+    getCaptainPlayerIds(),
+    supabase
+      .from('matches')
+      .select('id, pair_a_id, pair_b_id, status, scheduled_at, court_label')
+      .eq('id', matchId)
+      .maybeSingle(),
+    supabase
+      .from('match_reports')
+      .select('id, reporter_player_id, reporter_pair_side, score_json, reported_at')
+      .eq('match_id', matchId)
+      .order('reported_at', { ascending: false }),
+  ]);
   if (!user) redirect(`/${locale}/login?next=/${locale}/captain/matches/${matchId}`);
   if (playerIds.length === 0) redirect(`/${locale}/captain`);
-
-  const { data: match } = await supabase
-    .from('matches')
-    .select('id, pair_a_id, pair_b_id, status, scheduled_at, court_label')
-    .eq('id', matchId)
-    .maybeSingle();
   if (!match) notFound();
 
   const { data: pairs } = await supabase
@@ -61,12 +69,6 @@ export default async function CaptainMatchPage({ params }: Props) {
     const b = playerMap.get(pair.player_b_id);
     return `${fullName(a)} / ${fullName(b)}`;
   };
-
-  const { data: reports } = await supabase
-    .from('match_reports')
-    .select('id, reporter_player_id, reporter_pair_side, score_json, reported_at')
-    .eq('match_id', matchId)
-    .order('reported_at', { ascending: false });
 
   const myReport = reports?.find((r) => r.reporter_pair_side === mySide) ?? null;
   const rivalReport =

@@ -7,12 +7,10 @@
 // =========================================================================
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { locales } from '@/i18n';
 import { UNLOCK_COOKIE, UNLOCK_TTL_SECONDS, verifyCookie } from '@/lib/captain/cookies-edge';
 import type { Database } from '@/types/supabase';
-
-type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 const CAPTAIN_PATH = /^\/(?:(ca|es)\/)?captain(\/.*)?$/;
 
@@ -28,7 +26,14 @@ function parseCaptainPath(pathname: string): {
   return { isCaptain: true, locale, rest };
 }
 
-export async function captainGuardRedirect(request: NextRequest): Promise<NextResponse | null> {
+// `user` i `supabase` venen ja resolts de updateSession() (lib/supabase/
+// middleware.ts): evita cridar auth.getUser() una segona vegada (petició de
+// xarxa real a Supabase Auth) en cada request a /captain/*.
+export async function captainGuardRedirect(
+  request: NextRequest,
+  user: { id: string } | null,
+  supabase: SupabaseClient<Database>,
+): Promise<NextResponse | null> {
   const url = new URL(request.url);
   const { isCaptain, locale, rest } = parseCaptainPath(url.pathname);
   if (!isCaptain) return null;
@@ -40,30 +45,6 @@ export async function captainGuardRedirect(request: NextRequest): Promise<NextRe
 
   // Validem que el locale és conegut (per si la regex falla a l'edge).
   if (!(locales as readonly string[]).includes(locale)) return null;
-
-  // Construïm un client de Supabase en mode middleware. No setejarem cookies
-  // aquí: només llegim sessió.
-  const supabaseResponse = NextResponse.next({ request });
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   // No autenticat → deixem el flux normal (el layout del captain redirigeix
   // a /login).

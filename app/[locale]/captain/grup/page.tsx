@@ -55,26 +55,22 @@ export default async function CaptainGroupPage({ params, searchParams }: Props) 
   }
 
   const groupIds = Array.from(new Set(pairsWithGroup.map((p) => p.group_id)));
-  const { data: groups } = await supabase
-    .from('groups')
-    .select('id, label, category_id')
-    .in('id', groupIds);
-
-  const { data: standings } = await supabase
-    .from('category_standings')
-    .select('*')
-    .in('group_id', groupIds);
-
   // Fetch all matches across the categories in question (group phase only).
   const categoryIdsInGroups = Array.from(new Set(pairsWithGroup.map((p) => p.category_id)));
-  const { data: allGroupMatches } = await supabase
-    .from('matches')
-    .select(
-      'id, category_id, phase, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id',
-    )
-    .in('category_id', categoryIdsInGroups)
-    .eq('phase', 'group')
-    .order('scheduled_at', { ascending: true, nullsFirst: true });
+
+  // Aquestes 3 consultes són independents entre si: es disparen totes alhora.
+  const [{ data: groups }, { data: standings }, { data: allGroupMatches }] = await Promise.all([
+    supabase.from('groups').select('id, label, category_id').in('id', groupIds),
+    supabase.from('category_standings').select('*').in('group_id', groupIds),
+    supabase
+      .from('matches')
+      .select(
+        'id, category_id, phase, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id',
+      )
+      .in('category_id', categoryIdsInGroups)
+      .eq('phase', 'group')
+      .order('scheduled_at', { ascending: true, nullsFirst: true }),
+  ]);
 
   // Top up pair labels for any pair appearing in the group that the helper
   // hasn't already cached (defensive — the helper does this for group-mates

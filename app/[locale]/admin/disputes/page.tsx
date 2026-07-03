@@ -22,17 +22,19 @@ export default async function DisputesAdminPage({ params }: Props) {
     .order('scheduled_at', { ascending: true });
 
   const matchIds = (matches ?? []).map((m) => m.id);
-  const { data: reports } = matchIds.length
-    ? await supabase
-        .from('match_reports')
-        .select('id, match_id, reporter_pair_side, score_json, reported_at')
-        .in('match_id', matchIds)
-    : { data: [] };
-
   const pairIds = (matches ?? []).flatMap((m) => [m.pair_a_id, m.pair_b_id]);
-  const { data: pairs } = pairIds.length
-    ? await supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', pairIds)
-    : { data: [] };
+  // `reports` i `pairs` només depenen de `matches`: es disparen alhora.
+  const [{ data: reports }, { data: pairs }] = await Promise.all([
+    matchIds.length
+      ? supabase
+          .from('match_reports')
+          .select('id, match_id, reporter_pair_side, score_json, reported_at')
+          .in('match_id', matchIds)
+      : Promise.resolve({ data: [] as ReportRow[] }),
+    pairIds.length
+      ? supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', pairIds)
+      : Promise.resolve({ data: [] as { id: string; player_a_id: string; player_b_id: string }[] }),
+  ]);
 
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: players } = playerIds.length

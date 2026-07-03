@@ -19,18 +19,20 @@ export async function RegisteredPairs({ locale, title, emptyLabel, pairsCountLab
     .maybeSingle();
   if (!tournament) return null;
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, level, name_ca, name_es')
-    .eq('tournament_id', tournament.id)
-    .order('level');
-
-  const { data: pairs } = await supabase
-    .from('pairs')
-    .select('id, category_id, player_a_id, player_b_id, created_at, status')
-    .eq('tournament_id', tournament.id)
-    .in('status', ['pending_payment', 'confirmed'])
-    .order('created_at', { ascending: true });
+  // `categories` i `pairs` només depenen de tournament.id: es disparen alhora.
+  const [{ data: categories }, { data: pairs }] = await Promise.all([
+    supabase
+      .from('categories')
+      .select('id, level, name_ca, name_es')
+      .eq('tournament_id', tournament.id)
+      .order('level'),
+    supabase
+      .from('pairs')
+      .select('id, category_id, player_a_id, player_b_id, created_at, status')
+      .eq('tournament_id', tournament.id)
+      .in('status', ['pending_payment', 'confirmed'])
+      .order('created_at', { ascending: true }),
+  ]);
 
   const playerIds = Array.from(
     new Set((pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id])),

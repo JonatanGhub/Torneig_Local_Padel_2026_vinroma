@@ -35,17 +35,32 @@ export default async function GroupPage({ params }: Props) {
 
   const categoryLabel = locale === 'ca' ? category.name_ca : category.name_es;
 
-  const { data: groups } = await supabase
-    .from('groups')
-    .select('id, label')
-    .eq('category_id', category.id)
-    .order('label');
-
-  const { data: pairs } = await supabase
-    .from('pairs')
-    .select('id, player_a_id, player_b_id, group_id')
-    .eq('category_id', category.id)
-    .not('group_id', 'is', null);
+  // Aquestes 5 consultes només depenen de category.id: cap depèn del
+  // resultat de les altres, així que es disparen totes alhora.
+  const [
+    { data: groups },
+    { data: pairs },
+    { data: standings },
+    { data: matches },
+    { data: koProbe },
+  ] = await Promise.all([
+    supabase.from('groups').select('id, label').eq('category_id', category.id).order('label'),
+    supabase
+      .from('pairs')
+      .select('id, player_a_id, player_b_id, group_id')
+      .eq('category_id', category.id)
+      .not('group_id', 'is', null),
+    supabase.from('category_standings').select('*').eq('category_id', category.id),
+    supabase
+      .from('matches')
+      .select(
+        'id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id, category_id, phase',
+      )
+      .eq('category_id', category.id)
+      .eq('phase', 'group')
+      .order('scheduled_at', { ascending: true, nullsFirst: true }),
+    supabase.from('matches').select('phase').eq('category_id', category.id).neq('phase', 'group'),
+  ]);
 
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: players } = playerIds.length
@@ -56,25 +71,6 @@ export default async function GroupPage({ params }: Props) {
     : { data: [] };
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
 
-  const { data: standings } = await supabase
-    .from('category_standings')
-    .select('*')
-    .eq('category_id', category.id);
-
-  const { data: matches } = await supabase
-    .from('matches')
-    .select(
-      'id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status, winner_pair_id, category_id, phase',
-    )
-    .eq('category_id', category.id)
-    .eq('phase', 'group')
-    .order('scheduled_at', { ascending: true, nullsFirst: true });
-
-  const { data: koProbe } = await supabase
-    .from('matches')
-    .select('phase')
-    .eq('category_id', category.id)
-    .neq('phase', 'group');
   const hasBracket = (koProbe ?? []).some(
     (m) => m.phase.startsWith('ko_') || m.phase.startsWith('cons_'),
   );
