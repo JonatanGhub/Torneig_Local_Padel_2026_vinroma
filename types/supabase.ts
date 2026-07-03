@@ -436,6 +436,10 @@ export type Database = {
         Args: { p_match_id: string; p_side: string };
         Returns: undefined;
       };
+      admin_override_score: {
+        Args: { p_match_id: string; p_score: Json; p_reason?: string | null };
+        Returns: undefined;
+      };
     };
     Enums: {
       user_role: 'anon' | 'captain' | 'admin';

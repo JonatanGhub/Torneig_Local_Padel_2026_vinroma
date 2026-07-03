@@ -129,6 +129,7 @@ export default async function LandingPage({ params }: Props) {
             <NavLink href={`/${locale}/grups`}>{t('navigation.groups')}</NavLink>
             <NavLink href={`/${locale}/quadre`}>{t('navigation.knockout')}</NavLink>
             <NavLink href={`/${locale}/calendari`}>{t('navigation.calendar')}</NavLink>
+            <NavLink href={`/${locale}/disponibilitat`}>{t('navigation.availability')}</NavLink>
             <NavLink href={`/${locale}/reglament`}>{t('navigation.rules')}</NavLink>
             <LocaleSwitcher current={locale} className="ml-1" />
             <ThemeToggle variant="dark" className="ml-1" />
@@ -147,6 +148,7 @@ export default async function LandingPage({ params }: Props) {
               { href: `/${locale}/grups`, label: t('navigation.groups') },
               { href: `/${locale}/quadre`, label: t('navigation.knockout') },
               { href: `/${locale}/calendari`, label: t('navigation.calendar') },
+              { href: `/${locale}/disponibilitat`, label: t('navigation.availability') },
               { href: `/${locale}/reglament`, label: t('navigation.rules') },
             ]}
           />
