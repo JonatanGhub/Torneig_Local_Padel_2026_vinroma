@@ -4,7 +4,8 @@ import { runWeeklyScheduleCron } from '@/lib/whatsapp/notify';
 export const dynamic = 'force-dynamic';
 
 // Cron setmanal (Vercel Cron, diumenge 19:00 Madrid). Avisa el grup amb tots
-// els partits de dilluns a dijous de la setmana següent, com a complement del
+// els partits de la setmana següent sencera (dilluns a diumenge, incloent
+// partits reprogramats fora de l'horari oficial), com a complement del
 // "Avui es juga" diari (que només mostra el dia en curs).
 //
 // Igual que match-reminders, lib/cron/self-heal.ts pot disparar aquesta
