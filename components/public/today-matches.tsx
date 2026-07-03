@@ -1,5 +1,5 @@
 import type { Locale } from '@/i18n';
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 import { fullName } from '@/lib/player-name';
 import { MatchCard, type MatchCardPhase } from '@/components/match/match-card';
 
@@ -51,7 +51,7 @@ function madridDayBoundsISO(now = new Date()): [string, string] {
 }
 
 export async function TodayMatches({ locale, title, emptyLabel }: Props) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data: tournament } = await supabase
     .from('tournaments')

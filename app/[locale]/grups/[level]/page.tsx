@@ -3,11 +3,15 @@ import Link from 'next/link';
 import { ArrowLeft, Trophy } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 import { fullName } from '@/lib/player-name';
 import { MatchCard } from '@/components/match/match-card';
 
 type Props = { params: Promise<{ locale: Locale; level: string }> };
+
+// Pàgina 100% pública: es cacheja 30s (ISR) perquè no calgui tornar a
+// consultar Supabase a cada clic.
+export const revalidate = 30;
 
 export default async function GroupPage({ params }: Props) {
   const { locale, level: levelParam } = await params;
@@ -16,7 +20,7 @@ export default async function GroupPage({ params }: Props) {
   const level = Number.parseInt(levelParam, 10);
   if (!Number.isFinite(level) || level < 1 || level > 4) notFound();
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: tournament } = await supabase
     .from('tournaments')
     .select('id')

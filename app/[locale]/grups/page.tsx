@@ -2,16 +2,20 @@ import Link from 'next/link';
 import { ArrowLeft, Users } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 
 type Props = { params: Promise<{ locale: Locale }> };
+
+// Pàgina 100% pública: es cacheja 30s (ISR) perquè no calgui tornar a
+// consultar Supabase a cada clic.
+export const revalidate = 30;
 
 export default async function GroupsIndexPage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations();
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: tournament } = await supabase
     .from('tournaments')
     .select('id')

@@ -1,6 +1,6 @@
 import { Users } from 'lucide-react';
 import type { Locale } from '@/i18n';
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 
 type Props = {
   locale: Locale;
@@ -10,7 +10,7 @@ type Props = {
 };
 
 export async function RegisteredPairs({ locale, title, emptyLabel, pairsCountLabel }: Props) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data: tournament } = await supabase
     .from('tournaments')

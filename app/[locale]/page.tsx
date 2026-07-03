@@ -12,7 +12,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { Locale } from '@/i18n';
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 import { formatCents, getTournamentFees, type PublicFee } from '@/lib/pricing';
 import { CourtCarousel } from '@/components/brand/court-carousel';
 import { LogoLockup } from '@/components/brand/logo-mark';
@@ -25,6 +25,10 @@ import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 type Props = { params: Promise<{ locale: Locale }> };
+
+// Pàgina 100% pública, sense res personalitzat per sessió: es cacheja 30s
+// (ISR) perquè no calgui tornar a consultar Supabase a cada clic.
+export const revalidate = 30;
 
 const SLIDES = [
   { src: '/images/courts/1.png', alt: 'Pistes de pàdel — Les Coves de Vinromà' },
@@ -60,7 +64,7 @@ export default async function LandingPage({ params }: Props) {
   setRequestLocale(locale);
   const t = await getTranslations();
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: tournament } = await supabase
     .from('tournaments')
     .select(

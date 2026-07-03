@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, ExternalLink, Plus } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 import { LogoLockup } from '@/components/brand/logo-mark';
 
 type Props = { params: Promise<{ locale: Locale }> };
@@ -15,12 +15,16 @@ const TIER_ORDER: Array<'gold' | 'silver' | 'bronze' | 'collaborator'> = [
   'collaborator',
 ];
 
+// Pàgina 100% pública i que gairebé no canvia: es cacheja 30s (ISR) perquè
+// no calgui tornar a consultar Supabase a cada clic.
+export const revalidate = 30;
+
 export default async function SponsorsPage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('sponsors');
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: sponsors } = await supabase
     .from('sponsors')
     .select('id, name, logo_url, website_url, tier, display_order, role_ca, role_es')
