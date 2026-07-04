@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Trophy } from 'lucide-react';
 import type { Locale } from '@/i18n';
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 import { fullName } from '@/lib/player-name';
 import {
   computeCategoryBracket,
@@ -24,7 +24,7 @@ const roundName = (
 };
 
 export async function BracketPreviewSection({ locale }: Props) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const t = await getTranslations();
 
   const { data: tournament } = await supabase
