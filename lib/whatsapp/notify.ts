@@ -288,9 +288,30 @@ export async function notifyResultPendingValidationWhatsApp(
     };
 
     const rivalPair = pairs.find((p) => p.id === rivalPairId);
-    if (!rivalPair) return;
+    if (!rivalPair) {
+      console.warn('[whatsapp] notifyResultPendingValidation: rival pair not found', {
+        matchId,
+        rivalPairId,
+      });
+      return;
+    }
     const rivalCaptain = players?.find((p) => p.id === rivalPair.captain_id) as Captain | undefined;
-    if (!canWhatsApp(rivalCaptain)) return;
+    const rivalDebugInfo = {
+      rivalCaptainId: rivalCaptain?.id ?? null,
+      hasPhone: Boolean(rivalCaptain?.phone),
+      consentWhatsapp: rivalCaptain?.consent_whatsapp ?? null,
+      isAnonymized: rivalCaptain?.is_anonymized ?? null,
+    };
+    if (!canWhatsApp(rivalCaptain)) {
+      // Sense això, un capità que no rep l'avís (sense telèfon, sense
+      // consentiment, o anonimitzat) no deixa cap rastre — impossible de
+      // diagnosticar a posteriori quan algú diu "no m'ha arribat cap avís".
+      console.warn(
+        '[whatsapp] notifyResultPendingValidation: rival captain cannot receive WhatsApp',
+        { matchId, ...rivalDebugInfo },
+      );
+      return;
+    }
 
     const { data: report } = await supabase
       .from('match_reports')
@@ -334,7 +355,11 @@ export async function notifyResultPendingValidationWhatsApp(
         `${SITE_URL}/ca/captain/matches/${matchId}`;
     await sendWhatsApp({ to: rivalCaptain!.phone, text });
   } catch (err) {
-    console.warn('[whatsapp] notifyResultPendingValidation failed', err);
+    console.error(
+      '[whatsapp] notifyResultPendingValidation failed',
+      { matchId, reporterSide },
+      err,
+    );
   }
 }
 
