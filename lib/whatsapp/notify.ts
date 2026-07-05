@@ -1137,6 +1137,19 @@ export async function sendValidationReminders(): Promise<{ sent: number; skipped
     if (!matches || matches.length === 0) return { sent: 0, skipped: 0 };
 
     for (const match of matches) {
+      // Reclama el partit ABANS de fer res més: si dues invocacions
+      // concurrents (p.ex. el self-heal disparat per diverses visites a la
+      // vegada) hi arriben alhora, només una guanya la condició
+      // `reminder_sent_at IS NULL` — evita enviar el mateix recordatori
+      // diverses vegades.
+      const { data: claimed } = await supabase
+        .from('matches')
+        .update({ reminder_sent_at: now.toISOString() })
+        .eq('id', match.id)
+        .is('reminder_sent_at', null)
+        .select('id');
+      if (!claimed || claimed.length === 0) continue; // una altra invocació ja l'ha reclamat
+
       const { data: pairs } = await supabase
         .from('pairs')
         .select('id, captain_id, player_a_id, player_b_id')
@@ -1179,13 +1192,6 @@ export async function sendValidationReminders(): Promise<{ sent: number; skipped
         atLeastOneSent = true;
       }
 
-      // Marca el recordatori enviat sempre (fins i tot si cap capità tenia WA)
-      // per evitar bucles infinits en partits on ningú pot rebre notificació.
-      await supabase
-        .from('matches')
-        .update({ reminder_sent_at: now.toISOString() })
-        .eq('id', match.id);
-
       if (atLeastOneSent) sent++;
       else skipped++;
     }
@@ -1221,6 +1227,19 @@ export async function sendRescheduleReminders(): Promise<{ sent: number; skipped
     if (!proposals || proposals.length === 0) return { sent: 0, skipped: 0 };
 
     for (const proposal of proposals) {
+      // Reclama la proposta ABANS de fer res més: si dues invocacions
+      // concurrents (p.ex. el self-heal disparat per diverses visites a la
+      // vegada) hi arriben alhora, només una guanya la condició
+      // `reminder_sent_at IS NULL` — evita enviar el mateix recordatori
+      // diverses vegades.
+      const { data: claimed } = await supabase
+        .from('match_reschedule_proposals')
+        .update({ reminder_sent_at: now.toISOString() })
+        .eq('id', proposal.id)
+        .is('reminder_sent_at', null)
+        .select('id');
+      if (!claimed || claimed.length === 0) continue; // una altra invocació ja l'ha reclamat
+
       const { data: match } = await supabase
         .from('matches')
         .select('id, pair_a_id, pair_b_id, status')
@@ -1228,12 +1247,8 @@ export async function sendRescheduleReminders(): Promise<{ sent: number; skipped
         .maybeSingle();
 
       // Si el partit ja s'ha resolt mentre la proposta quedava penjada, no té
-      // sentit recordar res: marquem i seguim.
+      // sentit recordar res.
       if (!match || match.status === 'validated' || match.status === 'walkover') {
-        await supabase
-          .from('match_reschedule_proposals')
-          .update({ reminder_sent_at: now.toISOString() })
-          .eq('id', proposal.id);
         skipped++;
         continue;
       }
@@ -1281,13 +1296,6 @@ export async function sendRescheduleReminders(): Promise<{ sent: number; skipped
       } else {
         skipped++;
       }
-
-      // Marca sempre (fins i tot si el capità no té WA) per no reintentar
-      // cada dia contra un destinatari que mai el podrà rebre.
-      await supabase
-        .from('match_reschedule_proposals')
-        .update({ reminder_sent_at: now.toISOString() })
-        .eq('id', proposal.id);
     }
   } catch (err) {
     console.warn('[whatsapp] sendRescheduleReminders failed', err);
