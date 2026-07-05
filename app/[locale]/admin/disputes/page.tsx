@@ -62,6 +62,51 @@ export default async function DisputesAdminPage({ params }: Props) {
       .join(', ');
   }
 
+  // El marcador d'un report normal es desa relatiu a QUI reporta ("a"=el seu
+  // propi equip, "b"=el rival) — NO en termes absoluts pair_a/pair_b. Aquesta
+  // pàgina mostra els dos reports l'un al costat de l'altre sota les
+  // etiquetes "Capità A"/"Capità B" (que es refereixen als costats ABSOLUTS
+  // del partit), així que cal capgirar el del capità B abans de mostrar-lo:
+  // si no, dos capitans que informen EXACTAMENT el mateix resultat real
+  // semblen discrepar (per això moltes d'aquestes "disputes" no ho són de
+  // veritat — són el mateix marcador, mirall). Els walkovers són l'excepció:
+  // es desen ja en termes absoluts (vegeu submit_match_walkover_report).
+  function isWalkoverScore(score: unknown): boolean {
+    return (
+      Array.isArray(score) &&
+      score.length > 0 &&
+      typeof score[0] === 'object' &&
+      score[0] !== null &&
+      (score[0] as { wo?: unknown }).wo === true
+    );
+  }
+
+  function flipScore(score: unknown): { set: number; a: number; b: number }[] | null {
+    if (!Array.isArray(score)) return null;
+    return score
+      .filter(
+        (s): s is { set: number; a: number; b: number } =>
+          typeof s === 'object' &&
+          s !== null &&
+          typeof (s as { set: unknown }).set === 'number' &&
+          typeof (s as { a: unknown }).a === 'number' &&
+          typeof (s as { b: unknown }).b === 'number',
+      )
+      .map((s) => ({ set: s.set, a: s.b, b: s.a }));
+  }
+
+  function absoluteScore(report: ReportRow | undefined): unknown {
+    if (!report) return null;
+    if (report.reporter_pair_side === 'b' && !isWalkoverScore(report.score_json)) {
+      return flipScore(report.score_json);
+    }
+    return report.score_json;
+  }
+
+  function reportScoreText(report: ReportRow | undefined): string {
+    return report ? scoreToText(absoluteScore(report)) : '—';
+  }
+
   const disputed = (matches ?? []).filter((m) => m.status === 'disputed');
   const pending = (matches ?? []).filter((m) => m.status === 'pending_validation');
 
@@ -78,7 +123,7 @@ export default async function DisputesAdminPage({ params }: Props) {
         matches={disputed}
         reports={reports ?? []}
         pairLabel={pairLabel}
-        scoreToText={scoreToText}
+        reportScoreText={reportScoreText}
         emphasizeDispute
       />
 
@@ -88,7 +133,7 @@ export default async function DisputesAdminPage({ params }: Props) {
         matches={pending}
         reports={reports ?? []}
         pairLabel={pairLabel}
-        scoreToText={scoreToText}
+        reportScoreText={reportScoreText}
       />
     </section>
   );
@@ -119,7 +164,7 @@ function DisputeBlock({
   matches,
   reports,
   pairLabel,
-  scoreToText,
+  reportScoreText,
   emphasizeDispute = false,
 }: {
   title: string;
@@ -127,7 +172,7 @@ function DisputeBlock({
   matches: MatchRow[];
   reports: ReportRow[];
   pairLabel: (pairId: string) => string;
-  scoreToText: (score: unknown) => string;
+  reportScoreText: (report: ReportRow | undefined) => string;
   emphasizeDispute?: boolean;
 }) {
   return (
@@ -164,8 +209,8 @@ function DisputeBlock({
                 </div>
                 {(reportA || reportB) && (
                   <div className="text-muted-foreground mt-2 grid grid-cols-2 gap-2 text-xs">
-                    <ScoreCell label="A" report={reportA} score={scoreToText} />
-                    <ScoreCell label="B" report={reportB} score={scoreToText} />
+                    <ScoreCell label="A" text={reportScoreText(reportA)} />
+                    <ScoreCell label="B" text={reportScoreText(reportB)} />
                   </div>
                 )}
                 {emphasizeDispute && (
@@ -189,21 +234,13 @@ function DisputeBlock({
   );
 }
 
-function ScoreCell({
-  label,
-  report,
-  score,
-}: {
-  label: string;
-  report: ReportRow | undefined;
-  score: (s: unknown) => string;
-}) {
+function ScoreCell({ label, text }: { label: string; text: string }) {
   return (
     <div className="bg-card rounded-md p-2">
       <p className="text-muted-foreground/80 text-[10px] tracking-wider uppercase">
         Capità {label}
       </p>
-      <p className="font-mono">{report ? score(report.score_json) : '—'}</p>
+      <p className="font-mono">{text}</p>
     </div>
   );
 }
