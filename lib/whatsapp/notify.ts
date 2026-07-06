@@ -708,6 +708,21 @@ function formatMadridTime(iso: string | null): string {
   }
 }
 
+// Cert si avui (hora de Madrid) és un dia oficial de joc del torneig
+// (dilluns–dijous). Els forats oficials són dl–dj; divendres–diumenge no
+// s'espera cap partit, així que no cal avisar que "no es juga".
+function isOfficialPlayDayMadrid(now: Date = new Date()): boolean {
+  try {
+    const wd = new Intl.DateTimeFormat('en-US', {
+      timeZone: MADRID_TZ,
+      weekday: 'short',
+    }).format(now);
+    return wd === 'Mon' || wd === 'Tue' || wd === 'Wed' || wd === 'Thu';
+  } catch {
+    return false;
+  }
+}
+
 export async function sendDailyGroupSummary(opts?: { isUpdate?: boolean }): Promise<void> {
   try {
     const supabase = createServiceClient();
@@ -722,7 +737,23 @@ export async function sendDailyGroupSummary(opts?: { isUpdate?: boolean }): Prom
       .order('scheduled_at', { ascending: true });
 
     if (!matches || matches.length === 0) {
-      // Sense partits avui: no enviem res per evitar soroll al grup.
+      // Sense partits avui. Només avisem que "no es juga" els dies OFICIALS
+      // de joc (dl–dj) — perquè la gent que espera partits aquells dies tingui
+      // confirmació que el sistema funciona i que realment no toca — i només
+      // si el torneig encara no ha acabat (queda algun partit futur). Els caps
+      // de setmana i un cop tancat el torneig callem, per no fer soroll. Mai
+      // en una actualització per reprogramació (isUpdate).
+      if (!opts?.isUpdate && isOfficialPlayDayMadrid()) {
+        const { count } = await supabase
+          .from('matches')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'scheduled')
+          .gte('scheduled_at', endIso);
+        if ((count ?? 0) > 0) {
+          const day = formatMadridDateLong(new Date(startIso));
+          await sendWhatsAppToGroup(`🎾 *Avui no es juga cap partit del torneig* (${day})`);
+        }
+      }
       return;
     }
 
