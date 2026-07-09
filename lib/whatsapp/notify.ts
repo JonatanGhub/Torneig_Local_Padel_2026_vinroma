@@ -1234,8 +1234,21 @@ export async function sendValidationReminders(): Promise<{ sent: number; skipped
       const labelB = pairLabelOf(match.pair_b_id);
       const dateText = formatDateCA(match.scheduled_at);
 
+      // Si un dels dos capitans ja ha reportat el seu costat (partit en
+      // pending_validation), el recordatori només l'ha de rebre l'altre —
+      // el que encara falta per confirmar/reportar. Si cap dels dos ha
+      // reportat (scheduled), el reben tots dos.
+      const { data: reports } = await supabase
+        .from('match_reports')
+        .select('reporter_pair_side')
+        .eq('match_id', match.id)
+        .in('reporter_pair_side', ['a', 'b']);
+      const reportedSides = new Set((reports ?? []).map((r) => r.reporter_pair_side));
+
       let atLeastOneSent = false;
       for (const pair of pairs) {
+        const side = pair.id === match.pair_a_id ? 'a' : 'b';
+        if (reportedSides.has(side)) continue; // aquest capità ja ha fet la seva part
         const captain = players?.find((p) => p.id === pair.captain_id) as Captain | undefined;
         if (!canWhatsApp(captain)) continue;
         const text =
