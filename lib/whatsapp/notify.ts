@@ -413,6 +413,61 @@ export async function notifyMatchScheduledWhatsApp(matchId: string, isChange: bo
   }
 }
 
+// 4b) L'admin anul·la el resultat d'un partit ja jugat → WhatsApp als DOS
+//     capitans. Si l'admin ja hi ha fixat una nova data en el mateix pas es
+//     mostra directament; si no, s'enllaça al flux de reprogramació perquè
+//     qualsevol dels dos capitans en proposi una.
+export async function notifyMatchAnnulledWhatsApp(matchId: string, reason?: string | null) {
+  try {
+    const supabase = createServiceClient();
+    const { data: match } = await supabase
+      .from('matches')
+      .select('id, pair_a_id, pair_b_id, scheduled_at, court_label')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (!match) return;
+
+    const { data: pairs } = await supabase
+      .from('pairs')
+      .select('id, captain_id, player_a_id, player_b_id')
+      .in('id', [match.pair_a_id, match.pair_b_id]);
+    if (!pairs || pairs.length < 2) return;
+
+    const allPlayerIds = pairs.flatMap((p) => [p.captain_id, p.player_a_id, p.player_b_id]);
+    const { data: players } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, phone, consent_whatsapp, is_anonymized')
+      .in('id', allPlayerIds);
+
+    const pairLabelOf = (pairId: string) => {
+      const pair = pairs.find((p) => p.id === pairId);
+      if (!pair) return '—';
+      return lastNamesPair(
+        players?.find((p) => p.id === pair.player_a_id),
+        players?.find((p) => p.id === pair.player_b_id),
+      );
+    };
+
+    const nextStepText = match.scheduled_at
+      ? `Nova data: ${formatDateCA(match.scheduled_at)}${match.court_label ? ` · ${match.court_label}` : ''}`
+      : `Cal tornar a jugar-lo. Proposa una nova data des de l'app:\n${SITE_URL}/ca/captain/matches/${matchId}/reschedule`;
+
+    for (const pair of pairs) {
+      const captain = players?.find((p) => p.id === pair.captain_id) as Captain | undefined;
+      if (!canWhatsApp(captain)) continue;
+      const rivalPairId = pair.id === match.pair_a_id ? match.pair_b_id : match.pair_a_id;
+      const text =
+        `🚫 *Resultat anul·lat*\n` +
+        `${pairLabelOf(pair.id)} vs ${pairLabelOf(rivalPairId)}\n` +
+        `L'organització ha anul·lat el resultat d'aquest partit${reason ? `: ${reason}` : '.'}\n\n` +
+        `${nextStepText}`;
+      await sendWhatsApp({ to: captain.phone, text });
+    }
+  } catch (err) {
+    console.warn('[whatsapp] notifyMatchAnnulled failed', err);
+  }
+}
+
 // 4c) Pagament conciliat per l'admin → WhatsApp al capità.
 export async function notifyPaymentReconciledWhatsApp(paymentId: string) {
   try {
