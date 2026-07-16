@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { CalendarClock, Check, Sparkles, Trophy, X } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
@@ -6,6 +5,7 @@ import { MatchCard, type MatchCardPhase } from '@/components/match/match-card';
 import { MyPairsCard, type CaptainPairItem } from './my-pairs-card';
 import { loadCaptainContext } from '@/lib/captain/data';
 import { NoProfilePanel } from './no-profile-panel';
+import { CaptainMatchActions } from './match-actions';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -28,7 +28,16 @@ export default async function CaptainHome({ params }: Props) {
   const ctx = await loadCaptainContext(locale);
   if (!ctx.player) return <NoProfilePanel locale={locale} />;
 
-  const { player, myPairs, myPairIds, matches, pairLabels, categoryLabels, partnerLabels } = ctx;
+  const {
+    player,
+    myPairs,
+    myPairIds,
+    matches,
+    pairLabels,
+    categoryLabels,
+    partnerLabels,
+    scoreTextByMatchId,
+  } = ctx;
   const pairsWithMatches = new Set(matches.flatMap((m) => [m.pair_a_id, m.pair_b_id]));
 
   const myPairItems: CaptainPairItem[] = myPairs.map((p) => ({
@@ -99,43 +108,6 @@ export default async function CaptainHome({ params }: Props) {
           <ul className="space-y-3">
             {upcoming.map((m) => {
               const mySide: 'a' | 'b' = myPairIds.includes(m.pair_a_id) ? 'a' : 'b';
-              const isPlayed = m.scheduled_at
-                ? new Date(m.scheduled_at).getTime() <= Date.now()
-                : false;
-              const canReport =
-                isPlayed || m.status === 'pending_validation' || m.status === 'disputed';
-              const reportCta =
-                m.status === 'pending_validation'
-                  ? t('captain.review_result')
-                  : m.status === 'disputed'
-                    ? t('captain.disputed')
-                    : t('captain.report_result');
-              const actions = (
-                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                  {canReport ? (
-                    <Link
-                      href={`/${locale}/captain/matches/${m.id}`}
-                      className="bg-crimson-600 hover:bg-crimson-500 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold text-white transition-colors"
-                    >
-                      {reportCta}
-                    </Link>
-                  ) : (
-                    <span
-                      title={t('captain.report_locked_until_match')}
-                      className="inline-flex cursor-not-allowed items-center justify-center rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/45"
-                    >
-                      {reportCta}
-                    </span>
-                  )}
-                  <Link
-                    href={`/${locale}/captain/matches/${m.id}/reschedule`}
-                    className="inline-flex items-center justify-center gap-1 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
-                  >
-                    <CalendarClock className="size-3" />
-                    {t('captain.propose_reschedule_cta')}
-                  </Link>
-                </div>
-              );
               return (
                 <li key={m.id}>
                   <MatchCard
@@ -149,7 +121,15 @@ export default async function CaptainHome({ params }: Props) {
                     status={m.status}
                     myPairSide={mySide}
                     locale={locale}
-                    actions={actions}
+                    actions={
+                      <CaptainMatchActions
+                        locale={locale}
+                        matchId={m.id}
+                        status={m.status}
+                        scheduledAt={m.scheduled_at}
+                        t={t}
+                      />
+                    }
                   />
                 </li>
               );
@@ -182,6 +162,11 @@ export default async function CaptainHome({ params }: Props) {
                       {categoryLabels.get(m.category_id) ?? ''}
                       {m.group_label ? ` · Grup ${m.group_label}` : ''}
                     </p>
+                    {scoreTextByMatchId.get(m.id) && (
+                      <p className="mt-1 font-mono text-xs text-white/80">
+                        {scoreTextByMatchId.get(m.id)}
+                      </p>
+                    )}
                   </div>
                   <span
                     className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${

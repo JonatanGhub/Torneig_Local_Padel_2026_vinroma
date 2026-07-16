@@ -5,8 +5,10 @@ import { createClient } from '@/lib/supabase/server';
 import { fullName } from '@/lib/player-name';
 import { MatchCard, type MatchCardPhase } from '@/components/match/match-card';
 import { loadCaptainContext } from '@/lib/captain/data';
+import { buildScoreTextMap } from '@/lib/match-score';
 import { NoProfilePanel } from '../no-profile-panel';
 import { CaptainGroupTabs } from './group-tabs';
+import { CaptainMatchActions } from '../match-actions';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
@@ -71,6 +73,15 @@ export default async function CaptainGroupPage({ params, searchParams }: Props) 
       .eq('phase', 'group')
       .order('scheduled_at', { ascending: true, nullsFirst: true }),
   ]);
+
+  const groupMatchIds = (allGroupMatches ?? []).map((m) => m.id);
+  const { data: groupSets } = groupMatchIds.length
+    ? await supabase
+        .from('sets')
+        .select('match_id, set_number, games_a, games_b')
+        .in('match_id', groupMatchIds)
+    : { data: [] };
+  const scoreTextByMatchId = buildScoreTextMap(groupSets);
 
   // Top up pair labels for any pair appearing in the group that the helper
   // hasn't already cached (defensive — the helper does this for group-mates
@@ -167,6 +178,12 @@ export default async function CaptainGroupPage({ params, searchParams }: Props) 
               {groupMatches.map((m) => {
                 const mySide: 'a' | 'b' | null =
                   m.pair_a_id === p.id ? 'a' : m.pair_b_id === p.id ? 'b' : null;
+                // Els botons d'acció només tenen sentit si el partit és meu i
+                // encara no ha quedat resolt (a l'inici, els partits ja
+                // validats/walkover surten en una llista separada sense
+                // accions — aquí, dins del mateix grup, cal el mateix criteri).
+                const showActions =
+                  mySide !== null && m.status !== 'validated' && m.status !== 'walkover';
                 return (
                   <li key={m.id}>
                     <MatchCard
@@ -179,6 +196,7 @@ export default async function CaptainGroupPage({ params, searchParams }: Props) 
                       courtLabel={m.court_label}
                       status={m.status}
                       myPairSide={mySide}
+                      scoreText={scoreTextByMatchId.get(m.id) ?? null}
                       winnerLabel={
                         m.winner_pair_id === m.pair_a_id
                           ? 'a'
@@ -187,6 +205,17 @@ export default async function CaptainGroupPage({ params, searchParams }: Props) 
                             : null
                       }
                       locale={locale}
+                      actions={
+                        showActions ? (
+                          <CaptainMatchActions
+                            locale={locale}
+                            matchId={m.id}
+                            status={m.status}
+                            scheduledAt={m.scheduled_at}
+                            t={t}
+                          />
+                        ) : undefined
+                      }
                     />
                   </li>
                 );

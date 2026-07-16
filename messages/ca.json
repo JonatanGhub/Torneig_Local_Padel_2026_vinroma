@@ -912,7 +912,9 @@
     "group_empty_body": "Quan l'organització faci el sorteig, podràs veure aquí el teu grup, els rivals i els resultats.",
     "bracket_page_title": "El quadre del torneig",
     "bracket_page_subtitle": "Els teus partits de fase final apareixen ressaltats.",
-    "bracket_empty_title": "Encara no s'ha fet el quadre"
+    "bracket_empty_title": "Encara no s'ha fet el quadre",
+    "bracket_projection_title": "Com quedaria l'eliminatòria",
+    "bracket_projection_subtitle": "Previsió segons els resultats i classificacions actuals — encara no és el quadre definitiu."
   },
   "cookies_banner": {
     "aria_label": "Avís de cookies",

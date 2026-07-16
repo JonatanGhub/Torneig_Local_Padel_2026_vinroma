@@ -6,6 +6,7 @@ import type { Locale } from '@/i18n';
 import { createPublicClient } from '@/lib/supabase/public';
 import { fullName } from '@/lib/player-name';
 import { MatchCard } from '@/components/match/match-card';
+import { buildScoreTextMap } from '@/lib/match-score';
 
 type Props = { params: Promise<{ locale: Locale; level: string }> };
 
@@ -67,13 +68,24 @@ export default async function GroupPage({ params }: Props) {
   ]);
 
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
-  const { data: players } = playerIds.length
-    ? await supabase
-        .from('public_player_names')
-        .select('id, first_name, last_name')
-        .in('id', playerIds)
-    : { data: [] };
+  const groupMatchIds = (matches ?? []).map((m) => m.id);
+  // Independents entre si (una depèn de `pairs`, l'altra de `matches`): es
+  // disparen alhora.
+  const [{ data: players }, { data: sets }] = await Promise.all([
+    playerIds.length
+      ? supabase.from('public_player_names').select('id, first_name, last_name').in('id', playerIds)
+      : Promise.resolve({ data: [] as { id: string; first_name: string; last_name: string }[] }),
+    groupMatchIds.length
+      ? supabase
+          .from('sets')
+          .select('match_id, set_number, games_a, games_b')
+          .in('match_id', groupMatchIds)
+      : Promise.resolve({
+          data: [] as { match_id: string; set_number: number; games_a: number; games_b: number }[],
+        }),
+  ]);
   const playerMap = new Map(players?.map((p) => [p.id, p]) ?? []);
+  const scoreTextByMatchId = buildScoreTextMap(sets);
 
   const hasBracket = (koProbe ?? []).some(
     (m) => m.phase.startsWith('ko_') || m.phase.startsWith('cons_'),
@@ -202,6 +214,7 @@ export default async function GroupPage({ params }: Props) {
                           | 'disputed'
                           | 'walkover'
                       }
+                      scoreText={scoreTextByMatchId.get(m.id) ?? null}
                       winnerLabel={
                         m.winner_pair_id === m.pair_a_id
                           ? 'a'
