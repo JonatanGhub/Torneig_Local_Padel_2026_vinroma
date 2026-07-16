@@ -8,6 +8,7 @@ import { AutoScheduleControls } from './auto-schedule-button';
 import { SchedulerProvider } from './scheduler-context';
 import { WalkoverButton } from '../walkover-button';
 import { EditScoreButton } from '../edit-score-button';
+import { AnnulMatchButton } from '../annul-match-button';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
@@ -173,6 +174,10 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
                     />
                   )}
                   <EditScoreButton matchId={m.id} initialSets={setsByMatch.get(m.id) ?? []} />
+                  {/* Anul·lar només té sentit si el partit ja s'ha "jugat" en
+                      algun sentit (té resultat, disputa o report pendent) —
+                      un 'scheduled' net encara no té res a desfer. */}
+                  {m.status !== 'scheduled' && <AnnulMatchButton matchId={m.id} />}
                 </div>
               </li>
             ))}

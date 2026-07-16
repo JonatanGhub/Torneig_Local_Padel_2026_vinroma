@@ -440,6 +440,15 @@ export type Database = {
         Args: { p_match_id: string; p_score: Json; p_reason?: string | null };
         Returns: undefined;
       };
+      admin_annul_match_result: {
+        Args: {
+          p_match_id: string;
+          p_new_scheduled_at?: string | null;
+          p_new_court_label?: string | null;
+          p_reason?: string | null;
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
       user_role: 'anon' | 'captain' | 'admin';

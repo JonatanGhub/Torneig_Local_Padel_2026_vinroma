@@ -3,8 +3,13 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { notifyMatchValidatedWhatsApp, notifyValidatedToGroup } from '@/lib/whatsapp/notify';
+import {
+  notifyMatchValidatedWhatsApp,
+  notifyValidatedToGroup,
+  notifyMatchAnnulledWhatsApp,
+} from '@/lib/whatsapp/notify';
 import { notifyMatchValidated } from '@/lib/email/notify';
+import { madridInputToISO } from '@/lib/format-date';
 
 const WalkoverSchema = z.object({
   matchId: z.string().uuid(),
@@ -132,6 +137,63 @@ export async function adminOverrideScore(formData: FormData) {
   revalidatePath('/[locale]/admin/disputes', 'page');
   revalidatePath('/[locale]/captain', 'page');
   revalidatePath('/[locale]/captain/matches/[id]', 'page');
+  revalidatePath('/[locale]/grups/[level]', 'page');
+  return { ok: true } as const;
+}
+
+const AnnulSchema = z.object({
+  matchId: z.string().uuid(),
+  newScheduledAt: z.string().nullable().optional(),
+  newCourtLabel: z.string().max(40).nullable().optional(),
+  reason: z.string().max(500).nullable().optional(),
+});
+
+// Anul·la el resultat d'un partit ja jugat (validated/walkover/disputed/
+// pending_validation): esborra reports i sets, buida el guanyador i el
+// torna a 'scheduled' perquè es pugui tornar a jugar. Si l'admin indica una
+// nova data en el mateix formulari, es fixa directament; si no, el partit
+// queda sense programar i qualsevol dels dos capitans el pot reprogramar
+// des del seu propi flux de "proposar canvi de data".
+export async function annulMatchResult(formData: FormData) {
+  const parsed = AnnulSchema.safeParse({
+    matchId: formData.get('matchId'),
+    newScheduledAt: (formData.get('newScheduledAt') as string | null) || null,
+    newCourtLabel: (formData.get('newCourtLabel') as string | null) || null,
+    reason: (formData.get('reason') as string | null) || null,
+  });
+  if (!parsed.success) return { ok: false, error: 'invalid_input' } as const;
+
+  const newScheduledAtIso = parsed.data.newScheduledAt
+    ? madridInputToISO(parsed.data.newScheduledAt)
+    : null;
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('admin_annul_match_result', {
+    p_match_id: parsed.data.matchId,
+    p_new_scheduled_at: newScheduledAtIso,
+    p_new_court_label: newScheduledAtIso ? (parsed.data.newCourtLabel ?? null) : null,
+    p_reason: parsed.data.reason ?? null,
+  });
+  if (error) {
+    const known = [
+      'only_admin',
+      'match_not_found',
+      'match_not_played',
+      'new_date_must_be_future',
+      'court_double_booked',
+      'pair_double_booked',
+    ];
+    const code = known.find((k) => error.message.includes(k)) ?? 'unknown';
+    return { ok: false, error: code } as const;
+  }
+
+  await notifyMatchAnnulledWhatsApp(parsed.data.matchId, parsed.data.reason ?? null);
+
+  revalidatePath('/[locale]/admin/matches', 'page');
+  revalidatePath('/[locale]/admin/disputes', 'page');
+  revalidatePath('/[locale]/captain', 'page');
+  revalidatePath('/[locale]/captain/matches/[id]', 'page');
+  revalidatePath('/[locale]/calendari', 'page');
   revalidatePath('/[locale]/grups/[level]', 'page');
   return { ok: true } as const;
 }
