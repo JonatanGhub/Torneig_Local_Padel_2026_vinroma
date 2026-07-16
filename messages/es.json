@@ -912,7 +912,9 @@
     "group_empty_body": "Cuando la organización haga el sorteo, podrás ver aquí tu grupo, los rivales y los resultados.",
     "bracket_page_title": "El cuadro del torneo",
     "bracket_page_subtitle": "Tus partidos de fase final aparecen resaltados.",
-    "bracket_empty_title": "Aún no se ha hecho el cuadro"
+    "bracket_empty_title": "Aún no se ha hecho el cuadro",
+    "bracket_projection_title": "Cómo quedaría la eliminatoria",
+    "bracket_projection_subtitle": "Previsión según los resultados y clasificaciones actuales — todavía no es el cuadro definitivo."
   },
   "cookies_banner": {
     "aria_label": "Aviso de cookies",

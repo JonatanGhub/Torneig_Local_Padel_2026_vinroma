@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { fullName } from '@/lib/player-name';
+import { buildScoreTextMap } from '@/lib/match-score';
 
 export type CaptainPlayer = {
   id: string;
@@ -46,6 +47,8 @@ export type CaptainContext = {
   categoryLabels: Map<string, string>;
   // my pair_id -> partner full name ("First Last").
   partnerLabels: Map<string, string>;
+  // match_id -> "6-4, 3-6, 7-5" (només partits amb sets desats).
+  scoreTextByMatchId: Map<string, string>;
 };
 
 const emptyCtx = (): CaptainContext => ({
@@ -57,6 +60,7 @@ const emptyCtx = (): CaptainContext => ({
   pairLabels: new Map(),
   categoryLabels: new Map(),
   partnerLabels: new Map(),
+  scoreTextByMatchId: new Map(),
 });
 
 /**
@@ -174,12 +178,26 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
   }
   for (const p of groupPairsResult.data ?? []) allPairIds.add(p.id);
 
-  const { data: pairsData } = allPairIds.size
-    ? await supabase
-        .from('pairs')
-        .select('id, player_a_id, player_b_id')
-        .in('id', Array.from(allPairIds))
-    : { data: [] };
+  const matchIds = matches.map((m) => m.id);
+  // `pairsData` (etiquetes) i `setsData` (marcadors) només depenen de
+  // `matches`/`allPairIds`, no l'una de l'altra: es disparen alhora.
+  const [{ data: pairsData }, { data: setsData }] = await Promise.all([
+    allPairIds.size
+      ? supabase
+          .from('pairs')
+          .select('id, player_a_id, player_b_id')
+          .in('id', Array.from(allPairIds))
+      : Promise.resolve({ data: [] as { id: string; player_a_id: string; player_b_id: string }[] }),
+    matchIds.length
+      ? supabase
+          .from('sets')
+          .select('match_id, set_number, games_a, games_b')
+          .in('match_id', matchIds)
+      : Promise.resolve({
+          data: [] as { match_id: string; set_number: number; games_a: number; games_b: number }[],
+        }),
+  ]);
+  const scoreTextByMatchId = buildScoreTextMap(setsData);
 
   const allPlayerIds = Array.from(
     new Set([...(pairsData ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]), ...partnerIds]),
@@ -225,5 +243,6 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     pairLabels,
     categoryLabels,
     partnerLabels,
+    scoreTextByMatchId,
   };
 }

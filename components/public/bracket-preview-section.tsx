@@ -1,27 +1,11 @@
 import { getTranslations } from 'next-intl/server';
-import { Trophy } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { createPublicClient } from '@/lib/supabase/public';
 import { fullName } from '@/lib/player-name';
-import {
-  computeCategoryBracket,
-  formatSeed,
-  type StandingRow,
-  type GroupMeta,
-  type BracketSeed,
-  type BracketMatch,
-} from '@/lib/bracket-engine';
+import { buildBracketProjectionCards } from '@/lib/bracket-projection';
+import { BracketProjectionCards } from '@/components/bracket/bracket-projection-cards';
 
 type Props = { locale: Locale };
-
-const roundName = (
-  size: number,
-  t: (k: string) => string,
-): string => {
-  if (size >= 8) return t('landing.bracket_round_qf');
-  if (size === 4) return t('landing.bracket_round_sf');
-  return t('landing.bracket_round_final');
-};
 
 export async function BracketPreviewSection({ locale }: Props) {
   const supabase = createPublicClient();
@@ -84,77 +68,18 @@ export async function BracketPreviewSection({ locale }: Props) {
     ]),
   );
 
-  const labelByGroupId = new Map((groups ?? []).map((g) => [g.id, g.label]));
-
-  const seedText = (seed: BracketSeed): string => {
-    if (seed.kind === 'pair') return pairLabelById.get(seed.pair_id) ?? formatSeed(seed, locale);
-    return formatSeed(seed, locale);
-  };
-
-  // Construeix el quadre previst per a cada categoria.
-  const cards = (categories ?? [])
-    .map((c) => {
-      const catGroups = (groups ?? []).filter((g) => g.category_id === c.id);
-      if (catGroups.length === 0) return null;
-
-      const catPairs = (pairs ?? []).filter((p) => p.category_id === c.id);
-      const sizeByLabel = new Map<string, number>();
-      for (const p of catPairs) {
-        const label = p.group_id ? labelByGroupId.get(p.group_id) : null;
-        if (label) sizeByLabel.set(label, (sizeByLabel.get(label) ?? 0) + 1);
-      }
-
-      const closedByLabel = new Map<string, boolean>();
-      for (const g of catGroups) closedByLabel.set(g.label, true);
-      for (const m of groupMatches ?? []) {
-        if (m.category_id !== c.id) continue;
-        if (m.status !== 'validated' && m.status !== 'walkover' && m.group_label) {
-          closedByLabel.set(m.group_label, false);
-        }
-      }
-
-      const groupMeta: GroupMeta[] = catGroups.map((g) => ({
-        label: g.label,
-        size: sizeByLabel.get(g.label) ?? 0,
-        closed: closedByLabel.get(g.label) ?? false,
-      }));
-
-      const catStandings: StandingRow[] = (standings ?? [])
-        .filter((s) => s.category_id === c.id)
-        .map((s) => ({
-          pair_id: s.pair_id,
-          group_label: (s.group_id ? labelByGroupId.get(s.group_id) : '') ?? '',
-          matches_played: Number(s.matches_played ?? 0),
-          matches_won: Number(s.matches_won ?? 0),
-          sets_diff: Number(s.sets_diff ?? 0),
-          games_diff: Number(s.games_diff ?? 0),
-        }))
-        .filter((s) => s.group_label);
-
-      const bracket = computeCategoryBracket(c.level, catStandings, groupMeta);
-      if (!bracket.feasible || bracket.main.length === 0) return null;
-
-      return {
-        id: c.id,
-        level: c.level,
-        name: locale === 'ca' ? c.name_ca : c.name_es,
-        bracket,
-      };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
+  // Construeix el quadre previst per a cada categoria (segons resultats/
+  // classificacions actuals).
+  const cards = buildBracketProjectionCards(
+    locale,
+    categories ?? [],
+    groups ?? [],
+    pairs ?? [],
+    standings ?? [],
+    groupMatches ?? [],
+  );
 
   if (cards.length === 0) return null;
-
-  const renderMatch = (m: BracketMatch) => (
-    <li
-      key={`${m.phase}-${m.position}`}
-      className="flex items-center gap-2 text-sm text-foreground/80 dark:text-white/80"
-    >
-      <span className="flex-1 truncate text-right">{seedText(m.a)}</span>
-      <span className="text-xs text-muted-foreground dark:text-white/35">vs</span>
-      <span className="flex-1 truncate">{seedText(m.b)}</span>
-    </li>
-  );
 
   return (
     <section className="mx-auto max-w-6xl px-6 pb-24">
@@ -172,47 +97,12 @@ export async function BracketPreviewSection({ locale }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {cards.map((card) => (
-          <div key={card.id} className="glass-card flex flex-col gap-4 rounded-2xl p-5">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="font-display flex items-center gap-2 text-lg font-semibold text-foreground dark:text-white">
-                <Trophy className="text-crimson-500 dark:text-crimson-300 size-4" />
-                {card.name}
-              </h3>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase ${
-                  card.bracket.groupPhaseFinished
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                    : 'bg-muted text-muted-foreground dark:bg-white/10 dark:text-white/60'
-                }`}
-              >
-                {card.bracket.groupPhaseFinished
-                  ? t('landing.bracket_final')
-                  : t('landing.bracket_provisional')}
-              </span>
-            </div>
-
-            <div>
-              <p className="mb-1.5 text-xs tracking-wide text-muted-foreground dark:text-white/45 uppercase">
-                {t('landing.bracket_main')} ·{' '}
-                {roundName(card.bracket.main[0]?.round_size ?? 0, t)}
-              </p>
-              <ul className="space-y-1.5">{card.bracket.main.map(renderMatch)}</ul>
-            </div>
-
-            {card.bracket.consolation.length > 0 && (
-              <div>
-                <p className="mb-1.5 text-xs tracking-wide text-muted-foreground dark:text-white/45 uppercase">
-                  {t('landing.bracket_consolation')} ·{' '}
-                  {roundName(card.bracket.consolation[0]?.round_size ?? 0, t)}
-                </p>
-                <ul className="space-y-1.5">{card.bracket.consolation.map(renderMatch)}</ul>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      <BracketProjectionCards
+        cards={cards}
+        locale={locale}
+        pairLabel={(id) => pairLabelById.get(id) ?? '—'}
+        t={t}
+      />
     </section>
   );
 }
