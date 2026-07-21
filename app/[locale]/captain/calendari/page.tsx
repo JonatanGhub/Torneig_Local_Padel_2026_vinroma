@@ -3,25 +3,15 @@ import { headers } from 'next/headers';
 import { CalendarClock } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
-import { MatchCard, type MatchCardPhase } from '@/components/match/match-card';
+import { MatchCard } from '@/components/match/match-card';
 import { loadCaptainContext } from '@/lib/captain/data';
+import { matchCardPhase } from '@/lib/phase-label';
 import { getSiteHost } from '@/lib/site-url';
 import { NoProfilePanel } from '../no-profile-panel';
 import { CalendarSubscriptionCard } from '../calendar-subscription';
 import { CaptainCalendarViews, type CalendarMatchView } from './calendar-views';
 
 type Props = { params: Promise<{ locale: Locale }> };
-
-const PHASE_MAP: Record<string, MatchCardPhase> = {
-  group: 'group',
-  ko_16: 'r16',
-  ko_8: 'qf',
-  ko_4: 'sf',
-  ko_2: 'final',
-  cons_8: 'qf',
-  cons_4: 'sf',
-  cons_2: 'final',
-};
 
 const DAY_KEY_FMT = new Intl.DateTimeFormat('en-CA', {
   year: 'numeric',
@@ -38,7 +28,7 @@ export default async function CaptainCalendariPage({ params }: Props) {
   const ctx = await loadCaptainContext(locale);
   if (!ctx.player) return <NoProfilePanel locale={locale} />;
 
-  const { player, myPairIds, matches, pairLabels, categoryLabels } = ctx;
+  const { player, myPairIds, matches, pairLabels, categoryLabels, categoryLevels } = ctx;
 
   const calendarMatches: CalendarMatchView[] = matches
     .filter((m) => m.scheduled_at)
@@ -53,7 +43,7 @@ export default async function CaptainCalendariPage({ params }: Props) {
           <MatchCard
             category={categoryLabels.get(m.category_id) ?? ''}
             groupLabel={m.group_label}
-            phase={PHASE_MAP[m.phase] ?? null}
+            phase={matchCardPhase(m.phase, categoryLevels.get(m.category_id))}
             pairALabel={pairLabels.get(m.pair_a_id) ?? '—'}
             pairBLabel={pairLabels.get(m.pair_b_id) ?? '—'}
             scheduledAt={m.scheduled_at}

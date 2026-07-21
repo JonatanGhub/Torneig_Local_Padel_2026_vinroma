@@ -5,6 +5,7 @@ import type { Locale } from '@/i18n';
 import { createPublicClient } from '@/lib/supabase/public';
 import { fullName } from '@/lib/player-name';
 import { formatMatchTime, madridDateKey } from '@/lib/format-date';
+import { phaseRoundText } from '@/lib/phase-label';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -33,7 +34,7 @@ export default async function CalendariPage({ params }: Props) {
     supabase
       .from('matches')
       .select(
-        'id, category_id, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status',
+        'id, category_id, phase, group_label, scheduled_at, court_label, pair_a_id, pair_b_id, status',
       )
       .eq('tournament_id', tournament?.id ?? '')
       .not('scheduled_at', 'is', null)
@@ -42,6 +43,7 @@ export default async function CalendariPage({ params }: Props) {
   const categoriesById = new Map(
     (categories ?? []).map((c) => [c.id, locale === 'ca' ? c.name_ca : c.name_es]),
   );
+  const categoryLevels = new Map((categories ?? []).map((c) => [c.id, c.level]));
 
   const pairIds = (matches ?? []).flatMap((m) => [m.pair_a_id, m.pair_b_id]);
   const { data: pairs } = pairIds.length
@@ -114,7 +116,13 @@ export default async function CalendariPage({ params }: Props) {
                 </span>
                 <span className="text-muted-foreground text-xs">
                   {categoriesById.get(m.category_id) ?? ''}{' '}
-                  {m.group_label ? `· ${m.group_label}` : ''}
+                  {/* En eliminatòries group_label és el número de partit dins
+                      la ronda; el que ajuda a la gent és el nom de la ronda. */}
+                  {phaseRoundText(m.phase, categoryLevels.get(m.category_id), locale)
+                    ? `· ${phaseRoundText(m.phase, categoryLevels.get(m.category_id), locale)}`
+                    : m.group_label
+                      ? `· ${m.group_label}`
+                      : ''}
                 </span>
               </li>
             ))}

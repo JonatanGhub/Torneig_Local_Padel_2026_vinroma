@@ -8,6 +8,7 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { getSiteUrl } from '@/lib/site-url';
 import { formatMatchTime, formatMatchDateTimeLong, madridDateKey } from '@/lib/format-date';
 import { GROUP_PHASE_LAST_DAY } from '@/lib/scheduling/official-slots';
+import { phaseRoundText, isMainFinal } from '@/lib/phase-label';
 import { sendWhatsApp, sendWhatsAppToGroup, whatsappConfigured } from './send';
 
 // Per obtenir el JID del grup de gestió:
@@ -533,7 +534,7 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
     const supabase = createServiceClient();
     const { data: match } = await supabase
       .from('matches')
-      .select('id, pair_a_id, pair_b_id, status, winner_pair_id, category_id, group_label')
+      .select('id, pair_a_id, pair_b_id, status, winner_pair_id, category_id, group_label, phase')
       .eq('id', matchId)
       .maybeSingle();
 
@@ -582,23 +583,38 @@ export async function notifyValidatedToGroup(matchId: string): Promise<void> {
     const labelB = pairLabelOf(match.pair_b_id);
     const winnerLabel = match.winner_pair_id ? pairLabelOf(match.winner_pair_id) : null;
     const categoryName = category?.name_ca ?? '—';
-    const groupSuffix = match.group_label ? `  ·  Grup ${match.group_label}` : '';
-    const standingsUrl = category?.level
-      ? `${SITE_URL}/ca/grups/${category.level}`
-      : `${SITE_URL}/ca/grups`;
+
+    // Fase de grups: "· Grup C" + enllaç a la classificació. Eliminatòria:
+    // nom de la ronda ("Semifinal", "Final de consolació"...) + enllaç al
+    // quadre — la classificació ja no canvia i el que la gent vol veure és
+    // el quadre. Si és la FINAL del quadre principal, celebrem els campions.
+    const roundText = phaseRoundText(match.phase, category?.level, 'ca');
+    const isFinal = isMainFinal(match.phase, category?.level);
+    const contextSuffix = roundText
+      ? `  ·  ${roundText}`
+      : match.group_label
+        ? `  ·  Grup ${match.group_label}`
+        : '';
+    const followUpBlock = roundText
+      ? `🏆 Quadre actualitzat:\n${category?.level ? `${SITE_URL}/ca/quadre/${category.level}` : `${SITE_URL}/ca/quadre`}`
+      : `📊 Classificació actualitzada:\n${category?.level ? `${SITE_URL}/ca/grups/${category.level}` : `${SITE_URL}/ca/grups`}`;
+    const championsLine =
+      isFinal && winnerLabel ? `\n🏆🏆 *CAMPIONS — ${categoryName}: ${winnerLabel}!* 🏆🏆\n` : '';
 
     const text = isWalkover
       ? `🎾 *Resultat oficial — Walkover*\n` +
         `${labelA}  vs  ${labelB}\n` +
         (winnerLabel ? `Guanya: ${winnerLabel}\n` : '') +
-        `Categoria: ${categoryName}${groupSuffix}\n\n` +
-        `📊 Classificació actualitzada:\n${standingsUrl}`
+        `Categoria: ${categoryName}${contextSuffix}\n` +
+        championsLine +
+        `\n${followUpBlock}`
       : `✅ *Resultat oficial*\n` +
         `${labelA}  vs  ${labelB}\n` +
         `Marcador: ${scoreText}\n` +
         (winnerLabel ? `Guanya: ${winnerLabel}\n` : '') +
-        `Categoria: ${categoryName}${groupSuffix}\n\n` +
-        `📊 Classificació actualitzada:\n${standingsUrl}`;
+        `Categoria: ${categoryName}${contextSuffix}\n` +
+        championsLine +
+        `\n${followUpBlock}`;
 
     await sendWhatsAppToGroup(text);
   } catch (err) {
@@ -785,7 +801,7 @@ export async function sendDailyGroupSummary(opts?: { isUpdate?: boolean }): Prom
 
     const { data: matches } = await supabase
       .from('matches')
-      .select('id, scheduled_at, court_label, pair_a_id, pair_b_id, category_id, status')
+      .select('id, scheduled_at, court_label, pair_a_id, pair_b_id, category_id, status, phase')
       .in('status', ['scheduled', 'pending_validation'])
       .gte('scheduled_at', startIso)
       .lt('scheduled_at', endIso)
@@ -829,7 +845,7 @@ export async function sendDailyGroupSummary(opts?: { isUpdate?: boolean }): Prom
     const categoryIds = Array.from(new Set(matches.map((m) => m.category_id)));
     const { data: categories } = await supabase
       .from('categories')
-      .select('id, name_ca')
+      .select('id, name_ca, level')
       .in('id', categoryIds);
 
     const pairLabelOf = (pairId: string) => {
@@ -839,6 +855,8 @@ export async function sendDailyGroupSummary(opts?: { isUpdate?: boolean }): Prom
     };
     const categoryNameOf = (categoryId: string) =>
       categories?.find((c) => c.id === categoryId)?.name_ca ?? '—';
+    const categoryLevelOf = (categoryId: string) =>
+      categories?.find((c) => c.id === categoryId)?.level ?? null;
 
     const lines = matches.map((m) => {
       const time = formatMadridTime(m.scheduled_at);
@@ -846,7 +864,10 @@ export async function sendDailyGroupSummary(opts?: { isUpdate?: boolean }): Prom
       const cat = categoryNameOf(m.category_id);
       const labelA = pairLabelOf(m.pair_a_id);
       const labelB = pairLabelOf(m.pair_b_id);
-      return `• ${time} · ${court} · ${cat} · ${labelA} vs ${labelB}`;
+      // A l'eliminatòria s'hi afegeix la ronda ("Semifinal", "Final"...),
+      // que és el que fa que la gent vingui a mirar el partit.
+      const round = phaseRoundText(m.phase, categoryLevelOf(m.category_id), 'ca');
+      return `• ${time} · ${court} · ${cat}${round ? ` · *${round}*` : ''} · ${labelA} vs ${labelB}`;
     });
 
     const day = formatMadridDateLong(new Date(startIso));
@@ -1021,20 +1042,21 @@ async function buildStandingsSummaryText(
 }
 
 // 8b) Resum setmanal → missatge al grup cada diumenge amb tots els partits de
-//     la setmana següent sencera i la classificació actual de cada categoria
-//     (a més del "Avui es juga" diari). Deixa d'enviar-se un cop acabada la
-//     fase de grups (GROUP_PHASE_LAST_DAY): la classificació ja no canvia i
-//     el calendari de l'eliminatòria el gestiona l'organització directament.
+//     la setmana següent sencera (a més del "Avui es juga" diari). Durant la
+//     fase de grups inclou també la classificació de cada categoria; a
+//     l'eliminatòria la classificació ja no canvia, així que s'omet i les
+//     línies porten el nom de la ronda (Semifinal, Final...). Si la setmana
+//     vinent no té cap partit programat, no s'envia res.
 export async function notifyWeeklyScheduleToGroup(): Promise<void> {
   try {
-    if (madridDateKey(new Date().toISOString()) > GROUP_PHASE_LAST_DAY) return;
+    const inGroupPhase = madridDateKey(new Date().toISOString()) <= GROUP_PHASE_LAST_DAY;
 
     const supabase = createServiceClient();
     const { startIso, endIso, mondayDate, sundayDate } = nextWeekWindowIso();
 
     const { data: matches } = await supabase
       .from('matches')
-      .select('id, scheduled_at, court_label, pair_a_id, pair_b_id, category_id, status')
+      .select('id, scheduled_at, court_label, pair_a_id, pair_b_id, category_id, status, phase')
       .in('status', ['scheduled', 'pending_validation'])
       .gte('scheduled_at', startIso)
       .lt('scheduled_at', endIso)
@@ -1062,7 +1084,7 @@ export async function notifyWeeklyScheduleToGroup(): Promise<void> {
     const categoryIds = Array.from(new Set(matches.map((m) => m.category_id)));
     const { data: categories } = await supabase
       .from('categories')
-      .select('id, name_ca')
+      .select('id, name_ca, level')
       .in('id', categoryIds);
 
     const pairLabelOf = (pairId: string) => {
@@ -1072,6 +1094,8 @@ export async function notifyWeeklyScheduleToGroup(): Promise<void> {
     };
     const categoryNameOf = (categoryId: string) =>
       categories?.find((c) => c.id === categoryId)?.name_ca ?? '—';
+    const categoryLevelOf = (categoryId: string) =>
+      categories?.find((c) => c.id === categoryId)?.level ?? null;
 
     const lines = matches.map((m) => {
       const day = weekdayCA(m.scheduled_at!);
@@ -1080,23 +1104,31 @@ export async function notifyWeeklyScheduleToGroup(): Promise<void> {
       const cat = categoryNameOf(m.category_id);
       const labelA = pairLabelOf(m.pair_a_id);
       const labelB = pairLabelOf(m.pair_b_id);
-      return `• ${day} ${time} · ${court} · ${cat} · ${labelA} vs ${labelB}`;
+      const round = phaseRoundText(m.phase, categoryLevelOf(m.category_id), 'ca');
+      return `• ${day} ${time} · ${court} · ${cat}${round ? ` · *${round}*` : ''} · ${labelA} vs ${labelB}`;
     });
 
     const rangeLabel = `${formatMadridDayMonth(mondayDate)} – ${formatMadridDayMonth(sundayDate)}`;
+    const hasKoMatches = matches.some((m) => m.phase !== 'group');
 
-    const { data: tournament } = await supabase
-      .from('tournaments')
-      .select('id')
-      .eq('edition', 5)
-      .maybeSingle();
-    const standingsText = tournament
-      ? await buildStandingsSummaryText(supabase, tournament.id)
-      : null;
+    // Classificació: només mentre duri la fase de grups (després ja no canvia).
+    let standingsText: string | null = null;
+    if (inGroupPhase) {
+      const { data: tournament } = await supabase
+        .from('tournaments')
+        .select('id')
+        .eq('edition', 5)
+        .maybeSingle();
+      standingsText = tournament ? await buildStandingsSummaryText(supabase, tournament.id) : null;
+    }
 
+    const header = hasKoMatches
+      ? `🏆 *Partits de la setmana — eliminatòries (${rangeLabel})*`
+      : `📅 *Partits de la setmana (${rangeLabel})*`;
     const text =
-      `📅 *Partits de la setmana (${rangeLabel})*\n\n${lines.join('\n')}\n\n` +
+      `${header}\n\n${lines.join('\n')}\n\n` +
       (standingsText ? `${standingsText}\n\n` : '') +
+      (hasKoMatches ? `🏆 Quadres:\n${SITE_URL}/ca/quadre\n` : '') +
       `🗓️ Calendari complet:\n${SITE_URL}/ca/calendari`;
 
     await sendWhatsAppToGroup(text);

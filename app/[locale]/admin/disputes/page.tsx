@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { fullName } from '@/lib/player-name';
+import { phaseRoundText } from '@/lib/phase-label';
 import { WalkoverButton } from '../walkover-button';
 import { AcceptReportButton } from '../accept-report-button';
 import { EditScoreButton } from '../edit-score-button';
@@ -17,14 +18,16 @@ export default async function DisputesAdminPage({ params }: Props) {
 
   const { data: matches } = await supabase
     .from('matches')
-    .select('id, category_id, group_label, pair_a_id, pair_b_id, scheduled_at, court_label, status')
+    .select(
+      'id, category_id, phase, group_label, pair_a_id, pair_b_id, scheduled_at, court_label, status',
+    )
     .in('status', ['disputed', 'pending_validation'])
     .order('scheduled_at', { ascending: true });
 
   const matchIds = (matches ?? []).map((m) => m.id);
   const pairIds = (matches ?? []).flatMap((m) => [m.pair_a_id, m.pair_b_id]);
-  // `reports` i `pairs` només depenen de `matches`: es disparen alhora.
-  const [{ data: reports }, { data: pairs }] = await Promise.all([
+  // `reports`, `pairs` i `categories` només depenen de `matches`: es disparen alhora.
+  const [{ data: reports }, { data: pairs }, { data: categories }] = await Promise.all([
     matchIds.length
       ? supabase
           .from('match_reports')
@@ -34,7 +37,21 @@ export default async function DisputesAdminPage({ params }: Props) {
     pairIds.length
       ? supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', pairIds)
       : Promise.resolve({ data: [] as { id: string; player_a_id: string; player_b_id: string }[] }),
+    supabase.from('categories').select('id, level, name_ca, name_es'),
   ]);
+  const categoryNames = new Map(
+    (categories ?? []).map((c) => [c.id, locale === 'ca' ? c.name_ca : c.name_es]),
+  );
+  const categoryLevels = new Map((categories ?? []).map((c) => [c.id, c.level]));
+
+  // Context d'un partit sota els noms: "2a categoria · Grup C" durant els
+  // grups, "2a categoria · Semifinal" a l'eliminatòria.
+  const matchContext = (m: MatchRow): string => {
+    const cat = categoryNames.get(m.category_id) ?? '';
+    const round = phaseRoundText(m.phase, categoryLevels.get(m.category_id), locale);
+    const detail = round ?? (m.group_label ? `Grup ${m.group_label}` : '');
+    return [cat, detail].filter(Boolean).join(' · ');
+  };
 
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
   const { data: players } = playerIds.length
@@ -124,6 +141,7 @@ export default async function DisputesAdminPage({ params }: Props) {
         reports={reports ?? []}
         pairLabel={pairLabel}
         reportScoreText={reportScoreText}
+        matchContext={matchContext}
         emphasizeDispute
       />
 
@@ -134,6 +152,7 @@ export default async function DisputesAdminPage({ params }: Props) {
         reports={reports ?? []}
         pairLabel={pairLabel}
         reportScoreText={reportScoreText}
+        matchContext={matchContext}
       />
     </section>
   );
@@ -142,6 +161,7 @@ export default async function DisputesAdminPage({ params }: Props) {
 type MatchRow = {
   id: string;
   category_id: string;
+  phase: string;
   group_label: string | null;
   pair_a_id: string;
   pair_b_id: string;
@@ -165,6 +185,7 @@ function DisputeBlock({
   reports,
   pairLabel,
   reportScoreText,
+  matchContext,
   emphasizeDispute = false,
 }: {
   title: string;
@@ -173,6 +194,7 @@ function DisputeBlock({
   reports: ReportRow[];
   pairLabel: (pairId: string) => string;
   reportScoreText: (report: ReportRow | undefined) => string;
+  matchContext: (m: MatchRow) => string;
   emphasizeDispute?: boolean;
 }) {
   return (
@@ -195,7 +217,7 @@ function DisputeBlock({
                       {pairLabel(m.pair_b_id)}
                     </p>
                     <p className="text-muted-foreground text-xs">
-                      {m.group_label ? `Grup ${m.group_label} · ` : ''}
+                      {matchContext(m) ? `${matchContext(m)} · ` : ''}
                       {m.scheduled_at
                         ? new Date(m.scheduled_at).toLocaleString('ca-ES')
                         : '—'} · {m.court_label ?? '—'}

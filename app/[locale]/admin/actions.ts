@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
+import { categoryReadyForKnockout, generateKnockoutForCategory } from '@/lib/knockout';
 import {
   notifyMatchValidatedWhatsApp,
   notifyValidatedToGroup,
@@ -10,6 +12,30 @@ import {
 } from '@/lib/whatsapp/notify';
 import { notifyMatchValidated } from '@/lib/email/notify';
 import { madridInputToISO } from '@/lib/format-date';
+
+// Si el partit que s'acaba de resoldre era l'ÚLTIM de grup de la seva
+// categoria, genera el quadre eliminatori automàticament — el mateix que ja
+// fan els fluxos del capità (submitReport/submitWalkoverReport). Sense això,
+// una categoria el darrer partit de la qual es tanca des del panell d'admin
+// (acceptar un report, walkover o editar el resultat) es quedaria sense
+// quadre fins que algú el generés a mà des del sorteig.
+async function maybeGenerateKnockout(matchId: string): Promise<void> {
+  try {
+    const service = createServiceClient();
+    const { data: match } = await service
+      .from('matches')
+      .select('phase, category_id, status')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (!match || match.phase !== 'group') return;
+    if (match.status !== 'validated' && match.status !== 'walkover') return;
+    if (await categoryReadyForKnockout(service, match.category_id)) {
+      await generateKnockoutForCategory(service, match.category_id);
+    }
+  } catch (err) {
+    console.warn('[knockout] auto-generate (admin action) failed', err);
+  }
+}
 
 const WalkoverSchema = z.object({
   matchId: z.string().uuid(),
@@ -49,6 +75,7 @@ export async function adminAcceptReport(formData: FormData) {
   // Notificació als capitans i al grup (igual que quan es valida normalment)
   await notifyMatchValidatedWhatsApp(matchId);
   await notifyValidatedToGroup(matchId);
+  await maybeGenerateKnockout(matchId);
 
   revalidatePath('/[locale]/admin/disputes', 'page');
   revalidatePath('/[locale]/admin/matches', 'page');
@@ -77,6 +104,7 @@ export async function setWalkover(formData: FormData) {
   // Notificació als capitans i al grup (walkover inclòs)
   await notifyMatchValidatedWhatsApp(parsed.data.matchId);
   await notifyValidatedToGroup(parsed.data.matchId);
+  await maybeGenerateKnockout(parsed.data.matchId);
 
   revalidatePath('/[locale]/admin/disputes', 'page');
   revalidatePath('/[locale]/admin/matches', 'page');
@@ -124,7 +152,12 @@ export async function adminOverrideScore(formData: FormData) {
     p_reason: reason,
   });
   if (error) {
-    const known = ['only_admin', 'match_not_found', 'invalid_score'];
+    const known = [
+      'only_admin',
+      'match_not_found',
+      'invalid_score',
+      'winner_locked_next_round_exists',
+    ];
     const code = known.find((k) => error.message.includes(k)) ?? 'unknown';
     return { ok: false, error: code } as const;
   }
@@ -132,6 +165,7 @@ export async function adminOverrideScore(formData: FormData) {
   await notifyMatchValidated(matchId);
   await notifyMatchValidatedWhatsApp(matchId);
   await notifyValidatedToGroup(matchId);
+  await maybeGenerateKnockout(matchId);
 
   revalidatePath('/[locale]/admin/matches', 'page');
   revalidatePath('/[locale]/admin/disputes', 'page');
@@ -182,6 +216,7 @@ export async function annulMatchResult(formData: FormData) {
       'new_date_must_be_future',
       'court_double_booked',
       'pair_double_booked',
+      'next_round_already_created',
     ];
     const code = known.find((k) => error.message.includes(k)) ?? 'unknown';
     return { ok: false, error: code } as const;

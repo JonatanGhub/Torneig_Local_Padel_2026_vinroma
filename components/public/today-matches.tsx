@@ -1,18 +1,8 @@
 import type { Locale } from '@/i18n';
 import { createPublicClient } from '@/lib/supabase/public';
 import { fullName } from '@/lib/player-name';
-import { MatchCard, type MatchCardPhase } from '@/components/match/match-card';
-
-const PHASE_MAP: Record<string, MatchCardPhase> = {
-  group: 'group',
-  ko_16: 'r16',
-  ko_8: 'qf',
-  ko_4: 'sf',
-  ko_2: 'final',
-  cons_8: 'qf',
-  cons_4: 'sf',
-  cons_2: 'final',
-};
+import { MatchCard } from '@/components/match/match-card';
+import { matchCardPhase } from '@/lib/phase-label';
 
 type Props = {
   locale: Locale;
@@ -75,13 +65,17 @@ export async function TodayMatches({ locale, title, emptyLabel }: Props) {
       .lte('scheduled_at', endISO)
       .in('status', ['scheduled', 'pending_validation'])
       .order('scheduled_at', { ascending: true }),
-    supabase.from('categories').select('id, name_ca, name_es').eq('tournament_id', tournament.id),
+    supabase
+      .from('categories')
+      .select('id, name_ca, name_es, level')
+      .eq('tournament_id', tournament.id),
   ]);
 
   const matches = matchesRaw ?? [];
   const categoryLabels = new Map(
     (categories ?? []).map((c) => [c.id, locale === 'ca' ? c.name_ca : c.name_es]),
   );
+  const categoryLevels = new Map((categories ?? []).map((c) => [c.id, c.level]));
 
   const pairIds = Array.from(new Set(matches.flatMap((m) => [m.pair_a_id, m.pair_b_id])));
   const { data: pairs } = pairIds.length
@@ -118,7 +112,7 @@ export async function TodayMatches({ locale, title, emptyLabel }: Props) {
                 <MatchCard
                   category={categoryLabels.get(m.category_id) ?? ''}
                   groupLabel={m.group_label}
-                  phase={PHASE_MAP[m.phase] ?? null}
+                  phase={matchCardPhase(m.phase, categoryLevels.get(m.category_id))}
                   pairALabel={pairLabels.get(m.pair_a_id) ?? '—'}
                   pairBLabel={pairLabels.get(m.pair_b_id) ?? '—'}
                   scheduledAt={m.scheduled_at}

@@ -3,9 +3,10 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { fullName } from '@/lib/player-name';
-import { MatchCard, type MatchCardPhase } from '@/components/match/match-card';
+import { MatchCard } from '@/components/match/match-card';
 import { loadCaptainContext } from '@/lib/captain/data';
 import { buildScoreTextMap } from '@/lib/match-score';
+import { matchCardPhase } from '@/lib/phase-label';
 import { NoProfilePanel } from '../no-profile-panel';
 import { CaptainGroupTabs } from './group-tabs';
 import { CaptainMatchActions } from '../match-actions';
@@ -13,17 +14,6 @@ import { CaptainMatchActions } from '../match-actions';
 type Props = {
   params: Promise<{ locale: Locale }>;
   searchParams: Promise<{ pair?: string }>;
-};
-
-const PHASE_MAP: Record<string, MatchCardPhase> = {
-  group: 'group',
-  ko_16: 'r16',
-  ko_8: 'qf',
-  ko_4: 'sf',
-  ko_2: 'final',
-  cons_8: 'qf',
-  cons_4: 'sf',
-  cons_2: 'final',
 };
 
 export default async function CaptainGroupPage({ params, searchParams }: Props) {
@@ -36,7 +26,7 @@ export default async function CaptainGroupPage({ params, searchParams }: Props) 
   if (!ctx.player) return <NoProfilePanel locale={locale} />;
 
   const supabase = await createClient();
-  const { myPairs, pairLabels, categoryLabels } = ctx;
+  const { myPairs, pairLabels, categoryLabels, categoryLevels } = ctx;
 
   const pairsWithGroup = myPairs.filter(
     (p): p is typeof p & { group_id: string; category_id: string } =>
@@ -189,7 +179,7 @@ export default async function CaptainGroupPage({ params, searchParams }: Props) 
                     <MatchCard
                       category={categoryLabels.get(m.category_id) ?? ''}
                       groupLabel={m.group_label}
-                      phase={PHASE_MAP[m.phase] ?? null}
+                      phase={matchCardPhase(m.phase, categoryLevels.get(m.category_id))}
                       pairALabel={pairLabels.get(m.pair_a_id) ?? '—'}
                       pairBLabel={pairLabels.get(m.pair_b_id) ?? '—'}
                       scheduledAt={m.scheduled_at}
