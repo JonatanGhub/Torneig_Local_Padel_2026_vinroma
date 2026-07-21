@@ -6,6 +6,8 @@ import { madridDateKey } from '@/lib/format-date';
 // disponibilitat (app/[locale]/disponibilitat).
 export const OFFICIAL_TIMES = ['20:30', '22:00'] as const;
 export const OFFICIAL_COURTS = ['Pista 2', 'Pista 3'] as const;
+// A l'eliminatòria (última setmana) s'obre també la Pista 1.
+export const KO_COURTS = ['Pista 1', 'Pista 2', 'Pista 3'] as const;
 export const SUMMER_OFFSET = '+02:00';
 export const GROUP_PHASE_LAST_DAY = '2026-07-30';
 

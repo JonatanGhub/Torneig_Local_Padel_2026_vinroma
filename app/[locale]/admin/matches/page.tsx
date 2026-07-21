@@ -3,6 +3,7 @@ import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { fullName } from '@/lib/player-name';
 import { formatMatchDateTime } from '@/lib/format-date';
+import { phaseRoundText } from '@/lib/phase-label';
 import { ScheduleForm } from './schedule-form';
 import { AutoScheduleControls } from './auto-schedule-button';
 import { SchedulerProvider } from './scheduler-context';
@@ -12,7 +13,7 @@ import { AnnulMatchButton } from '../annul-match-button';
 
 type Props = {
   params: Promise<{ locale: Locale }>;
-  searchParams: Promise<{ category?: string; status?: string }>;
+  searchParams: Promise<{ category?: string; status?: string; phase?: string }>;
 };
 
 const VALID_MATCH_STATUSES = [
@@ -56,6 +57,10 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
   if (sp.category) matchesQuery = matchesQuery.eq('category_id', sp.category);
   const matchStatus = asMatchStatus(sp.status);
   if (matchStatus) matchesQuery = matchesQuery.eq('status', matchStatus);
+  // Filtre de fase: 'group' (fase de grups) o 'ko' (qualsevol eliminatòria,
+  // principal o consolació).
+  if (sp.phase === 'group') matchesQuery = matchesQuery.eq('phase', 'group');
+  if (sp.phase === 'ko') matchesQuery = matchesQuery.neq('phase', 'group');
 
   // `categories` i `matches` només depenen de tournament.id: es disparen alhora.
   const [{ data: categories }, { data: matches }] = await Promise.all([
@@ -113,6 +118,25 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
   const categoriesById = new Map(
     (categories ?? []).map((c) => [c.id, locale === 'ca' ? c.name_ca : c.name_es]),
   );
+  const categoryLevels = new Map((categories ?? []).map((c) => [c.id, c.level]));
+
+  // Etiqueta de fase per a la línia de detall: nom de la ronda per a
+  // eliminatòries ("Semifinal", "Final de consolació"...), o "group (A)" com
+  // fins ara per a la fase de grups.
+  const phaseDetail = (m: { phase: string; category_id: string; group_label: string | null }) => {
+    const round = phaseRoundText(m.phase, categoryLevels.get(m.category_id), locale);
+    if (round) return round;
+    return `${m.phase} ${m.group_label ? `(${m.group_label})` : ''}`.trim();
+  };
+
+  const phaseFilterHref = (phase?: string) => {
+    const params = new URLSearchParams();
+    if (sp.category) params.set('category', sp.category);
+    if (matchStatus) params.set('status', matchStatus);
+    if (phase) params.set('phase', phase);
+    const qs = params.toString();
+    return `/${locale}/admin/matches${qs ? `?${qs}` : ''}`;
+  };
 
   return (
     <SchedulerProvider>
@@ -124,6 +148,28 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
 
         <div className="flex flex-wrap gap-2 text-xs">
           <CategoryFilter categories={categories ?? []} current={sp.category} locale={locale} />
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-xs">
+          {(
+            [
+              [undefined, t('filter_phase_all')],
+              ['group', t('filter_phase_groups')],
+              ['ko', t('filter_phase_ko')],
+            ] as const
+          ).map(([phase, label]) => (
+            <a
+              key={label}
+              href={phaseFilterHref(phase)}
+              className={
+                (sp.phase ?? undefined) === phase
+                  ? 'rounded-md bg-[hsl(var(--primary))] px-3 py-1 text-[hsl(var(--primary-foreground))]'
+                  : 'rounded-md border border-[hsl(var(--border))] px-3 py-1'
+              }
+            >
+              {label}
+            </a>
+          ))}
         </div>
 
         {!matches || matches.length === 0 ? (
@@ -139,8 +185,7 @@ export default async function MatchesAdminPage({ params, searchParams }: Props) 
                       {pairLabel(m.pair_b_id)}
                     </p>
                     <p className="text-muted-foreground text-xs">
-                      {categoriesById.get(m.category_id) ?? ''} · {m.phase}{' '}
-                      {m.group_label ? `(${m.group_label})` : ''} ·{' '}
+                      {categoriesById.get(m.category_id) ?? ''} · {phaseDetail(m)} ·{' '}
                       {t(`match_status_${m.status}` as 'match_status_scheduled')}
                     </p>
                   </div>

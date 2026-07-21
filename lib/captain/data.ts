@@ -45,6 +45,9 @@ export type CaptainContext = {
   pairLabels: Map<string, string>;
   // category_id -> localized name.
   categoryLabels: Map<string, string>;
+  // category_id -> level (1-4). Cal per resoldre el nom de la ronda d'una
+  // fase eliminatòria (ko_1 és quarts a 2a però semis a la resta).
+  categoryLevels: Map<string, number>;
   // my pair_id -> partner full name ("First Last").
   partnerLabels: Map<string, string>;
   // match_id -> "6-4, 3-6, 7-5" (només partits amb sets desats).
@@ -59,6 +62,7 @@ const emptyCtx = (): CaptainContext => ({
   matches: [],
   pairLabels: new Map(),
   categoryLabels: new Map(),
+  categoryLevels: new Map(),
   partnerLabels: new Map(),
   scoreTextByMatchId: new Map(),
 });
@@ -163,7 +167,7 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
       : Promise.resolve({
           data: [] as { id: string; first_name: string | null; last_name: string | null }[],
         }),
-    supabase.from('categories').select('id, name_ca, name_es'),
+    supabase.from('categories').select('id, name_ca, name_es, level'),
   ]);
   const matches: CaptainMatch[] = (matchesResult.data ?? []) as CaptainMatch[];
   const categories = categoriesResult.data;
@@ -233,6 +237,7 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
   const categoryLabels = new Map(
     (categories ?? []).map((c) => [c.id, locale === 'ca' ? c.name_ca : c.name_es]),
   );
+  const categoryLevels = new Map((categories ?? []).map((c) => [c.id, c.level]));
 
   return {
     user,
@@ -242,6 +247,7 @@ export async function loadCaptainContext(locale: 'ca' | 'es'): Promise<CaptainCo
     matches,
     pairLabels,
     categoryLabels,
+    categoryLevels,
     partnerLabels,
     scoreTextByMatchId,
   };

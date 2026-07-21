@@ -8,7 +8,16 @@ export type MatchCardStatus =
   | 'disputed'
   | 'walkover';
 
-export type MatchCardPhase = 'group' | 'r16' | 'qf' | 'sf' | 'final' | null;
+export type MatchCardPhase =
+  | 'group'
+  | 'r16'
+  | 'qf'
+  | 'sf'
+  | 'final'
+  | 'cons_qf'
+  | 'cons_sf'
+  | 'cons_final'
+  | null;
 
 export type MatchCardProps = {
   category: string;
@@ -40,6 +49,9 @@ const PHASE_LABELS: Record<NonNullable<MatchCardPhase>, Record<'ca' | 'es', stri
   qf: { ca: 'Quarts', es: 'Cuartos' },
   sf: { ca: 'Semis', es: 'Semis' },
   final: { ca: 'Final', es: 'Final' },
+  cons_qf: { ca: 'Quarts cons.', es: 'Cuartos cons.' },
+  cons_sf: { ca: 'Semis cons.', es: 'Semis cons.' },
+  cons_final: { ca: 'Final cons.', es: 'Final cons.' },
 };
 
 const TU_LABELS: Record<'ca' | 'es', string> = { ca: 'Tu', es: 'Tú' };
@@ -106,7 +118,10 @@ export function MatchCard({
         <span className="bg-crimson-500/15 text-crimson-600 dark:text-crimson-300 rounded px-1.5 py-0.5 text-[10px] tracking-wide uppercase">
           {category}
         </span>
-        {groupLabel ? (
+        {/* A les fases eliminatòries group_label es reutilitza com a número
+            de partit dins la ronda — mostrar-hi "Grup 1" seria confús, així
+            que només s'ensenya durant la fase de grups. */}
+        {groupLabel && (phase === 'group' || !phase) ? (
           <span className="text-muted-foreground text-[11px] dark:text-white/55">
             {locale === 'ca' ? 'Grup' : 'Grupo'} {groupLabel}
           </span>

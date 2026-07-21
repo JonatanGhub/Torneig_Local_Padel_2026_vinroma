@@ -9,6 +9,7 @@ import { madridInputToISO, madridDateKey } from '@/lib/format-date';
 import {
   OFFICIAL_TIMES,
   OFFICIAL_COURTS,
+  KO_COURTS,
   SUMMER_OFFSET,
   GROUP_PHASE_LAST_DAY,
   officialDaysMonToThu,
@@ -310,16 +311,29 @@ export async function getFreeOfficialSlots(matchId: string): Promise<FreeSlotsRe
 
   const { data: match } = await supabase
     .from('matches')
-    .select('id, tournament_id, pair_a_id, pair_b_id')
+    .select('id, tournament_id, pair_a_id, pair_b_id, phase')
     .eq('id', matchId)
     .maybeSingle();
   if (!match) return { ok: false, error: 'match_not_found' };
 
+  // Fase de grups: dl–dj a P2/P3 fins al 30 de juliol. Eliminatòria: la
+  // finestra s'allarga fins a la data de la final (última setmana inclosa) i
+  // s'obre també la Pista 1 — si no, un capità amb un partit de quarts o
+  // semis a l'agost no veuria CAP forat oficial per reprogramar.
+  const isKo = match.phase !== 'group';
+  let lastDayIso = `${GROUP_PHASE_LAST_DAY}T23:59:59${SUMMER_OFFSET}`;
+  if (isKo) {
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('final_at')
+      .eq('id', match.tournament_id)
+      .maybeSingle();
+    if (tournament?.final_at) lastDayIso = tournament.final_at;
+  }
+  const courts: readonly string[] = isKo ? KO_COURTS : OFFICIAL_COURTS;
+
   const nowMs = Date.now();
-  const days = officialDaysMonToThu(
-    new Date(nowMs).toISOString(),
-    `${GROUP_PHASE_LAST_DAY}T23:59:59${SUMMER_OFFSET}`,
-  );
+  const days = officialDaysMonToThu(new Date(nowMs).toISOString(), lastDayIso);
   if (days.length === 0) return { ok: true, slots: [] };
 
   // Partits ja programats al torneig → slots ocupats + nits en què juga
@@ -346,7 +360,7 @@ export async function getFreeOfficialSlots(matchId: string): Promise<FreeSlotsRe
   for (const day of days) {
     if (busyNights.has(day)) continue; // no encadenar dos partits la mateixa nit
     for (const time of OFFICIAL_TIMES) {
-      for (const court of OFFICIAL_COURTS) {
+      for (const court of courts) {
         const iso = new Date(`${day}T${time}:00${SUMMER_OFFSET}`).toISOString();
         if (new Date(iso).getTime() <= nowMs) continue;
         if (occupied.has(`${iso}|${court}`)) continue;
