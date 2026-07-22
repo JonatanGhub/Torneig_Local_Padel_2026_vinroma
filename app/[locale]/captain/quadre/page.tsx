@@ -44,7 +44,7 @@ export default async function CaptainQuadrePage({ params }: Props) {
     );
   }
 
-  // Cap d'aquestes 5 consultes depèn del resultat de les altres (totes
+  // Cap d'aquestes 6 consultes depèn del resultat de les altres (totes
   // necessiten com a molt `categoryIds`, ja conegut): es disparen alhora.
   const [
     { data: matchesData },
@@ -53,6 +53,7 @@ export default async function CaptainQuadrePage({ params }: Props) {
     { data: projPairs },
     { data: projStandings },
     { data: projGroupMatches },
+    { data: projSchedule },
   ] = await Promise.all([
     supabase
       .from('matches')
@@ -76,6 +77,12 @@ export default async function CaptainQuadrePage({ params }: Props) {
       .select('category_id, group_label, status')
       .eq('phase', 'group')
       .in('category_id', categoryIds),
+    supabase
+      .from('knockout_final_week_schedule')
+      .select(
+        'category_level, bracket, round_number, position, match_date, match_time, court_label',
+      )
+      .eq('round_number', 1),
   ]);
 
   const koMatches = (matchesData ?? []).filter(
@@ -163,6 +170,7 @@ export default async function CaptainQuadrePage({ params }: Props) {
     projPairs ?? [],
     projStandings ?? [],
     projGroupMatches ?? [],
+    projSchedule ?? [],
   );
 
   return (
