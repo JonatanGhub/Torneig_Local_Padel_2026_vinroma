@@ -345,7 +345,7 @@ export type KnockoutFinalWeekScheduleRow = {
   round_number: number;
   position: number;
   match_date: string;
-  match_time: '20:30' | '22:00';
+  match_time: '19:00' | '20:30' | '22:00';
   court_label: string;
 };
 

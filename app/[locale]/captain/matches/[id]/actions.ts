@@ -10,6 +10,7 @@ import {
   OFFICIAL_TIMES,
   OFFICIAL_COURTS,
   KO_COURTS,
+  KO_TIMES,
   SUMMER_OFFSET,
   GROUP_PHASE_LAST_DAY,
   officialDaysMonToThu,
@@ -331,6 +332,7 @@ export async function getFreeOfficialSlots(matchId: string): Promise<FreeSlotsRe
     if (tournament?.final_at) lastDayIso = tournament.final_at;
   }
   const courts: readonly string[] = isKo ? KO_COURTS : OFFICIAL_COURTS;
+  const times: readonly string[] = isKo ? KO_TIMES : OFFICIAL_TIMES;
 
   const nowMs = Date.now();
   const days = officialDaysMonToThu(new Date(nowMs).toISOString(), lastDayIso);
@@ -359,7 +361,7 @@ export async function getFreeOfficialSlots(matchId: string): Promise<FreeSlotsRe
   const slots: FreeSlot[] = [];
   for (const day of days) {
     if (busyNights.has(day)) continue; // no encadenar dos partits la mateixa nit
-    for (const time of OFFICIAL_TIMES) {
+    for (const time of times) {
       for (const court of courts) {
         const iso = new Date(`${day}T${time}:00${SUMMER_OFFSET}`).toISOString();
         if (new Date(iso).getTime() <= nowMs) continue;

@@ -6,8 +6,12 @@ import { madridDateKey } from '@/lib/format-date';
 // disponibilitat (app/[locale]/disponibilitat).
 export const OFFICIAL_TIMES = ['20:30', '22:00'] as const;
 export const OFFICIAL_COURTS = ['Pista 2', 'Pista 3'] as const;
-// A l'eliminatòria (última setmana) s'obre també la Pista 1.
+// A l'eliminatòria (última setmana), el calendari fix (knockout_final_week_
+// schedule) només fa servir Pista 2 i Pista 3 — la Pista 1 queda fora del
+// repartiment per defecte i només surt aquí com a opció de reprogramació.
+// També s'hi afegeix les 19:00 com a hora vàlida (a més de 20:30/22:00).
 export const KO_COURTS = ['Pista 1', 'Pista 2', 'Pista 3'] as const;
+export const KO_TIMES = ['19:00', '20:30', '22:00'] as const;
 export const SUMMER_OFFSET = '+02:00';
 export const GROUP_PHASE_LAST_DAY = '2026-07-30';
 
