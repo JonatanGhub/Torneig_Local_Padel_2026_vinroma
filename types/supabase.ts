@@ -339,6 +339,21 @@ export type CronDailyRunRow = {
   ran_at: string;
 };
 
+export type KnockoutFinalWeekScheduleRow = {
+  category_level: number;
+  bracket: 'ko' | 'cons';
+  round_number: number;
+  position: number;
+  match_date: string;
+  match_time: '20:30' | '22:00';
+  court_label: string;
+};
+
+export type TournamentMilestoneRow = {
+  key: string;
+  reached_at: string;
+};
+
 type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
 
 export type Database = {
@@ -366,6 +381,8 @@ export type Database = {
       issue_reports: Tbl<IssueReportRow>;
       whatsapp_health: Tbl<WhatsAppHealthRow>;
       cron_daily_runs: Tbl<CronDailyRunRow>;
+      knockout_final_week_schedule: Tbl<KnockoutFinalWeekScheduleRow>;
+      tournament_milestones: Tbl<TournamentMilestoneRow>;
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };
