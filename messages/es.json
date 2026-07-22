@@ -278,6 +278,7 @@
   "bracket": {
     "title": "Cuadro final",
     "available": "Cuadro disponible",
+    "preview_available": "Previsión disponible",
     "not_generated": "El cuadro final aún no se ha generado.",
     "view_cta": "Ver cuadro final",
     "main": "Cuadro principal",

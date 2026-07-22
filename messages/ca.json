@@ -278,6 +278,7 @@
   "bracket": {
     "title": "Quadre final",
     "available": "Quadre disponible",
+    "preview_available": "Previsió disponible",
     "not_generated": "El quadre final encara no s'ha generat.",
     "view_cta": "Veure quadre final",
     "main": "Quadre principal",
