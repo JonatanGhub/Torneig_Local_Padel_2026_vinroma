@@ -1137,6 +1137,123 @@ export async function notifyWeeklyScheduleToGroup(): Promise<void> {
   }
 }
 
+// Pany d'idempotència genèric (mateix patró que claimDailyRun) per a
+// esdeveniments que només s'han d'anunciar UNA vegada en tot el torneig.
+async function claimMilestone(key: string): Promise<boolean> {
+  try {
+    const supabase = createServiceClient();
+    const { error } = await supabase.from('tournament_milestones').insert({ key });
+    if (error) {
+      if (error.code === '23505') return false; // ja notificat abans
+      console.warn('[milestone] claimMilestone failed', key, error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[milestone] claimMilestone threw', key, err);
+    return false;
+  }
+}
+
+// 8c) Fase de grups del TORNEIG SENCER acabada (totes les categories,
+//     no només una) → un únic missatge al grup amb la classificació final
+//     de cada categoria/grup i el calendari fix de l'eliminatòria (3-7
+//     d'agost). Es crida cada cop que es genera un quadre (lib/knockout.ts);
+//     només envia res la primera vegada que la condició és certa —
+//     claimMilestone en garanteix l'enviament únic encara que diverses
+//     categories tanquin els grups gairebé alhora.
+export async function notifyGroupPhaseCompleteIfReady(): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const [{ count: totalGroup }, { count: doneGroup }] = await Promise.all([
+      supabase.from('matches').select('id', { count: 'exact', head: true }).eq('phase', 'group'),
+      supabase
+        .from('matches')
+        .select('id', { count: 'exact', head: true })
+        .eq('phase', 'group')
+        .in('status', ['validated', 'walkover']),
+    ]);
+    if (!totalGroup || doneGroup !== totalGroup) return;
+
+    if (!(await claimMilestone('group_phase_complete_notified'))) return;
+    await notifyGroupPhaseCompleteToGroup();
+  } catch (err) {
+    console.warn('[whatsapp] notifyGroupPhaseCompleteIfReady failed', err);
+  }
+}
+
+async function notifyGroupPhaseCompleteToGroup(): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('id')
+      .eq('edition', 5)
+      .maybeSingle();
+    const standingsText = tournament
+      ? await buildStandingsSummaryText(supabase, tournament.id)
+      : null;
+
+    // Calendari fix de la ronda 1 de cada categoria (ja amb parelles reals,
+    // generades just abans de cridar aquesta funció).
+    const { data: round1Matches } = await supabase
+      .from('matches')
+      .select(
+        'id, category_id, phase, group_label, scheduled_at, court_label, pair_a_id, pair_b_id',
+      )
+      .in('phase', ['ko_1', 'cons_1'])
+      .order('scheduled_at', { ascending: true });
+
+    const { data: categories } = await supabase.from('categories').select('id, name_ca, level');
+    const categoryNameOf = (id: string) => categories?.find((c) => c.id === id)?.name_ca ?? '—';
+    const categoryLevelOf = (id: string) => categories?.find((c) => c.id === id)?.level ?? null;
+
+    const pairIds = Array.from(
+      new Set((round1Matches ?? []).flatMap((m) => [m.pair_a_id, m.pair_b_id])),
+    );
+    const { data: pairs } = pairIds.length
+      ? await supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', pairIds)
+      : { data: [] as { id: string; player_a_id: string; player_b_id: string }[] };
+    const playerIds = Array.from(
+      new Set((pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id])),
+    );
+    const { data: players } = playerIds.length
+      ? await supabase.from('players').select('id, first_name, last_name').in('id', playerIds)
+      : { data: [] as { id: string; first_name: string | null; last_name: string | null }[] };
+    const pairLabelOf = (pairId: string) => {
+      const pair = pairs?.find((p) => p.id === pairId);
+      if (!pair) return '—';
+      return lastNamesPairFromPlayers(players, pair.player_a_id, pair.player_b_id);
+    };
+
+    const scheduleLines = (round1Matches ?? []).map((m) => {
+      const day = m.scheduled_at ? weekdayCA(m.scheduled_at) : '—';
+      const time = formatMadridTime(m.scheduled_at);
+      const court = m.court_label ?? '—';
+      const cat = categoryNameOf(m.category_id);
+      const round = phaseRoundText(m.phase, categoryLevelOf(m.category_id), 'ca') ?? m.phase;
+      return (
+        `• ${day} ${time} · ${court} · ${cat} · *${round}* · ` +
+        `${pairLabelOf(m.pair_a_id)} vs ${pairLabelOf(m.pair_b_id)}`
+      );
+    });
+
+    const text =
+      `🏁 *La fase de grups s'ha acabat!*\n\n` +
+      (standingsText ? `${standingsText}\n\n` : '') +
+      `🎾 *Calendari de l'eliminatòria*\n\n` +
+      (scheduleLines.length > 0 ? scheduleLines.join('\n') : 'Properament.') +
+      `\n\n` +
+      `Semis: dimecres 5 d'agost. Finals de consolació i 3a/4a: dijous 6. ` +
+      `Grans finals (1a i 2a): divendres 7.\n\n` +
+      `🏆 Quadres complets:\n${SITE_URL}/ca/quadre`;
+
+    await sendWhatsAppToGroup(text);
+  } catch (err) {
+    console.warn('[whatsapp] notifyGroupPhaseCompleteToGroup failed', err);
+  }
+}
+
 // Feina del cron setmanal (oficialment diumenge 19:00 Madrid), compartida amb
 // el self-heal (lib/cron/self-heal.ts).
 export async function runWeeklyScheduleCron(): Promise<{ ran: boolean }> {

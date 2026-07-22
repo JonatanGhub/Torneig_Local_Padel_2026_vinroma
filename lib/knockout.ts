@@ -16,6 +16,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import { computeCategoryBracket, type StandingRow, type GroupMeta } from '@/lib/bracket-engine';
+import { notifyGroupPhaseCompleteIfReady } from '@/lib/whatsapp/notify';
 
 type Client = SupabaseClient<Database>;
 
@@ -109,12 +110,30 @@ export async function generateKnockoutForCategory(
   if (!bracket.feasible) return { ok: false, error: 'format_not_feasible' };
   if (!bracket.groupPhaseFinished) return { ok: false, error: 'group_phase_not_finished' };
 
+  // Calendari fix de l'última setmana (acordat amb l'organització): cada
+  // posició de la ronda 1 ja té dia/hora/pista assignats abans de saber
+  // quines parelles hi juguen.
+  const { data: scheduleRows } = await supabase
+    .from('knockout_final_week_schedule')
+    .select('bracket, position, match_date, match_time, court_label')
+    .eq('category_level', category.level)
+    .eq('round_number', 1);
+  const slotFor = (b: 'ko' | 'cons', position: number) => {
+    const row = (scheduleRows ?? []).find((r) => r.bracket === b && r.position === position);
+    if (!row) return null;
+    return {
+      scheduled_at: `${row.match_date}T${row.match_time}:00+02:00`,
+      court_label: row.court_label,
+    };
+  };
+
   // Construeix les files a inserir. Amb la fase de grups tancada, tots els
   // seeds han de ser parelles concretes.
   const rows: Database['public']['Tables']['matches']['Insert'][] = [];
   const pushRound = (
     matches: typeof bracket.main,
     phase: 'ko_1' | 'cons_1',
+    b: 'ko' | 'cons',
   ): 'incomplete_standings' | null => {
     for (const m of matches) {
       if (m.a.kind !== 'pair' || m.b.kind !== 'pair') return 'incomplete_standings';
@@ -126,17 +145,29 @@ export async function generateKnockoutForCategory(
         pair_a_id: m.a.pair_id,
         pair_b_id: m.b.pair_id,
         status: 'scheduled',
+        ...slotFor(b, m.position),
       });
     }
     return null;
   };
 
-  if (pushRound(bracket.main, 'ko_1') || pushRound(bracket.consolation, 'cons_1')) {
+  if (pushRound(bracket.main, 'ko_1', 'ko') || pushRound(bracket.consolation, 'cons_1', 'cons')) {
     return { ok: false, error: 'incomplete_standings' };
   }
 
-  const { error } = await supabase.from('matches').insert(rows);
+  let { error } = await supabase.from('matches').insert(rows);
+  if (error) {
+    // Xoc de calendari (p.ex. un jugador ja té partit en una altra categoria
+    // a la mateixa hora): es desen igualment els partits, sense data/pista —
+    // l'admin els reprograma a mà des del panell.
+    const rowsWithoutSchedule = rows.map(
+      ({ scheduled_at: _scheduled_at, court_label: _court_label, ...rest }) => rest,
+    );
+    ({ error } = await supabase.from('matches').insert(rowsWithoutSchedule));
+  }
   if (error) return { ok: false, error: error.message };
+
+  await notifyGroupPhaseCompleteIfReady();
 
   return { ok: true, main: bracket.main.length, cons: bracket.consolation.length };
 }
