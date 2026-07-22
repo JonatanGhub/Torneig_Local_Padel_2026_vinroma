@@ -18,7 +18,7 @@ export async function BracketPreviewSection({ locale }: Props) {
     .maybeSingle();
   if (!tournament) return null;
 
-  // Cap d'aquestes 5 consultes depèn del resultat de les altres (totes
+  // Cap d'aquestes 6 consultes depèn del resultat de les altres (totes
   // necessiten com a molt tournament.id): es disparen totes alhora.
   const [
     { data: categories },
@@ -26,6 +26,7 @@ export async function BracketPreviewSection({ locale }: Props) {
     { data: pairs },
     { data: standings },
     { data: groupMatches },
+    { data: schedule },
   ] = await Promise.all([
     supabase
       .from('categories')
@@ -47,6 +48,10 @@ export async function BracketPreviewSection({ locale }: Props) {
       .select('category_id, group_label, status')
       .eq('tournament_id', tournament.id)
       .eq('phase', 'group'),
+    supabase
+      .from('knockout_final_week_schedule')
+      .select('category_level, bracket, round_number, position, match_date, match_time, court_label')
+      .eq('round_number', 1),
   ]);
 
   // Sense grups sortejats no hi ha res a previsualitzar.
@@ -77,6 +82,7 @@ export async function BracketPreviewSection({ locale }: Props) {
     pairs ?? [],
     standings ?? [],
     groupMatches ?? [],
+    schedule ?? [],
   );
 
   if (cards.length === 0) return null;

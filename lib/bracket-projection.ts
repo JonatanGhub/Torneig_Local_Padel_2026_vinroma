@@ -7,11 +7,18 @@ import {
   type CategoryBracket,
 } from './bracket-engine';
 
+export type ScheduleSlot = { matchDate: string; matchTime: string; courtLabel: string };
+
 export type ProjectionCard = {
   id: string;
   level: number;
   name: string;
   bracket: CategoryBracket;
+  // position (dins la ronda 1 del quadre, l'única que es pot preveure) →
+  // horari fix acordat. `main` per al quadre principal, `cons` per al de
+  // consolació.
+  mainSchedule: Map<number, ScheduleSlot>;
+  consSchedule: Map<number, ScheduleSlot>;
 };
 
 type ProjectionCategoryInput = { id: string; level: number; name_ca: string; name_es: string };
@@ -31,6 +38,15 @@ type ProjectionGroupMatchInput = {
   group_label: string | null;
   status: string;
 };
+export type ProjectionScheduleInput = {
+  category_level: number;
+  bracket: 'ko' | 'cons';
+  round_number: number;
+  position: number;
+  match_date: string;
+  match_time: string;
+  court_label: string;
+};
 
 // Construeix, per a cada categoria amb grups sortejats, el quadre eliminatori
 // que en resultaria AMB ELS RESULTATS ACTUALS (encara que la fase de grups no
@@ -44,6 +60,7 @@ export function buildBracketProjectionCards(
   pairs: ProjectionPairInput[],
   standings: ProjectionStandingInput[],
   groupMatches: ProjectionGroupMatchInput[],
+  schedule: ProjectionScheduleInput[] = [],
 ): ProjectionCard[] {
   const labelByGroupId = new Map(groups.map((g) => [g.id, g.label]));
 
@@ -89,11 +106,25 @@ export function buildBracketProjectionCards(
       const bracket = computeCategoryBracket(c.level, catStandings, groupMeta);
       if (!bracket.feasible || bracket.main.length === 0) return null;
 
+      // Només es pot preveure la RONDA 1 de cada quadre (ko_1/cons_1): les
+      // rondes següents depenen de guanyadors encara desconeguts.
+      const scheduleFor = (b: 'ko' | 'cons') =>
+        new Map(
+          schedule
+            .filter((s) => s.category_level === c.level && s.bracket === b && s.round_number === 1)
+            .map((s) => [
+              s.position,
+              { matchDate: s.match_date, matchTime: s.match_time, courtLabel: s.court_label },
+            ]),
+        );
+
       return {
         id: c.id,
         level: c.level,
         name: locale === 'ca' ? c.name_ca : c.name_es,
         bracket,
+        mainSchedule: scheduleFor('ko'),
+        consSchedule: scheduleFor('cons'),
       };
     })
     .filter((x): x is ProjectionCard => x !== null);
