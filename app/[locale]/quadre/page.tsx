@@ -59,15 +59,17 @@ export default async function BracketIndexPage({ params }: Props) {
           const drawn = hasBracket(c.id);
           return (
             <li key={c.id}>
+              {/* Sempre es pot entrar: si el quadre real encara no existeix,
+                  la pàgina de la categoria mostra la previsió (segons
+                  classificacions actuals) amb l'horari fix de cada ronda. */}
               <Link
-                href={drawn ? `/${locale}/quadre/${c.level}` : `/${locale}`}
-                aria-disabled={!drawn}
-                className={`border-border block rounded-md border p-4 transition-colors ${drawn ? 'hover:bg-[hsl(var(--accent))]' : 'pointer-events-none opacity-50'}`}
+                href={`/${locale}/quadre/${c.level}`}
+                className="border-border block rounded-md border p-4 transition-colors hover:bg-[hsl(var(--accent))]"
               >
                 <p className="text-lg font-semibold">{locale === 'ca' ? c.name_ca : c.name_es}</p>
                 <p className="text-muted-foreground flex items-center gap-1 text-sm">
                   <Trophy className="size-3" />
-                  {drawn ? t('bracket.available') : t('bracket.not_generated')}
+                  {drawn ? t('bracket.available') : t('bracket.preview_available')}
                 </p>
               </Link>
             </li>
