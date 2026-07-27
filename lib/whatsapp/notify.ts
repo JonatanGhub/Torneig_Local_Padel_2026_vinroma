@@ -1137,32 +1137,13 @@ export async function notifyWeeklyScheduleToGroup(): Promise<void> {
   }
 }
 
-// Pany d'idempotència genèric (mateix patró que claimDailyRun) per a
-// esdeveniments que només s'han d'anunciar UNA vegada en tot el torneig.
-async function claimMilestone(key: string): Promise<boolean> {
-  try {
-    const supabase = createServiceClient();
-    const { error } = await supabase.from('tournament_milestones').insert({ key });
-    if (error) {
-      if (error.code === '23505') return false; // ja notificat abans
-      console.warn('[milestone] claimMilestone failed', key, error);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('[milestone] claimMilestone threw', key, err);
-    return false;
-  }
-}
-
-// 8c) Fase de grups del TORNEIG SENCER acabada (totes les categories,
-//     no només una) → un únic missatge al grup amb la classificació final
-//     de cada categoria/grup i el calendari fix de l'eliminatòria (3-7
-//     d'agost). Es crida cada cop que es genera un quadre (lib/knockout.ts);
-//     només envia res la primera vegada que la condició és certa —
-//     claimMilestone en garanteix l'enviament únic encara que diverses
-//     categories tanquin els grups gairebé alhora.
-export async function notifyGroupPhaseCompleteIfReady(): Promise<void> {
+// 8c) Fase de grups del TORNEIG SENCER acabada (totes les categories, no
+//     només una): l'admin decideix quan enviar-ho des del panell (botó
+//     manual a /admin/draw) — NO és automàtic, perquè pot voler revisar o
+//     retocar algun enfrontament (p.ex. 2a categoria) abans d'anunciar-ho.
+//     Aquesta funció només comprova si es pot enviar; qui fa l'enviament és
+//     notifyGroupPhaseCompleteToGroup, cridada des de l'acció d'admin.
+export async function isGroupPhaseFullyFinished(): Promise<boolean> {
   try {
     const supabase = createServiceClient();
     const [{ count: totalGroup }, { count: doneGroup }] = await Promise.all([
@@ -1173,16 +1154,14 @@ export async function notifyGroupPhaseCompleteIfReady(): Promise<void> {
         .eq('phase', 'group')
         .in('status', ['validated', 'walkover']),
     ]);
-    if (!totalGroup || doneGroup !== totalGroup) return;
-
-    if (!(await claimMilestone('group_phase_complete_notified'))) return;
-    await notifyGroupPhaseCompleteToGroup();
+    return !!totalGroup && doneGroup === totalGroup;
   } catch (err) {
-    console.warn('[whatsapp] notifyGroupPhaseCompleteIfReady failed', err);
+    console.warn('[whatsapp] isGroupPhaseFullyFinished failed', err);
+    return false;
   }
 }
 
-async function notifyGroupPhaseCompleteToGroup(): Promise<void> {
+export async function notifyGroupPhaseCompleteToGroup(): Promise<void> {
   try {
     const supabase = createServiceClient();
     const { data: tournament } = await supabase

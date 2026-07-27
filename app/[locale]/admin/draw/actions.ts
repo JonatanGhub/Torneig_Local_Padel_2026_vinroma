@@ -4,7 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { notifyDrawDone } from '@/lib/email/notify';
-import { notifyDrawDoneWhatsApp } from '@/lib/whatsapp/notify';
+import {
+  notifyDrawDoneWhatsApp,
+  isGroupPhaseFullyFinished,
+  notifyGroupPhaseCompleteToGroup,
+} from '@/lib/whatsapp/notify';
 import { generateKnockoutForCategory } from '@/lib/knockout';
 
 const DrawSchema = z.object({
@@ -57,6 +61,28 @@ export async function generateKnockout(formData: FormData) {
   revalidatePath('/[locale]/quadre', 'page');
   revalidatePath('/[locale]/quadre/[level]', 'page');
   return { ok: true, summary: `main=${result.main} cons=${result.cons}` } as const;
+}
+
+// Enviament MANUAL de l'avís de "fase de grups acabada" al grup de
+// WhatsApp (classificació final + calendari de l'eliminatòria). Abans es
+// disparava automàticament en generar-se l'últim quadre, però l'admin pot
+// voler revisar/retocar algun enfrontament (p.ex. 2a categoria) abans
+// d'anunciar-ho — per això ara cal prémer el botó explícitament.
+export async function sendGroupPhaseCompleteWhatsApp() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if ((user?.app_metadata?.role as string | undefined) !== 'admin') {
+    return { ok: false, error: 'forbidden' } as const;
+  }
+
+  if (!(await isGroupPhaseFullyFinished())) {
+    return { ok: false, error: 'group_phase_not_finished' } as const;
+  }
+
+  await notifyGroupPhaseCompleteToGroup();
+  return { ok: true } as const;
 }
 
 const ResetSchema = z.object({ categoryId: z.string().uuid() });
