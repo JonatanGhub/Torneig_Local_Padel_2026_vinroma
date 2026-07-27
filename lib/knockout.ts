@@ -16,7 +16,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import { computeCategoryBracket, type StandingRow, type GroupMeta } from '@/lib/bracket-engine';
-import { notifyGroupPhaseCompleteIfReady } from '@/lib/whatsapp/notify';
 
 type Client = SupabaseClient<Database>;
 
@@ -167,7 +166,9 @@ export async function generateKnockoutForCategory(
   }
   if (error) return { ok: false, error: error.message };
 
-  await notifyGroupPhaseCompleteIfReady();
+  // L'avís de "fase de grups acabada" al grup de WhatsApp ja NO és automàtic
+  // aquí: l'admin el dispara manualment des de /admin/draw quan vulgui
+  // (pot voler revisar/retocar algun enfrontament abans d'anunciar-ho).
 
   return { ok: true, main: bracket.main.length, cons: bracket.consolation.length };
 }

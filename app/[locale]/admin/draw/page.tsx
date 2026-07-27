@@ -155,6 +155,10 @@ export default async function DrawAdminPage({ params }: Props) {
     );
   }
 
+  const totalGroupMatches = summary.reduce((acc, c) => acc + c.groupMatchesTotal, 0);
+  const doneGroupMatches = summary.reduce((acc, c) => acc + c.groupMatchesDone, 0);
+  const allGroupsFinished = totalGroupMatches > 0 && doneGroupMatches === totalGroupMatches;
+
   return (
     <section className="space-y-6">
       <header>
@@ -162,7 +166,13 @@ export default async function DrawAdminPage({ params }: Props) {
         <p className="text-muted-foreground text-sm">{t('draw_subtitle')}</p>
       </header>
 
-      <DrawForms summary={summary} previewsByCategory={previewsByCategory} />
+      <DrawForms
+        summary={summary}
+        previewsByCategory={previewsByCategory}
+        totalGroupMatches={totalGroupMatches}
+        doneGroupMatches={doneGroupMatches}
+        allGroupsFinished={allGroupsFinished}
+      />
     </section>
   );
 }

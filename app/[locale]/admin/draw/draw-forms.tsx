@@ -4,7 +4,7 @@ import { type ReactNode, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { runDraw, resetDraw, generateKnockout } from './actions';
+import { runDraw, resetDraw, generateKnockout, sendGroupPhaseCompleteWhatsApp } from './actions';
 
 type CategorySummary = {
   id: string;
@@ -24,16 +24,74 @@ type CategorySummary = {
 export function DrawForms({
   summary,
   previewsByCategory,
+  totalGroupMatches,
+  doneGroupMatches,
+  allGroupsFinished,
 }: {
   summary: CategorySummary[];
   previewsByCategory?: Record<string, ReactNode>;
+  totalGroupMatches: number;
+  doneGroupMatches: number;
+  allGroupsFinished: boolean;
 }) {
   return (
-    <ul className="divide-border divide-y rounded-md border border-[hsl(var(--border))]">
-      {summary.map((cat) => (
-        <CategoryRow key={cat.id} cat={cat} preview={previewsByCategory?.[cat.id]} />
-      ))}
-    </ul>
+    <div className="space-y-4">
+      <GroupPhaseBroadcast
+        total={totalGroupMatches}
+        done={doneGroupMatches}
+        allFinished={allGroupsFinished}
+      />
+      <ul className="divide-border divide-y rounded-md border border-[hsl(var(--border))]">
+        {summary.map((cat) => (
+          <CategoryRow key={cat.id} cat={cat} preview={previewsByCategory?.[cat.id]} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function GroupPhaseBroadcast({
+  total,
+  done,
+  allFinished,
+}: {
+  total: number;
+  done: number;
+  allFinished: boolean;
+}) {
+  const t = useTranslations('admin');
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSend() {
+    if (!confirm(t('group_phase_broadcast_confirm'))) return;
+    setError(null);
+    setFeedback(null);
+    startTransition(async () => {
+      const res = await sendGroupPhaseCompleteWhatsApp();
+      if (res.ok) setFeedback(t('group_phase_broadcast_done'));
+      else
+        setError(
+          t(`group_phase_broadcast_error_${res.error}` as 'group_phase_broadcast_error_forbidden'),
+        );
+    });
+  }
+
+  return (
+    <div className="bg-card flex flex-col gap-2 rounded-md border border-[hsl(var(--border))] p-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p className="font-medium">{t('group_phase_broadcast_title')}</p>
+        <p className="text-muted-foreground text-xs">
+          {t('group_phase_broadcast_progress', { done, total })}
+        </p>
+        {feedback && <p className="mt-1 text-xs text-green-600">{feedback}</p>}
+        {error && <p className="text-destructive mt-1 text-xs">{error}</p>}
+      </div>
+      <Button onClick={handleSend} disabled={isPending || !allFinished} type="button">
+        {isPending ? '…' : t('group_phase_broadcast_action')}
+      </Button>
+    </div>
   );
 }
 
