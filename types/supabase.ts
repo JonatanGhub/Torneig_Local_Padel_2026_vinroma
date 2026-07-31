@@ -354,6 +354,15 @@ export type TournamentMilestoneRow = {
   reached_at: string;
 };
 
+export type KnockoutSchedulePreferenceRow = {
+  pair_id: string;
+  updated_by_player_id: string | null;
+  // {"2026-08-03": "no" | "ok" | "prefer", ...}
+  day_prefs: Json;
+  note: string | null;
+  updated_at: string;
+};
+
 type Tbl<R> = { Row: R; Insert: Partial<R>; Update: Partial<R>; Relationships: [] };
 
 export type Database = {
@@ -383,6 +392,7 @@ export type Database = {
       cron_daily_runs: Tbl<CronDailyRunRow>;
       knockout_final_week_schedule: Tbl<KnockoutFinalWeekScheduleRow>;
       tournament_milestones: Tbl<TournamentMilestoneRow>;
+      knockout_schedule_preferences: Tbl<KnockoutSchedulePreferenceRow>;
     };
     Views: {
       category_standings: { Row: CategoryStandingsRow; Relationships: [] };

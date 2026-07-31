@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { CalendarClock, Check, Sparkles, Trophy, X } from 'lucide-react';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
@@ -66,6 +67,21 @@ export default async function CaptainHome({ params }: Props) {
       </header>
 
       <MyPairsCard pairs={myPairItems} locale={locale} />
+
+      {/* Banner de preferències d'horari per a la setmana de l'eliminatòria
+          (3-7 ago): centralitza el que abans arribava per privats de WhatsApp. */}
+      <Link
+        href={`/${locale}/captain/horaris`}
+        className="border-crimson-500/30 bg-crimson-600/10 hover:bg-crimson-600/20 mb-10 flex items-center justify-between gap-3 rounded-2xl border p-5 transition-colors"
+      >
+        <div>
+          <p className="font-display text-lg font-semibold text-white">
+            {t('captain.prefs_banner_title')}
+          </p>
+          <p className="mt-1 text-sm text-white/65">{t('captain.prefs_banner_body')}</p>
+        </div>
+        <CalendarClock className="text-crimson-300 size-6 shrink-0" />
+      </Link>
 
       <section className="mb-10 grid gap-3 sm:grid-cols-3">
         <StatCard

@@ -56,9 +56,9 @@ export default async function BracketPage({ params }: Props) {
 
   const pairIds = Array.from(new Set(koMatches.flatMap((m) => [m.pair_a_id, m.pair_b_id])));
   const matchIds = koMatches.map((m) => m.id);
-  // `pairs` i `setsData` només depenen de koMatches (ja calculat): es
-  // disparen alhora.
-  const [{ data: pairs }, { data: setsData }] = await Promise.all([
+  // `pairs`, `setsData` i l'horari fix només depenen de koMatches/category
+  // (ja calculats): es disparen alhora.
+  const [{ data: pairs }, { data: setsData }, { data: bracketSchedule }] = await Promise.all([
     pairIds.length
       ? supabase.from('pairs').select('id, player_a_id, player_b_id').in('id', pairIds)
       : Promise.resolve({ data: [] as { id: string; player_a_id: string; player_b_id: string }[] }),
@@ -70,6 +70,10 @@ export default async function BracketPage({ params }: Props) {
       : Promise.resolve({
           data: [] as { match_id: string; set_number: number; games_a: number; games_b: number }[],
         }),
+    supabase
+      .from('knockout_final_week_schedule')
+      .select('bracket, round_number, position, match_date, match_time, court_label')
+      .eq('category_level', category.level),
   ]);
 
   const playerIds = (pairs ?? []).flatMap((p) => [p.player_a_id, p.player_b_id]);
@@ -202,6 +206,7 @@ export default async function BracketPage({ params }: Props) {
         pairLabel={pairLabel}
         locale={locale}
         labels={defaultBracketLabels(t)}
+        schedule={bracketSchedule ?? []}
       />
     </main>
   );

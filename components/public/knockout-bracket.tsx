@@ -1,3 +1,4 @@
+import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type BracketMatch = {
@@ -17,6 +18,17 @@ export type BracketSet = {
   set_number: number;
   games_a: number;
   games_b: number;
+};
+
+// Horari fix (knockout_final_week_schedule) per pintar dia/hora/pista a les
+// rondes FUTURES que encara no existeixen com a partits (placeholders).
+export type BracketScheduleSlot = {
+  bracket: 'ko' | 'cons';
+  round_number: number;
+  position: number;
+  match_date: string;
+  match_time: string;
+  court_label: string;
 };
 
 export type BracketLabels = {
@@ -41,7 +53,33 @@ type Props = {
   highlightPairIds?: Set<string>;
   locale: 'ca' | 'es';
   labels: BracketLabels;
+  /** Horari fix per a rondes futures (placeholders fins a la final). */
+  schedule?: BracketScheduleSlot[];
 };
+
+// Un "nodo" del arbre: o bé un partit real, o bé un placeholder d'una ronda
+// futura ("Guanyador semifinal 1") que encara no s'ha creat a la BD.
+type RealNode = { kind: 'real'; match: BracketMatch };
+type PlaceholderNode = {
+  kind: 'placeholder';
+  position: number;
+  feederLabels: [string, string];
+  slot?: BracketScheduleSlot;
+};
+type Node = RealNode | PlaceholderNode;
+type Round = { round: number; nodes: Node[] };
+
+const WINNER_PREFIX: Record<'ca' | 'es', string> = { ca: 'Guanyador', es: 'Ganador' };
+const PENDING_LABELS: Record<'ca' | 'es', string> = { ca: 'Per determinar', es: 'Por determinar' };
+
+// Nom curt de la ronda per compondre "Guanyador semifinal 1" — depèn del
+// nombre de partits de la ronda d'on ve el guanyador.
+function roundShortName(matchCount: number, locale: 'ca' | 'es'): string {
+  if (matchCount === 1) return locale === 'ca' ? 'final' : 'final';
+  if (matchCount === 2) return locale === 'ca' ? 'semifinal' : 'semifinal';
+  if (matchCount === 4) return locale === 'ca' ? 'quarts' : 'cuartos';
+  return locale === 'ca' ? 'partit' : 'partido';
+}
 
 export function KnockoutBracket({
   matches,
@@ -50,6 +88,7 @@ export function KnockoutBracket({
   highlightPairIds,
   locale,
   labels,
+  schedule,
 }: Props) {
   const koMatches = matches.filter(
     (m) => m.phase.startsWith('ko_') || m.phase.startsWith('cons_'),
@@ -67,7 +106,11 @@ export function KnockoutBracket({
   }
   for (const list of setsByMatch.values()) list.sort((a, b) => a.set_number - b.set_number);
 
-  const buildRounds = (prefix: string) => {
+  // Construeix les rondes reals i hi afegeix les futures com a placeholders,
+  // fins a la final — així el quadre sempre es veu SENCER, escalant cap al
+  // títol, encara que les rondes següents encara no s'hagin jugat/creat.
+  const buildRounds = (prefix: 'ko_' | 'cons_'): Round[] => {
+    const bracketKey = prefix === 'ko_' ? 'ko' : 'cons';
     const byRound = new Map<number, BracketMatch[]>();
     for (const m of koMatches) {
       if (!m.phase.startsWith(prefix)) continue;
@@ -76,12 +119,41 @@ export function KnockoutBracket({
       list.push(m);
       byRound.set(round, list);
     }
-    return Array.from(byRound.entries())
+    const rounds: Round[] = Array.from(byRound.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([round, list]) => ({
         round,
-        list: list.sort((x, y) => Number(x.group_label ?? 0) - Number(y.group_label ?? 0)),
+        nodes: list
+          .sort((x, y) => Number(x.group_label ?? 0) - Number(y.group_label ?? 0))
+          .map((match) => ({ kind: 'real', match }) as Node),
       }));
+    if (rounds.length === 0) return rounds;
+
+    // Placeholders de les rondes que falten fins a la final (1 partit).
+    let last = rounds[rounds.length - 1]!;
+    while (last.nodes.length > 1) {
+      const prevShort = roundShortName(last.nodes.length, locale);
+      const nextRound = last.round + 1;
+      const nodes: Node[] = [];
+      for (let pos = 1; pos <= last.nodes.length / 2; pos++) {
+        const slot = (schedule ?? []).find(
+          (s) => s.bracket === bracketKey && s.round_number === nextRound && s.position === pos,
+        );
+        nodes.push({
+          kind: 'placeholder',
+          position: pos,
+          feederLabels: [
+            `${WINNER_PREFIX[locale]} ${prevShort} ${2 * pos - 1}`,
+            `${WINNER_PREFIX[locale]} ${prevShort} ${2 * pos}`,
+          ],
+          slot,
+        });
+      }
+      const next: Round = { round: nextRound, nodes };
+      rounds.push(next);
+      last = next;
+    }
+    return rounds;
   };
 
   const mainRounds = buildRounds('ko_');
@@ -101,7 +173,7 @@ export function KnockoutBracket({
       {mainRounds.length > 0 && (
         <section className="space-y-4">
           <h2 className="text-xl font-semibold">{labels.main}</h2>
-          <BracketColumns
+          <BracketTree
             rounds={mainRounds}
             setsByMatch={setsByMatch}
             pairLabel={pairLabel}
@@ -115,7 +187,7 @@ export function KnockoutBracket({
       {consRounds.length > 0 && (
         <section className="space-y-4">
           <h2 className="text-xl font-semibold">{labels.consolation}</h2>
-          <BracketColumns
+          <BracketTree
             rounds={consRounds}
             setsByMatch={setsByMatch}
             pairLabel={pairLabel}
@@ -130,7 +202,14 @@ export function KnockoutBracket({
   );
 }
 
-function BracketColumns({
+// -------------------------------------------------------------------------
+// L'arbre: columnes de rondes intercalades amb columnes de connectors. Cada
+// caixa ocupa una fracció igual (flex-1) de l'alçada total de la columna, de
+// manera que el centre d'un partit de la ronda N+1 queda exactament al mig
+// dels seus dos partits d'origen — i els "colzes" dels connectors uneixen
+// aquests centres amb línies de vora.
+// -------------------------------------------------------------------------
+function BracketTree({
   rounds,
   setsByMatch,
   pairLabel,
@@ -139,7 +218,7 @@ function BracketColumns({
   labels,
   roundTitle,
 }: {
-  rounds: { round: number; list: BracketMatch[] }[];
+  rounds: Round[];
   setsByMatch: Map<string, BracketSet[]>;
   pairLabel: (id: string) => string;
   highlightPairIds?: Set<string>;
@@ -149,30 +228,76 @@ function BracketColumns({
 }) {
   return (
     <div className="overflow-x-auto pb-2">
-      <div className="flex min-w-max gap-6">
-        {rounds.map((r) => (
-          <div key={r.round} className="flex w-56 flex-col gap-4">
-            <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              {roundTitle(r.list.length)}
-            </h3>
-            <div className="flex h-full flex-col justify-around gap-4">
-              {r.list.map((m) => (
-                <MatchBox
-                  key={m.id}
-                  match={m}
-                  sets={setsByMatch.get(m.id) ?? []}
-                  pairLabel={pairLabel}
-                  highlightPairIds={highlightPairIds}
-                  locale={locale}
-                  labels={labels}
-                />
-              ))}
+      <div className="min-w-max">
+        {/* Títols de ronda, alineats amb les columnes de sota. */}
+        <div className="flex">
+          {rounds.map((r, idx) => (
+            <div key={r.round} className="flex">
+              {idx > 0 && <div className="w-8" />}
+              <div className="w-60">
+                <h3 className="text-muted-foreground mb-3 text-xs font-medium tracking-wide uppercase">
+                  {roundTitle(r.nodes.length)}
+                </h3>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        <div className="flex items-stretch">
+          {rounds.map((r, idx) => (
+            <div key={r.round} className="flex items-stretch">
+              {/* Columna de connectors entre la ronda anterior i aquesta. */}
+              {idx > 0 && (
+                <div className="flex w-8 flex-col">
+                  {r.nodes.map((_, j) => (
+                    <div key={j} className="relative flex-1">
+                      {/* Colze: baixa del centre del feeder superior (25%) al
+                          centre del feeder inferior (75%) i entra al partit
+                          d'aquesta ronda pel mig (50%). */}
+                      <div className="border-border absolute top-[25%] bottom-[25%] left-0 w-1/2 rounded-r-sm border-y border-r" />
+                      <div className="border-border absolute top-1/2 right-0 left-1/2 border-t" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Columna de partits (o placeholders). */}
+              <div className="flex w-60 flex-col">
+                {r.nodes.map((n, j) => (
+                  <div key={j} className="flex flex-1 items-center py-1.5">
+                    {n.kind === 'real' ? (
+                      <MatchBox
+                        match={n.match}
+                        sets={setsByMatch.get(n.match.id) ?? []}
+                        pairLabel={pairLabel}
+                        highlightPairIds={highlightPairIds}
+                        locale={locale}
+                        labels={labels}
+                        isFinal={r.nodes.length === 1}
+                      />
+                    ) : (
+                      <PlaceholderBox node={n} locale={locale} isFinal={r.nodes.length === 1} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
+}
+
+function formatSlotDate(iso: string, locale: 'ca' | 'es'): string {
+  return new Date(iso).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Madrid',
+  });
 }
 
 function MatchBox({
@@ -182,6 +307,7 @@ function MatchBox({
   highlightPairIds,
   locale,
   labels,
+  isFinal,
 }: {
   match: BracketMatch;
   sets: BracketSet[];
@@ -189,6 +315,7 @@ function MatchBox({
   highlightPairIds?: Set<string>;
   locale: 'ca' | 'es';
   labels: BracketLabels;
+  isFinal: boolean;
 }) {
   const involvesHighlight =
     !!highlightPairIds &&
@@ -197,8 +324,9 @@ function MatchBox({
   return (
     <div
       className={cn(
-        'border-border bg-background rounded-md border p-3 text-sm',
+        'border-border bg-background w-full rounded-lg border p-3 text-sm shadow-sm',
         involvesHighlight && 'ring-crimson-500/30 border-crimson-500/30 ring-2',
+        isFinal && 'border-amber-400/50 shadow-amber-400/10 shadow-md',
       )}
     >
       <PairRow
@@ -219,17 +347,67 @@ function MatchBox({
         isHighlight={!!highlightPairIds?.has(match.pair_b_id)}
       />
       {match.status === 'scheduled' && match.scheduled_at && (
-        <p className="text-muted-foreground mt-2 text-[0.7rem]">
-          {new Date(match.scheduled_at).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES', {
-            dateStyle: 'short',
-            timeStyle: 'short',
-            timeZone: 'Europe/Madrid',
-          })}
+        <p className="text-muted-foreground mt-2 flex items-center gap-1 text-[0.7rem]">
+          <Clock className="size-3 shrink-0" />
+          {formatSlotDate(match.scheduled_at, locale)}
           {match.court_label ? ` · ${match.court_label}` : ''}
         </p>
       )}
     </div>
   );
+}
+
+function PlaceholderBox({
+  node,
+  locale,
+  isFinal,
+}: {
+  node: PlaceholderNode;
+  locale: 'ca' | 'es';
+  isFinal: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'border-border w-full rounded-lg border border-dashed bg-transparent p-3 text-sm',
+        isFinal && 'border-amber-400/40',
+      )}
+    >
+      <p className="text-muted-foreground truncate italic" title={PENDING_LABELS[locale]}>
+        {node.feederLabels[0]}
+      </p>
+      <div className="border-border my-1.5 border-t border-dashed" />
+      <p className="text-muted-foreground truncate italic">{node.feederLabels[1]}</p>
+      {node.slot && (
+        <p className="text-muted-foreground mt-2 flex items-center gap-1 text-[0.7rem]">
+          <Clock className="size-3 shrink-0" />
+          {formatSlotDate(
+            `${node.slot.match_date}T${node.slot.match_time}:00+02:00`,
+            locale,
+          )}
+          {` · ${node.slot.court_label}`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function defaultBracketLabels(
+  t: (key: string, values?: Record<string, string | number>) => string,
+): BracketLabels {
+  return {
+    main: t('bracket.main'),
+    consolation: t('bracket.consolation'),
+    not_generated: t('bracket.not_generated'),
+    walkover_win: t('bracket.walkover_win'),
+    walkover_loss: t('bracket.walkover_loss'),
+    round_final: t('bracket.round_final'),
+    round_semifinals: t('bracket.round_semifinals'),
+    round_quarterfinals: t('bracket.round_quarterfinals'),
+    round_of_16: t('bracket.round_of_16'),
+    round_of_32: t('bracket.round_of_32'),
+    round_generic: (teams: number) => t('bracket.round_generic', { teams }),
+  };
 }
 
 function PairRow({
@@ -258,7 +436,9 @@ function PairRow({
         isHighlight && 'text-crimson-600 dark:text-crimson-300',
       )}
     >
-      <span className="truncate">{pairLabel(pairId)}</span>
+      <span className="truncate" title={pairLabel(pairId)}>
+        {pairLabel(pairId)}
+      </span>
       <span className="flex shrink-0 gap-1 font-mono text-xs">
         {match.status === 'walkover'
           ? isWinner
@@ -268,22 +448,4 @@ function PairRow({
       </span>
     </div>
   );
-}
-
-export function defaultBracketLabels(
-  t: (key: string, values?: Record<string, string | number>) => string,
-): BracketLabels {
-  return {
-    main: t('bracket.main'),
-    consolation: t('bracket.consolation'),
-    not_generated: t('bracket.not_generated'),
-    walkover_win: t('bracket.walkover_win'),
-    walkover_loss: t('bracket.walkover_loss'),
-    round_final: t('bracket.round_final'),
-    round_semifinals: t('bracket.round_semifinals'),
-    round_quarterfinals: t('bracket.round_quarterfinals'),
-    round_of_16: t('bracket.round_of_16'),
-    round_of_32: t('bracket.round_of_32'),
-    round_generic: (teams: number) => t('bracket.round_generic', { teams }),
-  };
 }

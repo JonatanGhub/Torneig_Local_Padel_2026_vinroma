@@ -30,6 +30,7 @@ export default async function CaptainLayout({ children, params }: Props) {
     { href: `/${locale}/captain/calendari`, label: t('captain.tab_calendar') },
     { href: `/${locale}/captain/grup`, label: t('captain.tab_group') },
     { href: `/${locale}/captain/quadre`, label: t('captain.tab_bracket') },
+    { href: `/${locale}/captain/horaris`, label: t('captain.tab_schedule_prefs') },
     { href: `/${locale}/disponibilitat`, label: t('captain.tab_availability') },
   ];
 

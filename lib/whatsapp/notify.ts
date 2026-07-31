@@ -249,6 +249,66 @@ export async function notifyMatchDisputedWhatsApp(matchId: string) {
   }
 }
 
+// 3b) Un capità desa les seves preferències d'horari per a la setmana de
+//     l'eliminatòria → WhatsApp a l'ADMIN amb el resum, perquè tota aquesta
+//     informació arribi centralitzada en lloc de per missatges privats.
+export async function notifySchedulePreferenceWhatsApp(
+  pairId: string,
+  dayPrefs: Record<string, string>,
+  note: string | null,
+) {
+  if (!ADMIN_WA) return;
+  try {
+    const supabase = createServiceClient();
+    const { data: pair } = await supabase
+      .from('pairs')
+      .select('id, player_a_id, player_b_id, category_id')
+      .eq('id', pairId)
+      .maybeSingle();
+    if (!pair) return;
+
+    const [{ data: players }, { data: category }] = await Promise.all([
+      supabase
+        .from('players')
+        .select('id, first_name, last_name')
+        .in('id', [pair.player_a_id, pair.player_b_id]),
+      pair.category_id
+        ? supabase.from('categories').select('name_ca').eq('id', pair.category_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    const pairText = lastNamesPair(
+      players?.find((p) => p.id === pair.player_a_id),
+      players?.find((p) => p.id === pair.player_b_id),
+    );
+
+    const STATE_TEXT: Record<string, string> = {
+      no: '❌ no pot',
+      ok: '👍 li va bé',
+      prefer: '⭐ preferit',
+    };
+    const dayLines = Object.entries(dayPrefs)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, state]) => {
+        const label = new Intl.DateTimeFormat('ca-ES', {
+          timeZone: MADRID_TZ,
+          weekday: 'long',
+          day: 'numeric',
+        }).format(new Date(`${day}T12:00:00Z`));
+        return `• ${label}: ${STATE_TEXT[state] ?? state}`;
+      });
+
+    const text =
+      `📋 *Preferència d'horari (eliminatòria)*\n` +
+      `${pairText}${category?.name_ca ? ` · ${category.name_ca}` : ''}\n\n` +
+      (dayLines.length > 0 ? `${dayLines.join('\n')}\n` : `(cap dia marcat)\n`) +
+      (note ? `\n📝 ${note}\n` : '') +
+      `\nTotes les preferències:\n${SITE_URL}/ca/admin/preferences`;
+    await sendWhatsApp({ to: ADMIN_WA, text });
+  } catch (err) {
+    console.warn('[whatsapp] notifySchedulePreference failed', err);
+  }
+}
+
 // 4) Resultat reportat (pendent de validar) → WhatsApp al capità RIVAL
 //    (el que encara no ha reportat) perquè el confirmi a l'app.
 export async function notifyResultPendingValidationWhatsApp(

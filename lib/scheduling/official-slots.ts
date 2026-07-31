@@ -12,6 +12,15 @@ export const OFFICIAL_COURTS = ['Pista 2', 'Pista 3'] as const;
 // També s'hi afegeix les 19:00 com a hora vàlida (a més de 20:30/22:00).
 export const KO_COURTS = ['Pista 1', 'Pista 2', 'Pista 3'] as const;
 export const KO_TIMES = ['19:00', '20:30', '22:00'] as const;
+// Els 5 dies de la setmana de l'eliminatòria — els que es pregunten al
+// formulari de preferències d'horari dels capitans.
+export const KO_WEEK_DAYS = [
+  '2026-08-03',
+  '2026-08-04',
+  '2026-08-05',
+  '2026-08-06',
+  '2026-08-07',
+] as const;
 export const SUMMER_OFFSET = '+02:00';
 export const GROUP_PHASE_LAST_DAY = '2026-07-30';
 
