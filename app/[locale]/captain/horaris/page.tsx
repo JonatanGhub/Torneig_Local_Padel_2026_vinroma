@@ -3,9 +3,9 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createServiceClient } from '@/lib/supabase/service';
 import { loadCaptainContext } from '@/lib/captain/data';
-import { KO_WEEK_DAYS } from '@/lib/scheduling/official-slots';
+import { KO_PREF_DAYS, KO_TIMES } from '@/lib/scheduling/official-slots';
 import { NoProfilePanel } from '../no-profile-panel';
-import { PreferenceForm, type DayState } from './preference-form';
+import { PreferenceForm, type SlotState } from './preference-form';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
@@ -44,7 +44,7 @@ export default async function CaptainSchedulePrefsPage({ params }: Props) {
     day: 'numeric',
     month: 'long',
   });
-  const days = KO_WEEK_DAYS.map((iso) => ({
+  const days = KO_PREF_DAYS.map((iso) => ({
     iso,
     label: dayFormatter.format(new Date(`${iso}T12:00:00Z`)),
   }));
@@ -75,7 +75,7 @@ export default async function CaptainSchedulePrefsPage({ params }: Props) {
             const saved = (existing ?? []).find((e) => e.pair_id === pair.id);
             const savedPrefs =
               saved && typeof saved.day_prefs === 'object' && saved.day_prefs !== null
-                ? (saved.day_prefs as Record<string, DayState>)
+                ? (saved.day_prefs as Record<string, SlotState>)
                 : {};
             const title = `${pair.category_id ? (categoryLabels.get(pair.category_id) ?? '') : ''} · ${partnerLabels.get(pair.id) ?? '—'}`;
             return (
@@ -84,6 +84,7 @@ export default async function CaptainSchedulePrefsPage({ params }: Props) {
                 pairId={pair.id}
                 pairTitle={title}
                 days={days}
+                times={KO_TIMES}
                 initialPrefs={savedPrefs}
                 initialNote={saved?.note ?? null}
               />

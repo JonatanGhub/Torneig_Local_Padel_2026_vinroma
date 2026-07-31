@@ -2,19 +2,18 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { fullName } from '@/lib/player-name';
-import { KO_WEEK_DAYS } from '@/lib/scheduling/official-slots';
+import { KO_PREF_DAYS, KO_TIMES } from '@/lib/scheduling/official-slots';
 
 type Props = { params: Promise<{ locale: Locale }> };
 
-type DayState = 'no' | 'ok' | 'prefer';
+type SlotState = 'ok' | 'no';
 
-const STATE_BADGE: Record<DayState, string> = {
-  no: 'border-red-500/50 bg-red-500/10 text-red-600 dark:text-red-300',
+const STATE_BADGE: Record<SlotState, string> = {
   ok: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  prefer: 'border-amber-400/60 bg-amber-400/10 text-amber-700 dark:text-amber-300',
+  no: 'border-red-500/50 bg-red-500/10 text-red-600 dark:text-red-300',
 };
 
-const STATE_EMOJI: Record<DayState, string> = { no: '❌', ok: '👍', prefer: '⭐' };
+const STATE_EMOJI: Record<SlotState, string> = { ok: '✅', no: '❌' };
 
 export default async function PreferencesAdminPage({ params }: Props) {
   const { locale } = await params;
@@ -95,9 +94,9 @@ export default async function PreferencesAdminPage({ params }: Props) {
             .sort((a, b) => categoryName(a.category_id).localeCompare(categoryName(b.category_id)))
             .map((pair) => {
               const pref = prefByPairId.get(pair.id)!;
-              const dayPrefs =
+              const slotPrefs =
                 typeof pref.day_prefs === 'object' && pref.day_prefs !== null
-                  ? (pref.day_prefs as Record<string, DayState>)
+                  ? (pref.day_prefs as Record<string, SlotState>)
                   : {};
               return (
                 <li key={pair.id} className="space-y-2 p-4">
@@ -108,23 +107,30 @@ export default async function PreferencesAdminPage({ params }: Props) {
                       {updatedFmt.format(new Date(pref.updated_at))}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {KO_WEEK_DAYS.map((iso) => {
-                      const state = dayPrefs[iso];
-                      return (
-                        <span
-                          key={iso}
-                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs ${
-                            state
-                              ? STATE_BADGE[state]
-                              : 'border-border text-muted-foreground bg-transparent'
-                          }`}
-                        >
+                  <div className="space-y-1">
+                    {KO_PREF_DAYS.map((iso) => (
+                      <div key={iso} className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="text-muted-foreground w-14 capitalize">
                           {dayLabel(iso)}
-                          {state ? ` ${STATE_EMOJI[state]}` : ''}
                         </span>
-                      );
-                    })}
+                        {KO_TIMES.map((time) => {
+                          const state = slotPrefs[`${iso}T${time}`];
+                          return (
+                            <span
+                              key={time}
+                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-mono ${
+                                state
+                                  ? STATE_BADGE[state]
+                                  : 'border-border text-muted-foreground bg-transparent'
+                              }`}
+                            >
+                              {time}
+                              {state ? ` ${STATE_EMOJI[state]}` : ' —'}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                   {pref.note && <p className="text-muted-foreground text-sm">📝 {pref.note}</p>}
                 </li>
