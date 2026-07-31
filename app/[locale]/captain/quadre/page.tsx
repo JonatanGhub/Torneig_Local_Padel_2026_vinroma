@@ -77,12 +77,13 @@ export default async function CaptainQuadrePage({ params }: Props) {
       .select('category_id, group_label, status')
       .eq('phase', 'group')
       .in('category_id', categoryIds),
+    // TOTES les rondes: la ronda 1 la fa servir la previsió (filtra ella
+    // mateixa) i la resta els placeholders de rondes futures del quadre real.
     supabase
       .from('knockout_final_week_schedule')
       .select(
         'category_level, bracket, round_number, position, match_date, match_time, court_label',
-      )
-      .eq('round_number', 1),
+      ),
   ]);
 
   const koMatches = (matchesData ?? []).filter(
@@ -180,23 +181,27 @@ export default async function CaptainQuadrePage({ params }: Props) {
         title={t('captain.bracket_page_title')}
         subtitle={t('captain.bracket_page_subtitle')}
       />
-      {Array.from(byCategory.entries()).map(([categoryId, matches]) => (
-        <section key={categoryId} className="mb-12">
-          <h2 className="font-display mb-4 text-2xl font-semibold tracking-tight">
-            {categoryLabels.get(categoryId) ?? ''}
-          </h2>
-          <KnockoutBracket
-            matches={matches}
-            sets={((setsData as BracketSet[] | null) ?? []).filter((s) =>
-              matches.some((m) => m.id === s.match_id),
-            )}
-            pairLabel={(id) => pairLabels.get(id) ?? '—'}
-            highlightPairIds={highlight}
-            locale={locale}
-            labels={bracketLabels}
-          />
-        </section>
-      ))}
+      {Array.from(byCategory.entries()).map(([categoryId, matches]) => {
+        const catLevel = (categoryRows ?? []).find((c) => c.id === categoryId)?.level ?? null;
+        return (
+          <section key={categoryId} className="mb-12">
+            <h2 className="font-display mb-4 text-2xl font-semibold tracking-tight">
+              {categoryLabels.get(categoryId) ?? ''}
+            </h2>
+            <KnockoutBracket
+              matches={matches}
+              sets={((setsData as BracketSet[] | null) ?? []).filter((s) =>
+                matches.some((m) => m.id === s.match_id),
+              )}
+              pairLabel={(id) => pairLabels.get(id) ?? '—'}
+              highlightPairIds={highlight}
+              locale={locale}
+              labels={bracketLabels}
+              schedule={(projSchedule ?? []).filter((s) => s.category_level === catLevel)}
+            />
+          </section>
+        );
+      })}
       {projectionCards.length > 0 && (
         <section className="mb-12">
           <h2 className="font-display mb-4 text-2xl font-semibold tracking-tight">

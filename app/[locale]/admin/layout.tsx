@@ -16,6 +16,7 @@ import {
   Coins,
   Bug,
   MessageCircle,
+  ClipboardList,
 } from 'lucide-react';
 import type { Locale } from '@/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -89,6 +90,12 @@ export default async function AdminLayout({ children, params }: Props) {
             </NavLink>
             <NavLink href={`/${locale}/admin/disputes`} icon={<AlertCircle className="size-5" />}>
               {t('nav_disputes')}
+            </NavLink>
+            <NavLink
+              href={`/${locale}/admin/preferences`}
+              icon={<ClipboardList className="size-5" />}
+            >
+              {t('nav_preferences')}
             </NavLink>
             <NavLink href={`/${locale}/admin/issues`} icon={<Bug className="size-5" />}>
               {t('nav_issues')}
