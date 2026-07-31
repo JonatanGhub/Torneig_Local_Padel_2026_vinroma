@@ -281,21 +281,25 @@ export async function notifySchedulePreferenceWhatsApp(
       players?.find((p) => p.id === pair.player_b_id),
     );
 
-    const STATE_TEXT: Record<string, string> = {
-      no: '❌ no pot',
-      ok: '👍 li va bé',
-      prefer: '⭐ preferit',
-    };
-    const dayLines = Object.entries(dayPrefs)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([day, state]) => {
-        const label = new Intl.DateTimeFormat('ca-ES', {
-          timeZone: MADRID_TZ,
-          weekday: 'long',
-          day: 'numeric',
-        }).format(new Date(`${day}T12:00:00Z`));
-        return `• ${label}: ${STATE_TEXT[state] ?? state}`;
-      });
+    // Claus "2026-08-03T19:00" → 'ok' | 'no'. S'agrupa per dia:
+    // "• dilluns 3: 19:00 ✅ · 20:30 ❌".
+    const STATE_EMOJI: Record<string, string> = { ok: '✅', no: '❌' };
+    const byDay = new Map<string, string[]>();
+    for (const [key, state] of Object.entries(dayPrefs).sort(([a], [b]) => a.localeCompare(b))) {
+      const [day, time] = key.split('T');
+      if (!day || !time) continue;
+      const list = byDay.get(day) ?? [];
+      list.push(`${time} ${STATE_EMOJI[state] ?? state}`);
+      byDay.set(day, list);
+    }
+    const dayLines = Array.from(byDay.entries()).map(([day, slots]) => {
+      const label = new Intl.DateTimeFormat('ca-ES', {
+        timeZone: MADRID_TZ,
+        weekday: 'long',
+        day: 'numeric',
+      }).format(new Date(`${day}T12:00:00Z`));
+      return `• ${label}: ${slots.join(' · ')}`;
+    });
 
     const text =
       `📋 *Preferència d'horari (eliminatòria)*\n` +

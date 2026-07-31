@@ -4,13 +4,15 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createServiceClient } from '@/lib/supabase/service';
 import { getCaptainPlayerIds } from '@/lib/captain/data';
-import { KO_WEEK_DAYS } from '@/lib/scheduling/official-slots';
+import { KO_PREF_SLOTS } from '@/lib/scheduling/official-slots';
 import { notifySchedulePreferenceWhatsApp } from '@/lib/whatsapp/notify';
+
+const SLOT_KEYS = KO_PREF_SLOTS as [string, ...string[]];
 
 const PrefsSchema = z.object({
   pairId: z.string().uuid(),
-  // Només els 5 dies oficials de la setmana KO i els 3 estats vàlids.
-  dayPrefs: z.record(z.enum(KO_WEEK_DAYS), z.enum(['no', 'ok', 'prefer'])),
+  // Només les franges oficials (dl-dc × 19:00/20:30/22:00) i els 2 estats.
+  slotPrefs: z.record(z.enum(SLOT_KEYS), z.enum(['ok', 'no'])),
   note: z.string().max(500).nullable(),
 });
 
@@ -21,13 +23,13 @@ export type SavePreferenceResult =
 export async function saveSchedulePreference(formData: FormData): Promise<SavePreferenceResult> {
   let rawPrefs: unknown;
   try {
-    rawPrefs = JSON.parse(String(formData.get('dayPrefs') ?? '{}'));
+    rawPrefs = JSON.parse(String(formData.get('slotPrefs') ?? '{}'));
   } catch {
     return { ok: false, error: 'invalid_input' };
   }
   const parsed = PrefsSchema.safeParse({
     pairId: formData.get('pairId'),
-    dayPrefs: rawPrefs,
+    slotPrefs: rawPrefs,
     note: (formData.get('note') as string | null)?.trim() || null,
   });
   if (!parsed.success) return { ok: false, error: 'invalid_input' };
@@ -50,7 +52,7 @@ export async function saveSchedulePreference(formData: FormData): Promise<SavePr
   const { error } = await service.from('knockout_schedule_preferences').upsert({
     pair_id: parsed.data.pairId,
     updated_by_player_id: pair.captain_id,
-    day_prefs: parsed.data.dayPrefs,
+    day_prefs: parsed.data.slotPrefs,
     note: parsed.data.note,
     updated_at: new Date().toISOString(),
   });
@@ -59,7 +61,7 @@ export async function saveSchedulePreference(formData: FormData): Promise<SavePr
   // Avís centralitzat a l'admin — substitueix els privats de WhatsApp.
   await notifySchedulePreferenceWhatsApp(
     parsed.data.pairId,
-    parsed.data.dayPrefs,
+    parsed.data.slotPrefs,
     parsed.data.note,
   );
 

@@ -12,8 +12,7 @@ export const OFFICIAL_COURTS = ['Pista 2', 'Pista 3'] as const;
 // També s'hi afegeix les 19:00 com a hora vàlida (a més de 20:30/22:00).
 export const KO_COURTS = ['Pista 1', 'Pista 2', 'Pista 3'] as const;
 export const KO_TIMES = ['19:00', '20:30', '22:00'] as const;
-// Els 5 dies de la setmana de l'eliminatòria — els que es pregunten al
-// formulari de preferències d'horari dels capitans.
+// Els 5 dies de la setmana de l'eliminatòria.
 export const KO_WEEK_DAYS = [
   '2026-08-03',
   '2026-08-04',
@@ -21,6 +20,16 @@ export const KO_WEEK_DAYS = [
   '2026-08-06',
   '2026-08-07',
 ] as const;
+
+// Dies que es pregunten al formulari de preferències d'horari dels capitans:
+// només dilluns-dimecres — dijous (finals + finals de consolació) i divendres
+// (grans finals) tenen horari FIXAT i no es toquen.
+export const KO_PREF_DAYS = ['2026-08-03', '2026-08-04', '2026-08-05'] as const;
+
+// Claus de franja del formulari de preferències: "2026-08-03T19:00" etc.
+export const KO_PREF_SLOTS = KO_PREF_DAYS.flatMap((day) =>
+  KO_TIMES.map((time) => `${day}T${time}` as const),
+);
 export const SUMMER_OFFSET = '+02:00';
 export const GROUP_PHASE_LAST_DAY = '2026-07-30';
 
