@@ -47,13 +47,13 @@ export function BracketProjectionCards({ cards, locale, pairLabel, highlightPair
       <li key={`${m.phase}-${m.position}`} className="space-y-0.5">
         <div className="text-foreground/80 flex items-center gap-2 text-sm dark:text-white/80">
           <span
-            className={`flex-1 truncate text-right ${isMine(m.a) ? 'text-crimson-600 dark:text-crimson-300 font-semibold' : ''}`}
+            className={`min-w-0 flex-1 text-right leading-tight break-words ${isMine(m.a) ? 'text-crimson-600 dark:text-crimson-300 font-semibold' : ''}`}
           >
             {seedText(m.a)}
           </span>
           <span className="text-muted-foreground text-xs dark:text-white/35">vs</span>
           <span
-            className={`flex-1 truncate ${isMine(m.b) ? 'text-crimson-600 dark:text-crimson-300 font-semibold' : ''}`}
+            className={`min-w-0 flex-1 leading-tight break-words ${isMine(m.b) ? 'text-crimson-600 dark:text-crimson-300 font-semibold' : ''}`}
           >
             {seedText(m.b)}
           </span>
