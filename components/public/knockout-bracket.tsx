@@ -234,7 +234,7 @@ function BracketTree({
           {rounds.map((r, idx) => (
             <div key={r.round} className="flex">
               {idx > 0 && <div className="w-8" />}
-              <div className="w-60">
+              <div className="w-72">
                 <h3 className="text-muted-foreground mb-3 text-xs font-medium tracking-wide uppercase">
                   {roundTitle(r.nodes.length)}
                 </h3>
@@ -262,7 +262,7 @@ function BracketTree({
               )}
 
               {/* Columna de partits (o placeholders). */}
-              <div className="flex w-60 flex-col">
+              <div className="flex w-72 flex-col">
                 {r.nodes.map((n, j) => (
                   <div key={j} className="flex flex-1 items-center py-1.5">
                     {n.kind === 'real' ? (
@@ -373,11 +373,13 @@ function PlaceholderBox({
         isFinal && 'border-amber-400/40',
       )}
     >
-      <p className="text-muted-foreground truncate italic" title={PENDING_LABELS[locale]}>
+      <p className="text-muted-foreground leading-tight break-words italic" title={PENDING_LABELS[locale]}>
         {node.feederLabels[0]}
       </p>
       <div className="border-border my-1.5 border-t border-dashed" />
-      <p className="text-muted-foreground truncate italic">{node.feederLabels[1]}</p>
+      <p className="text-muted-foreground leading-tight break-words italic">
+        {node.feederLabels[1]}
+      </p>
       {node.slot && (
         <p className="text-muted-foreground mt-2 flex items-center gap-1 text-[0.7rem]">
           <Clock className="size-3 shrink-0" />
@@ -436,9 +438,9 @@ function PairRow({
         isHighlight && 'text-crimson-600 dark:text-crimson-300',
       )}
     >
-      <span className="truncate" title={pairLabel(pairId)}>
-        {pairLabel(pairId)}
-      </span>
+      {/* Sense truncate: els noms es parteixen en dues línies si cal, però
+          es veuen SEMPRE sencers. */}
+      <span className="min-w-0 flex-1 leading-tight break-words">{pairLabel(pairId)}</span>
       <span className="flex shrink-0 gap-1 font-mono text-xs">
         {match.status === 'walkover'
           ? isWinner
