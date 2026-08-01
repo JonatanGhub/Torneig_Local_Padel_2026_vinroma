@@ -27,6 +27,7 @@ export async function BracketPreviewSection({ locale }: Props) {
     { data: standings },
     { data: groupMatches },
     { data: schedule },
+    { data: koProbe },
   ] = await Promise.all([
     supabase
       .from('categories')
@@ -52,6 +53,11 @@ export async function BracketPreviewSection({ locale }: Props) {
       .from('knockout_final_week_schedule')
       .select('category_level, bracket, round_number, position, match_date, match_time, court_label')
       .eq('round_number', 1),
+    supabase
+      .from('matches')
+      .select('category_id, phase')
+      .eq('tournament_id', tournament.id)
+      .neq('phase', 'group'),
   ]);
 
   // Sense grups sortejats no hi ha res a previsualitzar.
@@ -73,11 +79,20 @@ export async function BracketPreviewSection({ locale }: Props) {
     ]),
   );
 
+  // Categories amb quadre REAL ja generat: la previsió sobra (i podria
+  // contradir-lo — p.ex. si l'organització ha reordenat encreuaments a mà).
+  // El quadre real es veu a /quadre.
+  const categoriesWithRealBracket = new Set(
+    (koProbe ?? [])
+      .filter((m) => m.phase.startsWith('ko_') || m.phase.startsWith('cons_'))
+      .map((m) => m.category_id),
+  );
+
   // Construeix el quadre previst per a cada categoria (segons resultats/
-  // classificacions actuals).
+  // classificacions actuals) — només les que encara no tenen quadre real.
   const cards = buildBracketProjectionCards(
     locale,
-    categories ?? [],
+    (categories ?? []).filter((c) => !categoriesWithRealBracket.has(c.id)),
     groups ?? [],
     pairs ?? [],
     standings ?? [],
