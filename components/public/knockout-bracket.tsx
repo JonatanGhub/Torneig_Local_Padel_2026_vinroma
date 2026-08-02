@@ -60,10 +60,13 @@ type Props = {
 // Un "nodo" del arbre: o bé un partit real, o bé un placeholder d'una ronda
 // futura ("Guanyador semifinal 1") que encara no s'ha creat a la BD.
 type RealNode = { kind: 'real'; match: BracketMatch };
+// resolved=true quan el partit d'origen ja té guanyador: label és el NOM
+// REAL de la parella que avança, no el genèric "Guanyador semifinal 1".
+type PlaceholderFeeder = { label: string; resolved: boolean };
 type PlaceholderNode = {
   kind: 'placeholder';
   position: number;
-  feederLabels: [string, string];
+  feeders: [PlaceholderFeeder, PlaceholderFeeder];
   slot?: BracketScheduleSlot;
 };
 type Node = RealNode | PlaceholderNode;
@@ -130,6 +133,20 @@ export function KnockoutBracket({
     if (rounds.length === 0) return rounds;
 
     // Placeholders de les rondes que falten fins a la final (1 partit).
+    // Si un partit d'origen JA té guanyador (però la ronda següent encara no
+    // s'ha creat perquè falta l'altre partit), es mostra el nom real de la
+    // parella que avança en lloc del genèric "Guanyador semifinal N".
+    const feederFor = (node: Node | undefined, fallback: string): PlaceholderFeeder => {
+      if (
+        node?.kind === 'real' &&
+        (node.match.status === 'validated' || node.match.status === 'walkover') &&
+        node.match.winner_pair_id
+      ) {
+        return { label: pairLabel(node.match.winner_pair_id), resolved: true };
+      }
+      return { label: fallback, resolved: false };
+    };
+
     let last = rounds[rounds.length - 1]!;
     while (last.nodes.length > 1) {
       const prevShort = roundShortName(last.nodes.length, locale);
@@ -142,9 +159,9 @@ export function KnockoutBracket({
         nodes.push({
           kind: 'placeholder',
           position: pos,
-          feederLabels: [
-            `${WINNER_PREFIX[locale]} ${prevShort} ${2 * pos - 1}`,
-            `${WINNER_PREFIX[locale]} ${prevShort} ${2 * pos}`,
+          feeders: [
+            feederFor(last.nodes[2 * pos - 2], `${WINNER_PREFIX[locale]} ${prevShort} ${2 * pos - 1}`),
+            feederFor(last.nodes[2 * pos - 1], `${WINNER_PREFIX[locale]} ${prevShort} ${2 * pos}`),
           ],
           slot,
         });
@@ -357,6 +374,23 @@ function MatchBox({
   );
 }
 
+function FeederLine({ feeder, locale }: { feeder: PlaceholderFeeder; locale: 'ca' | 'es' }) {
+  // Nom real (parella ja classificada): estil normal. Genèric ("Guanyador
+  // semifinal 1"): cursiva apagada.
+  return feeder.resolved ? (
+    <p className="text-foreground leading-tight font-medium break-words dark:text-white">
+      {feeder.label}
+    </p>
+  ) : (
+    <p
+      className="text-muted-foreground leading-tight break-words italic"
+      title={PENDING_LABELS[locale]}
+    >
+      {feeder.label}
+    </p>
+  );
+}
+
 function PlaceholderBox({
   node,
   locale,
@@ -373,13 +407,9 @@ function PlaceholderBox({
         isFinal && 'border-amber-400/40',
       )}
     >
-      <p className="text-muted-foreground leading-tight break-words italic" title={PENDING_LABELS[locale]}>
-        {node.feederLabels[0]}
-      </p>
+      <FeederLine feeder={node.feeders[0]} locale={locale} />
       <div className="border-border my-1.5 border-t border-dashed" />
-      <p className="text-muted-foreground leading-tight break-words italic">
-        {node.feederLabels[1]}
-      </p>
+      <FeederLine feeder={node.feeders[1]} locale={locale} />
       {node.slot && (
         <p className="text-muted-foreground mt-2 flex items-center gap-1 text-[0.7rem]">
           <Clock className="size-3 shrink-0" />
